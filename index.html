@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="pbd-version" content="2026-11-12T20:24:46Z">
+<meta name="pbd-version" content="2026-11-12T20:32:43Z">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Feel Good Inc. FM</title>
 <link rel="icon" type="image/png" href="icon.png">
@@ -214,7 +214,7 @@ select{background:var(--panel);border:2px solid var(--line);border-radius:10px;c
 .tune .big{width:120px;height:120px;border-radius:50%;background:var(--yellow);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--ink);font-family:var(--display);font-size:15px;box-shadow:0 0 0 4px var(--ink),0 0 0 7px var(--yellow)}
 .tune .big svg{width:34px;height:34px;fill:currentColor}
 .tune small{font-size:12px;font-weight:700;letter-spacing:.12em;color:var(--cyan);text-transform:uppercase}
-#yt{position:fixed;left:-9999px;top:0;width:200px;height:200px}
+#yt{position:fixed;left:-9999px;top:0;width:200px;height:400px}
 /* mini player */
 body.mini .stage .vinyl,body.mini .cap,body.mini .times,body.mini .bar,body.mini .dock,body.mini .volrow,body.mini .just,body.mini .lyrics{display:none}
 body.mini .np{min-height:0}
@@ -454,7 +454,7 @@ body.mini .app{gap:6px}
   </div>
 </div>
 <div class="tour" id="tour" hidden><p id="tourText"></p><div class="row"><small id="tourStep"></small><button class="skip" id="tourSkip">Skip</button><button class="btn" id="tourNext">Next</button></div></div>
-<div id="yt"><div id="yt0"></div></div>
+<div id="yt"><div id="yt0"></div><div id="yt1"></div></div>
 <script src="stickers.js?v=2e454ec8e83c28a4"></script>
 <script src="content.js?v=57a4b9b983580285"></script>
 <script src="content_talk.js?v=7e0d7fe8f8c5e4c1"></script>
@@ -471,6 +471,6 @@ body.mini .app{gap:6px}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js?v=2f564483690cf7d0"></script>
 <script src="cloud.js?v=fee9c7cfc27da2b8"></script>
-<script src="app.js?v=d1d5fdf2dda47698"></script>
+<script src="app.js?v=0463a1a69a0496f7"></script>
 </body>
 </html>

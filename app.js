@@ -353,30 +353,36 @@ function bedOff(sec = 3) {
   try { b.g.gain.cancelScheduledValues(actx.currentTime); b.g.gain.setValueAtTime(b.g.gain.value, actx.currentTime); b.g.gain.linearRampToValueAtTime(0, actx.currentTime + sec); setTimeout(() => { b.oscs.forEach(o => o.stop()); b.lfo.stop(); b.g.disconnect(); }, sec * 1000 + 300); } catch {}
 }
 
-// ---------- youtube: ONE hidden player (light on an old PC and a slow connection) ----------
-// The player is never visible and kept small, so YouTube sends a lighter stream; the sound is the same. Songs follow
-// each other on the same player: the old one fades out, the next one loads. pl[0] and pl[1] are the same player, so
-// the code written for two players (ai, 1 - ai) still works.
+// ---------- youtube: two hidden players, so the next song starts before the last one ends ----------
+// Only the playing one streams. The next song is only "cued" on the other one (no stream yet) about a minute before
+// the end, then the two hand over with a short fade. That keeps the sound going without a gap: a page that goes
+// silent while it is minimized gets slowed down by the browser, which used to hold the next song until it came back.
+// Both players are never visible, and small, so YouTube sends a lighter stream.
 window.onYouTubeIframeAPIReady = () => {
-  const p = new YT.Player('yt0', { height: '200', width: '200', playerVars: { controls: 0, disablekb: 1, playsinline: 1, rel: 0, iv_load_policy: 3, origin: location.origin }, events: {
-    onReady: () => { setVol(p, 0); ytReady = true; },
-    onStateChange: e => {
-      if (e.data === YT.PlayerState.PLAYING) { clearTimeout(startWatch); playing = true; setPlayIcon(true); setLive(true); try { p.unMute(); if (Number.isFinite(p._vol)) p.setVolume(p._vol); } catch {} }
-      else if (e.data === YT.PlayerState.PAUSED) {
-        if (newsOn) return;   // the bulletin paused it on purpose
-        // paused, but not by the radio's pause button: YouTube stopped it. Start it again twice at most.
-        if (!globalPaused && current && !current._selfPauses) current._selfPauses = 0;
-        if (!globalPaused && current) {
-          rlog('song paused by itself', { song: current.key, t: Math.round(p.getCurrentTime()), busy, retry: current._selfPauses });
-          if (current._selfPauses < 2) { current._selfPauses++; setTimeout(() => { try { if (!globalPaused) p.playVideo(); } catch {} }, 700); return; }
+  let ready = 0;
+  [0, 1].forEach(i => {
+    pl[i] = new YT.Player('yt' + i, { height: '200', width: '200', playerVars: { controls: 0, disablekb: 1, playsinline: 1, rel: 0, iv_load_policy: 3, origin: location.origin }, events: {
+      onReady: () => { setVol(pl[i], 0); if (++ready === 2) ytReady = true; },
+      onStateChange: e => {
+        if (i !== ai) return;
+        if (e.data === YT.PlayerState.PLAYING) { clearTimeout(startWatch); playing = true; setPlayIcon(true); setLive(true); try { pl[i].unMute(); if (Number.isFinite(pl[i]._vol)) pl[i].setVolume(pl[i]._vol); } catch {} }
+        else if (e.data === YT.PlayerState.PAUSED) {
+          if (newsOn) return;   // the bulletin paused it on purpose
+          if (!globalPaused && current && !current._selfPauses) current._selfPauses = 0;
+          if (!globalPaused && current) {
+            rlog('song paused by itself', { song: current.key, t: Math.round(pl[i].getCurrentTime()), busy, retry: current._selfPauses });
+            if (current._selfPauses < 2) { current._selfPauses++; setTimeout(() => { try { if (!globalPaused && pl[ai] === pl[i]) pl[i].playVideo(); } catch {} }, 700); return; }
+          }
+          if (busy) return; playing = false; setPlayIcon(false); setLive(false);
         }
-        if (busy) return; playing = false; setPlayIcon(false); setLive(false);
-      }
-      else if (e.data === YT.PlayerState.ENDED) { if (started && !busy && !repeatSong()) advance(); }
-    },
-    onError: e => { const c = current && current.cands && current.cands[candIdx]; rlog('player error ' + (e && e.data), { song: current && current.key, id: c && c.id }); tryNextCand(e && e.data); },
-  } });
-  pl = [p, p];
+        else if (e.data === YT.PlayerState.ENDED) { if (started && !busy && !repeatSong()) advance(); }
+      },
+      onError: e => {
+        if (i === ai) { const c = current && current.cands && current.cands[candIdx]; rlog('player error ' + (e && e.data), { song: current && current.key, id: c && c.id }); tryNextCand(e && e.data); }
+        else preload = null;
+      },
+    } });
+  });
 };
 const tag = document.createElement('script'); tag.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(tag);
 const waitYT = async () => { while (!ytReady) await sleep(200); };
@@ -429,32 +435,33 @@ function armStartWatch() {
     if (playing || globalPaused || current !== my) return;
     let st = -1; try { st = P().getPlayerState(); } catch {}
     const waited = Date.now() - t0;
-    if ((st === 3 || st === -1 || st === 5) && waited < 60000 && (st === 3 || waited < 25000)) { startWatch = setTimeout(check, 2000); return; }
+    if ((st === 3 && waited < 45000) || ((st === -1 || st === 5) && waited < 10000)) { startWatch = setTimeout(check, 1500); return; }
     rlog('did not start, trying another version', { song: my && my.key, state: st, waited: Math.round(waited / 1000) });
     tryNextCand();
   };
-  startWatch = setTimeout(check, 8000);
+  startWatch = setTimeout(check, 4000);
 }
-// Short fade-out of the old song before the next one loads on the same player.
-const fadeMs = () => (S.fade === 0 ? 0 : (S.fade || 2)) * 1000;   // Smooth transitions: off, short (2 s), long (4 s)
+// The handover: the new song starts on the idle player, the old one fades out over Smooth transitions (off, 2 s, 4 s).
+const fadeMs = () => (S.fade === 0 ? 0 : (S.fade || 2)) * 1000;
 async function startSong(s, startVol, fadeInMs = 0, outMs = fadeMs()) {
   const run = runId;
   await waitYT();
   const c = await resolve(s);
   if (run !== runId) { rlog('stale start ignored', { song: s.key }); return null; }
   if (!c.length) { toast(`Could not find "${s.t}". Skipping.`); return false; }
-  const p = P();
-  // the old song: fade it out first (unless the host already faded it under his voice)
-  let st = -1; try { st = p.getPlayerState(); } catch {}
-  if ((st === 1 || st === 3) && Number.isFinite(p._vol) && p._vol > 0 && outMs > 0) { await fadeP(p, 0, Math.min(outMs, 3000)); if (run !== runId) return null; }
-  candIdx = 0; current = s; playing = false;
-  setVol(p, fadeInMs ? 0 : startVol);
-  p.loadVideoById(c[0].id);
+  const old = pl[ai], n = 1 - ai;
+  candIdx = 0; current = s; ai = n; playing = false;
+  const np = pl[n];
+  setVol(np, fadeInMs ? 0 : startVol);
+  if (preload && preload.key === s.key && preload.idx === n) np.playVideo(); else np.loadVideoById(c[0].id);
   preload = null;
   rlog('start', { song: s.key, id: c[0].id });
+  const stopOld = () => { try { if (pl[ai] !== old) old.pauseVideo(); } catch {} };
+  if (old._fading && old._fadeTo === 0) { const w = setInterval(() => { if (!old._fading) { clearInterval(w); stopOld(); } }, 250); }   // already fading under the host
+  else fadeP(old, 0, Math.max(1, outMs)).then(stopOld);
   setNow(s);
   armStartWatch();
-  if (fadeInMs) fadeP(p, S.vol, fadeInMs);
+  if (fadeInMs) fadeP(np, S.vol, fadeInMs);
   if (!s.podcast && !s.focus && !s.album) {   // remembered across sessions, so the radio does not replay the same songs every time it opens
     lib.hist = lib.hist || []; lib.hist.push({ k: s.key, a: s.a }); if (lib.hist.length > 400) lib.hist.splice(0, lib.hist.length - 400); saveLib();
   }
@@ -727,7 +734,7 @@ function planPreload() {
   if (albumShow) return albumPreload();
   if (planned || marathon) return;   // a marathon chooses its next part when this one ends planned = pick(); if (!planned) return;
   const p = planned;
-  resolve(p);
+  resolve(p).then(c => { if (planned !== p || !c.length || !ytReady) return; const n = 1 - ai; try { setVol(pl[n], 0); pl[n].cueVideoById(c[0].id); preload = { key: p.key, idx: n }; } catch {} });
 }
 const clock = () => new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 const period = () => { const h = new Date().getHours(); return h < 5 ? 'night' : h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening'; };
@@ -1190,7 +1197,7 @@ function albumStep() {
 function albumPreload() {   // the next track is found and loaded ahead, so tracks follow each other closely
   const sh = albumShow, i = sh.i; if (planned || i >= sh.al.tracks.length || (i % 3 === 0 && !sh.said.has('n' + i))) return;
   const p = planned = albumSong(sh.al, i);
-  resolve(p);
+  resolve(p).then(c => { if (planned !== p || !c.length || !ytReady) return; const n = 1 - ai; try { setVol(pl[n], 0); pl[n].cueVideoById(c[0].id); preload = { key: p.key, idx: n }; } catch {} });
 }
 function albumBack() {   // Previous: the track before this one (its talk is not repeated)
   const sh = albumShow, now = current && current.album === sh.al.id ? current.n : sh.i - 1;
@@ -1888,15 +1895,16 @@ function next() {
   try { // learn where a silent tail begins: if you skip near the end, trim there from now on
     if (current && !current.podcast && !current.focus && !current.album && playing && !busy) { const d = P().getDuration(), c = P().getCurrentTime(); if (d > 60 && d - c < 90 && d - c > 3) { lib.trim[current.key] = Math.max(0, c - 1); saveLib(); toast('Got it. I will end this song right here from now on.'); } }
   } catch {}
-  advance({ quick: true });
+  advance({ quick: true, fadeOldMs: 500 });   // Next: the old song goes in half a second
 }
 function prev() { if (started && globalPaused) resumeAll(); if (started && marathon && !newsOn) return marathonBack(); if (started && albumShow && !newsOn) return albumBack(); if (!started || !history.length) return toast('No earlier song yet.'); const p = history.pop(); advance({ song: p, prev: null, silent: true, noCount: true, quick: true }); }
 async function tuneIn() {
   if (!songs.length) { $('tuneSub').textContent = 'one moment, loading your library…'; await bootDone; }   // play pressed while the library (or a slow sign-in) is still loading
   started = true; $('tune').style.display = 'none'; unlockAudio(); usageStart();
-  setTimeout(() => startTour(false), 1500);
   if (!voices.length) loadVoices();
   try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch {}
+  keepAwake();
+  if (!tourSeen() && !updResume) await startTour(false);   // the first time: Joe's tour, out loud, before the music
   setPlayIcon(true);
   const back = updResume; updResume = null;
   if (back && back.song) {   // right after an update: the same song, from where it was, without the welcome
@@ -2447,27 +2455,44 @@ setInterval(() => {
   paintStudy();
 }, 1000);
 
-// ---------- the welcome tour: the first time, Joe points at a few buttons in plain words ----------
+// ---------- the welcome tour: the first time, Joe walks her through the main buttons, out loud ----------
+// Each step is shown and read by Joe; when he finishes, the next one comes by itself. Next skips to the next step
+// at once (cutting him off), Skip ends it. The first time, it plays before the music starts.
+const tourSeen = () => { try { return localStorage.getItem('fgi-tour') === '1'; } catch { return true; } };
 function startTour(force) {
-  let seen = false; try { seen = localStorage.getItem('fgi-tour') === '1'; } catch {}
-  if (seen && !force) return;
-  const steps = (R.tour || []).filter(s => document.querySelector(s.el)); if (!steps.length) return;
-  let i = 0; const box = $('tour');
-  const show = () => {
-    document.querySelectorAll('.tour-spot').forEach(x => x.classList.remove('tour-spot'));
-    if (i >= steps.length) { box.hidden = true; try { localStorage.setItem('fgi-tour', '1'); } catch {} return; }
-    const s = steps[i], el = document.querySelector(s.el); el.classList.add('tour-spot');
-    $('tourText').textContent = sub(s.t); $('tourStep').textContent = `${i + 1} of ${steps.length}`; $('tourNext').textContent = i === steps.length - 1 ? 'Got it' : 'Next';
-    box.hidden = false;
-    const r = el.getBoundingClientRect(), below = r.top < window.innerHeight / 2;
-    box.style.top = below ? Math.min(window.innerHeight - 170, r.bottom + 12) + 'px' : 'auto';
-    box.style.bottom = below ? 'auto' : Math.max(12, window.innerHeight - r.top + 12) + 'px';
-  };
-  $('tourNext').onclick = () => { i++; show(); };
-  $('tourSkip').onclick = () => { i = steps.length; show(); };
-  show();
+  if (tourSeen() && !force) return Promise.resolve();
+  const steps = (R.tour || []).filter(s => document.querySelector(s.el)); if (!steps.length) return Promise.resolve();
+  return new Promise(resolve => {
+    let i = 0, timer = null; const box = $('tour'), p = started && ytReady ? P() : null, vol0 = p && p._vol;
+    if (p && playing) fadeP(p, Math.min(S.vol, 20), 600);   // played again from Settings: the music goes quiet under Joe
+    stopSpeech(); bedOn();
+    const end = () => {
+      clearTimeout(timer); document.querySelectorAll('.tour-spot').forEach(x => x.classList.remove('tour-spot'));
+      box.hidden = true; try { localStorage.setItem('fgi-tour', '1'); } catch {}
+      stopSpeech(); bedOff(1); caption(R.host, '');
+      if (p && playing && Number.isFinite(vol0)) fadeP(p, S.vol, 1200);
+      resolve();
+    };
+    const show = async () => {
+      clearTimeout(timer); document.querySelectorAll('.tour-spot').forEach(x => x.classList.remove('tour-spot'));
+      if (i >= steps.length) return end();
+      const s = steps[i], el = document.querySelector(s.el); el.classList.add('tour-spot');
+      const text = sub(s.t);
+      $('tourText').textContent = text; $('tourStep').textContent = `${i + 1} of ${steps.length}`; $('tourNext').textContent = i === steps.length - 1 ? 'Got it' : 'Next';
+      box.hidden = false;
+      const r = el.getBoundingClientRect(), below = r.top < window.innerHeight / 2;
+      box.style.top = below ? Math.min(window.innerHeight - 170, r.bottom + 12) + 'px' : 'auto';
+      box.style.bottom = below ? 'auto' : Math.max(12, window.innerHeight - r.top + 12) + 'px';
+      stopSpeech(); const my = runId; $('capKind').textContent = 'Joe · the tour';
+      await say(text, 'h');
+      if (my === runId && !box.hidden) timer = setTimeout(() => { i++; show(); }, 1400);   // finished: the next step comes by itself
+    };
+    $('tourNext').onclick = () => { i++; show(); };
+    $('tourSkip').onclick = () => { i = steps.length; show(); };
+    show();
+  });
 }
-$('btnTour').onclick = () => { openSheet(null); startTour(true); };
+$('btnTour').onclick = () => { unlockAudio(); openSheet(null); startTour(true); };
 
 // ---------- her birthday: a banner all day ----------
 function paintBirthday() {
@@ -2495,6 +2520,11 @@ function usageStart() {
 setInterval(() => { if (!usage) return; if (!globalPaused && (playing || speaking)) { usage.minutes = Math.min(1440, usage.minutes + 1); usageDirty = true; } if (usageDirty && usage.minutes % 5 === 0) usageWrite(); }, 60000);
 document.addEventListener('visibilitychange', () => { if (document.hidden && usageDirty) usageWrite(); });
 window.addEventListener('pagehide', () => { if (usageDirty) usageWrite(); });
+
+// A tiny, inaudible tone while the radio is on: a page that goes completely silent while it is minimized is slowed
+// down by the browser, which could hold the next song or Joe's next line until the window came back.
+let keepTone = null;
+function keepAwake() { try { const ctx = getCtx(); if (keepTone) return; const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = 30; g.gain.value = 0.0004; o.connect(g); g.connect(ctx.destination); o.start(); keepTone = o; } catch {} }
 $('btnFocus').onclick = e => { e.stopPropagation(); $('focusMenu').classList.toggle('open'); paintFocus(); };
 $('focusMenu').onclick = e => {
   const ed = e.target.closest('[data-edit]'), b = e.target.closest('button'); if (!b) return;

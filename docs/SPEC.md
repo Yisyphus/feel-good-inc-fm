@@ -156,7 +156,7 @@ work / 5 min break, with a soft chime). Her own stations can be added as before.
 ### Easy to understand
 - A **small word under every icon** button.
 - **One plain sentence under every setting.** No technical words (no "64-song cycle", "trim", "upload").
-- A **welcome tour** the first time: Joe points at 4 or 5 buttons in plain words. Replay from Settings.
+- A **welcome tour** the first time, **out loud, before the music**: Joe reads each step; the next comes by itself, Next skips to it, Skip ends it. Replay from Settings.
 - **Settings in four groups:** Joe & Luna (how often Joe talks, voices, talking speed) · Music (smooth
   transitions, sleep timer) · Shows (bulletin, a podcast now, a concert now, Album Party, Non-stop) · My stuff (sync,
   backup, restore, get the Windows app, update). Then a small **Help & fixing problems** section (playback report,
@@ -183,7 +183,7 @@ work / 5 min break, with a soft chime). Her own stations can be added as before.
 ## 12. Light by design (always on, no setting)
 
 For an old PC and slow Wi-Fi, on the website and the desktop app:
-- **One YouTube player** (no crossfade).
+- **Two hidden YouTube players, one streaming at a time:** the next song is only cued (no stream) before the end, then a short handover. (One single player left a silence between songs, and a minimized page that goes silent is slowed down by the browser: the next song waited until the window came back.) A tiny inaudible tone keeps the page awake too.
 - The player is **never visible** (off screen, small, so YouTube sends a lighter stream).
 - **Waits instead of skipping** when the connection stutters (buffering is not an error).
 - The next song is prepared **only near the end** of the current one.
@@ -237,9 +237,10 @@ Settings. Pronunciation fixes in `R.sayAs`.
   themes were reviewed by hand and left out too. Each song keeps up to 3 videos: official channel first, otherwise an
   upload titled "Artist - Title" whose length is within 8 seconds of the studio version, each checked embeddable
   (YouTube oEmbed). The radio plays the first and falls back to the others.
-- **One player.** `pl[0]` and `pl[1]` are the same hidden 200x200 player; songs fade out (Smooth transitions), then
-  the next loads. Nothing is pre-loaded on the player (it would stop the song playing); the next song is only looked
-  up ahead. A song that is buffering is waited for up to a minute (90 s once playing) before another version.
+- **Two players.** The next song is cued (not streamed) on the idle player about a minute before the end, then the
+  players hand over with a short fade (Smooth transitions), so there is never a silent gap. Next fades the old song in
+  half a second. A video that does not start at all is replaced by a backup after 10 s; one that is buffering is
+  waited for up to 45 s (90 s once playing).
 - **Website without the helper.** Exact videos everywhere (catalog, Homework, albums, podcasts, concerts), so
   nothing needs a YouTube search. Add a song on the website accepts a YouTube link (oEmbed) or searches through public
   relays; importing a YouTube playlist link needs the app.
