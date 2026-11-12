@@ -33,7 +33,8 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_RIM_FM }}
           channelId: live
           projectId: rim-fm
-      - name: Deploy the database rules
+      - name: Deploy the database rules (only if the service account may; otherwise paste firestore.rules in the console)
+        continue-on-error: true
         env:
           SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_RIM_FM }}
         run: |
