@@ -11,7 +11,7 @@ window.RADIO = window.RADIO || {};
   R.appDownload = 'download/FeelGoodIncFM-Setup.zip';   // the installer inside a zip (the free Firebase plan refuses .exe)   // copied from the latest GitHub release at every deploy
   // Fresh start: when this changes, every device forgets what it remembers locally (the tour, today's mission, a
   // library saved only on that device), once, the next time the radio opens. Change it ONLY before Rim has the radio.
-  R.freshStart = 'fresh-1';
+  R.freshStart = 'fresh-2';
   R.songs = [];          // every song is in the catalog (content_catalog.js)
   R.songScripts = {};
 

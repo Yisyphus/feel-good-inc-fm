@@ -291,9 +291,11 @@ const ttsPlayer = new Audio(); ttsPlayer.preload = 'auto';
 const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
 function unlockAudio() { if (!mobileWeb()) return; try { ttsPlayer.src = SILENT_WAV; const p = ttsPlayer.play(); if (p) p.catch(() => {}); } catch {} }
 
+// How the voice should say a text: names it would say wrong are rewritten (R.sayAs). The caption keeps the text as written.
+const spoken = x => (R.sayAs || []).reduce((t, [re, to]) => t.replace(re, to), String(x));
 // Speak a block of text. All sentences are queued at once so there is no gap between them.
 function say(text, who = 'h') {
-  (R.sayAs || []).forEach(([re, to]) => { text = String(text).replace(re, to); });
+  text = String(text);   // shown as written (Rim); only what the voice hears gets the pronunciation fixes (R.sayAs)
   return new Promise(res => {
     const id = runId, parts = splitParts(text);
     const hv = hostVoice();
@@ -304,7 +306,7 @@ function say(text, who = 'h') {
     guard = setInterval(() => { if (!globalPaused && (budget -= 250) <= 0) done(); }, 250);
     if (!hv) {   // online fallback, the next sentences preloaded
       const list = onlineChunks(parts);
-      const auds = list.map(p => { const a = new Audio(ttsUrl(p)); a.preload = 'auto'; a.playbackRate = who === 'h' ? 1 : 0.95; a._text = p; return a; });
+      const auds = list.map(p => { const a = new Audio(ttsUrl(spoken(p))); a.preload = 'auto'; a.playbackRate = who === 'h' ? 1 : 0.95; a._text = p; return a; });
       let i = 0;
       const nextA = () => { if (id !== runId || i >= auds.length) return done(); const a = auds[i]; $('capText').textContent = list[i]; i++; curAudio = a; a.onended = nextA; a.onerror = nextA; a.play().catch(nextA); };
       nextA(); return;
@@ -316,7 +318,7 @@ function say(text, who = 'h') {
     parts.forEach(p => { if (cur.length && cur.join(' ').length + p.length > 1500) { chunks.push(cur); cur = []; } cur.push(p); });
     if (cur.length) chunks.push(cur);
     chunks.forEach((sent, ci) => {
-      const whole = sent.join(' '), starts = []; let at = 0; sent.forEach(x => { starts.push(at); at += x.length + 1; });
+      const said = sent.map(spoken), whole = said.join(' '), starts = []; let at = 0; said.forEach(x => { starts.push(at); at += x.length + 1; });
       const u = new SpeechSynthesisUtterance(whole);
       u.lang = 'en-US'; u.voice = gv || hv;
       u.rate = (S.rate || 100) / 100 * (who === 's' ? 0.96 : 1);
