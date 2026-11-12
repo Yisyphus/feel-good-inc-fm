@@ -1,24 +1,24 @@
 {
  "files": {
-  "app.js": "ed11e20b44835adb",
+  "app.js": "f0964ed5ff9a6194",
   "bg.webp": "2c55ada11354d1bc",
   "check.html": "64cd5dd0647b4edb",
   "cloud.js": "2fb3e9b1301d659f",
   "content.js": "84a905e98400c4ad",
-  "content_albums.js": "88d6fb692f3d4d43",
-  "content_catalog.js": "d7fe3e20675c4d05",
+  "content_albums.js": "96a51ee3104fd946",
+  "content_catalog.js": "4cc5132bf577b464",
   "content_homework.js": "ebacd81c5a6db1cb",
-  "content_ids.js": "a02fb1c2363701bd",
-  "content_pods.js": "b7ff7d7380d8560b",
+  "content_ids.js": "41b3d36d3ff3f139",
+  "content_pods.js": "a448d7a560b36854",
   "content_shows.js": "5d3571a2e3f592ba",
   "content_talk.js": "7e0d7fe8f8c5e4c1",
   "content_trivia.js": "4ba2d4467beb8e31",
   "firebase-config.js": "2f564483690cf7d0",
   "icon.png": "414972388b2218eb",
-  "index.html": "c822dc5fb81bb1aa",
+  "index.html": "e16cd6a89673170d",
   "jingles.js": "7f59ee5d7730845e",
   "stickers.js": "2e454ec8e83c28a4"
  },
  "server": "71b802625490a34d",
- "version": "2026-11-12T15:59:35Z"
+ "version": "2026-11-12T16:35:10Z"
 }

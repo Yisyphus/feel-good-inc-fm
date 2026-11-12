@@ -221,3 +221,35 @@ Settings. Pronunciation fixes in `R.sayAs`.
 - Everything Joe and Luna say lives in `content*.js`, never in `app.js`.
 - Publish with `tools/publish.py` before every commit.
 - Exact versions proven, never an unchecked match. Never claim something was tested when it could not be.
+
+## 16. How it is built (implementation notes)
+
+- **Files.** `content.js` (station, genres, Genre Mixes, genre trivia, themes, pronunciation), `content_talk.js`
+  (welcomes, intros, back-announcements, idents, check-ins), `content_shows.js` (missions, side quests, Book Nook,
+  notes, banter, birthday, bulletin wording, tour, study timer lines), `content_trivia.js` (artist and song facts),
+  `content_catalog.js` + `content_ids.js` (generated: the clean songs and their checked videos), `content_pods.js`
+  (podcast episodes and concerts by exact video), `content_homework.js` (stations and ambient sounds),
+  `content_albums.js` (Album Party, generated: tracks, lengths, videos in `R.albumIds`, Joe's notes),
+  `stickers.js` (the 21 sticker drawings, also used for playlist covers), `bg.webp` (the seamless background tile),
+  `check.html` (Check my PC).
+- **The catalog** is generated, never typed by hand: every candidate song's lyrics are read from LRCLIB and any
+  swear word (also already-censored ones like "sh*t") leaves it out; songs whose lyrics are about drugs, sex or dark
+  themes were reviewed by hand and left out too. Each song keeps up to 3 videos: official channel first, otherwise an
+  upload titled "Artist - Title" whose length is within 8 seconds of the studio version, each checked embeddable
+  (YouTube oEmbed). The radio plays the first and falls back to the others.
+- **One player.** `pl[0]` and `pl[1]` are the same hidden 200x200 player; songs fade out (Smooth transitions), then
+  the next loads. Nothing is pre-loaded on the player (it would stop the song playing); the next song is only looked
+  up ahead. A song that is buffering is waited for up to a minute (90 s once playing) before another version.
+- **Website without the helper.** Exact videos everywhere (catalog, Homework, albums, podcasts, concerts), so
+  nothing needs a YouTube search. Add a song on the website accepts a YouTube link (oEmbed) or searches through public
+  relays; importing a YouTube playlist link needs the app.
+- **The app helper** listens on port **8789** (not 8787: no clash with Pale Blue Dot on the same PC) and answers
+  `/api/ping` with `app: 'feel-good-inc-fm'`. Its news allowlist (`NEWS_HOSTS`) holds the bulletin's sources.
+  The installer is `FeelGoodIncFM-Setup-<version>.exe` (Inno Setup, `MinVersion=10.0`), the launcher
+  `Feel Good Inc FM.vbs`, the helper process `FeelGoodHelper.exe`, installed in `%LOCALAPPDATA%\Programs\FeelGoodIncFM`.
+- **Releases** run only by hand (Actions > Release > Run workflow), after writing the version in `tools/release/VERSION`.
+- **What is in it (12 November 2026):** 792 clean songs (790 checked + clean radio edits of "Feel Good Inc." and
+  "Clint Eastwood", fan uploads labelled clean), 9 Album Party albums (Demon Days, Plastic Beach, The Dark Side of the
+  Moon, A Night at the Opera, Salad Days, Off the Wall, Thriller, Discovery, Oracular Spectacular; explicit tracks left
+  out), 78 podcast episodes, 15 concerts, 5 Homework stations (89 tracks) and 6 ambient sounds. Albums that lost more
+  than 30% of their tracks to explicit lyrics were left out: Currents, Nevermind, Toxicity, OK Computer, The Queen Is Dead.

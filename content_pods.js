@@ -95,7 +95,7 @@
     E('markrober', '-RjJtO51ykY', 'Easy Pinewood Derby Car Wins Using Science', 959),
     E('markrober', 'zwgaTYOx0RI', 'Beat Any Escape Room: Ten Proven Tricks', 682),
   ];
-  // Saturday concerts: checked live sets by artists that suit her (filled in from the checked list below)
+  // Saturday concerts: live sets by artists that suit her and sing clean songs, each video checked embeddable
   const C = (id, t, src, sec) => ({ id, t, src, sec });
   R.concerts = [
     C('xSDfCwDmJNo', 'Tame Impala: Tiny Desk Concert', 'NPR Music', 1223),
@@ -106,5 +106,12 @@
     C('6647smeduGI', 'Alvvays: Full Performance, Live on KEXP', 'KEXP', 1522),
     C('8hLWC7xcMVI', 'Pond: Full Performance, Live on KEXP', 'KEXP', 1456),
     C('J6_eAZDbshY', 'Toro y Moi: Full Performance, Live on KEXP', 'KEXP', 1288),
+    C('Qxxz7Tgfsv4', 'King Gizzard and the Lizard Wizard: Full Performance, Live on KEXP', 'KEXP', 1446),
+    C('G5Z4bma_tUM', 'King Gizzard and the Lizard Wizard: Full Performance, Live on KEXP', 'KEXP', 1692),
+    C('pRjfH8rvl2o', 'Unknown Mortal Orchestra: Full Performance, Live on KEXP', 'KEXP', 1468),
+    C('4Cz9_MCltHQ', 'Unknown Mortal Orchestra: Full Performance, Live on KEXP', 'KEXP', 1148),
+    C('LaaO4zy0gSQ', 'Temples: Full Performance, Live on KEXP', 'KEXP', 1513),
+    C('PTkiC_qDxHI', 'Temples: Full Performance, Live on KEXP', 'KEXP', 1257),
+    C('UcTj3JBoGkE', 'Parcels: Full Performance, Live on KEXP', 'KEXP', 2070),
   ];
 })();
