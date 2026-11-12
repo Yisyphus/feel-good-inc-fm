@@ -1,5 +1,5 @@
 # Publishes the website to Firebase Hosting (https://rim-fm.web.app/) on every push to main, with:
-# - the Windows installer and portable zip of the latest GitHub release, copied into download/ (so they download for
+# - the Windows installer (inside a zip) and the portable zip of the latest GitHub release, copied into download/ (so they download for
 #   everyone even though the repository is private), and
 # - the database rules (firestore.rules).
 # Needs the repository secret FIREBASE_SERVICE_ACCOUNT_RIM_FM (Firebase > Project settings > Service accounts).
@@ -21,7 +21,7 @@ jobs:
         run: |
           mkdir -p download
           if gh release download --repo "${{ github.repository }}" --pattern '*.exe' --pattern '*.zip' --dir dl 2>/dev/null; then
-            cp dl/*-Setup-*.exe download/FeelGoodIncFM-Setup.exe
+            (cd dl && zip -q -j ../download/FeelGoodIncFM-Setup.zip *-Setup-*.exe)   # the free Firebase plan refuses .exe files, a zip is fine
             cp dl/*-portable.zip download/FeelGoodIncFM-portable.zip
             ls -la download
           else

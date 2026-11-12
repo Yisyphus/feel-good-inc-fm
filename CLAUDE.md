@@ -23,5 +23,5 @@ Rim's radio, built from Pale Blue Dot Radio.
 - "Refresh it" / "fresh start" (after the owner's testing, before Rim gets it): bump `R.freshStart` in `content.js`
   (fresh-1 → fresh-2…), publish, push. Every device then forgets its local state once (tour, mission, local library).
   Never bump it once Rim is using the radio.
-- The installer downloads from `rim-fm.web.app/download/` (the deploy copies the latest release there), so it works
+- The installer (inside a zip: the free Firebase plan refuses .exe files) downloads from `rim-fm.web.app/download/` (the deploy copies the latest release there), so it works
   for everyone while the repo is private.
