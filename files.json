@@ -1,6 +1,6 @@
 {
  "files": {
-  "app.js": "903553537953bfb5",
+  "app.js": "5a9d04be8bf6e557",
   "bg.webp": "2c55ada11354d1bc",
   "check.html": "573aafea28b3ebe8",
   "cloud.js": "fee9c7cfc27da2b8",
@@ -11,14 +11,14 @@
   "content_ids.js": "41b3d36d3ff3f139",
   "content_pods.js": "a448d7a560b36854",
   "content_shows.js": "5d3571a2e3f592ba",
-  "content_talk.js": "7e0d7fe8f8c5e4c1",
+  "content_talk.js": "08fdf482b17c5a09",
   "content_trivia.js": "4ba2d4467beb8e31",
   "firebase-config.js": "2f564483690cf7d0",
   "icon.png": "414972388b2218eb",
-  "index.html": "d7b30da1e0868f68",
+  "index.html": "6ae899d992548683",
   "jingles.js": "7f59ee5d7730845e",
   "stickers.js": "2e454ec8e83c28a4"
  },
  "server": "71b802625490a34d",
- "version": "2026-11-12T20:35:57Z"
+ "version": "2026-11-12T20:44:10Z"
 }

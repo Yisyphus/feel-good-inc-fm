@@ -1531,7 +1531,7 @@ async function advance(opts = {}) {
   if (!talk) {
     // no commentary this time: crossfade straight into the next song
     $('kind').textContent = 'tuning'; caption(R.host, ''); $('vinyl').classList.remove('talk');
-    const okQ = await startSong(next, S.vol, opts.quick ? 2500 : 3500, opts.fadeOldMs || fadeMs());
+    const okQ = await startSong(next, S.vol, opts.quick ? 1200 : 3500, opts.fadeOldMs || fadeMs());
     if (id !== runId) return;
     if (!okQ) { busy = false; return advance({ noCount: true }); }
     busy = false; return;
@@ -1897,7 +1897,7 @@ function next() {
   try { // learn where a silent tail begins: if you skip near the end, trim there from now on
     if (current && !current.podcast && !current.focus && !current.album && playing && !busy) { const d = P().getDuration(), c = P().getCurrentTime(); if (d > 60 && d - c < 90 && d - c > 3) { lib.trim[current.key] = Math.max(0, c - 1); saveLib(); toast('Got it. I will end this song right here from now on.'); } }
   } catch {}
-  advance({ quick: true, fadeOldMs: 500 });   // Next: the old song goes in half a second
+  advance({ quick: true, fadeOldMs: 500, silent: true });   // Next: straight to the next song (already cued on the other player), the old one gone in half a second; Joe talks at the next natural change
 }
 function prev() { if (started && globalPaused) resumeAll(); if (started && marathon && !newsOn) return marathonBack(); if (started && albumShow && !newsOn) return albumBack(); if (!started || !history.length) return toast('No earlier song yet.'); const p = history.pop(); advance({ song: p, prev: null, silent: true, noCount: true, quick: true }); }
 async function tuneIn() {
@@ -2702,7 +2702,7 @@ setInterval(() => {
       const d = P().getDuration(), c = P().getCurrentTime(), rem = d - c;
       $('tcur').textContent = fmt(c); $('tdur').textContent = fmt(d); $('barfill').style.width = d ? (100 * c / d) + '%' : '0';
       const isPod = current.podcast;
-      if (!isPod && !repeatOn && d > 60 && rem <= 75) planPreload();   // a minute and more ahead: time to find and load it on a slow connection
+      if (!isPod && !repeatOn && d > 30 && c >= 6) planPreload();   // a few seconds into the song: the next one is cued on the other player, so Next and the end are instant
       const trimAt = lib.trim[current.key];
       if (repeatOn && d > 5 && (rem <= 0.8 || (trimAt && c >= trimAt))) repeatSong();   // repeat: back to the start, no fade, no next song
       // end the song a little early (and learn-trim) so trailing silence never reaches you

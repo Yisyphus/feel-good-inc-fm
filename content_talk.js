@@ -2,29 +2,30 @@
 // Each pool is shuffled and never repeats until it is used up. {host} {station} {time} {a} {t} {age} are filled in.
 (function () {
   const R = window.RADIO;
+  // the first words when the radio starts: never the song's name (Joe announces it right before it plays)
   R.welcomes = {
     morning: [
-      'Good morning, Rim! Joe here, on {station}. It is {time}, the coffee is imaginary, the music is real. First up, {a}.',
-      'Rise and shine, it is {time} on {station}. I am Joe, and I promise to be less annoying than your alarm. Here is {a}.',
-      'Morning, Rim. {station} is awake, Luna is somewhere looking for her headphones, and I have got {a} ready for you.',
-      'It is {time}, and that means it is officially a new day full of possibilities. And snacks. Here is {t}.',
+      'Good morning, Rim! Joe here, on {station}. It is {time}, the coffee is imaginary, the music is real.',
+      'Rise and shine, it is {time} on {station}. I am Joe, and I promise to be less annoying than your alarm.',
+      'Morning, Rim. {station} is awake, Luna is somewhere looking for her headphones, and the songs are ready.',
+      'It is {time}, and that means it is officially a new day full of possibilities. And snacks.',
     ],
     afternoon: [
-      'Hey Rim! Good afternoon from {station}. It is {time}, and I have a pile of great songs with your name on them. Starting with {a}.',
-      'Afternoon, Rim. Joe here. Whatever today threw at you, the radio is now officially on your side. Here is {t}.',
-      'It is {time}. School bag down, volume up. This is {station}, and this is {a}.',
-      'Welcome back to {station}, Rim. Luna says hi. I say hi too, louder. Here comes {a}.',
+      'Hey Rim! Good afternoon from {station}. It is {time}, and I have a pile of great songs with your name on them.',
+      'Afternoon, Rim. Joe here. Whatever today threw at you, the radio is now officially on your side.',
+      'It is {time}. School bag down, volume up. This is {station}.',
+      'Welcome back to {station}, Rim. Luna says hi. I say hi too, louder.',
     ],
     evening: [
-      'Good evening, Rim! It is {time} on {station}, the best station in your room. Let us start with {a}.',
-      'Evening, Rim. Joe here, with Luna, and with {t} by {a}. Settle in.',
-      'It is {time}. The day is done, or almost. Time for music you actually like. Here is {a}.',
-      'Hey Rim, welcome to the evening shift on {station}. Fairy lights on, if you have them. Here is {t}.',
+      'Good evening, Rim! It is {time} on {station}, the best station in your room.',
+      'Evening, Rim. Joe here, with Luna, and with a lot of good music. Settle in.',
+      'It is {time}. The day is done, or almost. Time for music you actually like.',
+      'Hey Rim, welcome to the evening shift on {station}. Fairy lights on, if you have them.',
     ],
     night: [
-      'Hey night owl. It is {time}, and {station} is still on for you, quietly. Here is {a}.',
-      'It is late, Rim. Joe here, keeping it chill. Here is {t}.',
-      'Welcome to the late show on {station}. Soft voices, good songs. Starting with {a}.',
+      'Hey night owl. It is {time}, and {station} is still on for you, quietly.',
+      'It is late, Rim. Joe here, keeping it chill.',
+      'Welcome to the late show on {station}. Soft voices, good songs.',
     ],
   };
   R.introTemplates = [
