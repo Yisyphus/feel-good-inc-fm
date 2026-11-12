@@ -24,14 +24,14 @@ foreach ($f in $files) { Copy-Item (Join-Path $root $f) (Join-Path $stage "publi
 Copy-Item (Join-Path $root "files.json") (Join-Path $stage "public")
 
 # 3. Where it updates itself from, the launcher, the icon, and a short note
-[IO.File]::WriteAllText((Join-Path $stage "cloud.json"), '{ "appUrl": "https://yisyphus.github.io/pale-blue-dot/" }', (New-Object Text.UTF8Encoding $false))
+[IO.File]::WriteAllText((Join-Path $stage "cloud.json"), '{ "appUrl": "https://rim-fm.web.app/" }', (New-Object Text.UTF8Encoding $false))
 Copy-Item (Join-Path $PSScriptRoot "Pale Blue Dot Radio.vbs") $stage
 Copy-Item (Join-Path $PSScriptRoot "icon.ico") $stage
 @"
 Pale Blue Dot Radio $Version
 
 Open "Pale Blue Dot Radio.vbs" to start the radio. It opens in its own Microsoft Edge window
-(Edge gives the natural voices). The radio updates itself from https://yisyphus.github.io/pale-blue-dot/
+(Edge gives the natural voices). The radio updates itself from https://rim-fm.web.app/
 
 Sign in under Settings > Cloud sync to bring your library, favorites, lists and commercials.
 Your own files are created next to this one: data\ (library on this PC), app-cache\ (updates).

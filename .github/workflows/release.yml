@@ -2,10 +2,8 @@
 # Runs when tools/release/VERSION changes on main (put the new version in it, e.g. v2026.10.27), or by hand from the
 # Actions tab. GitHub creates the version tag itself when it publishes the release.
 name: Release
+# For now it runs only by hand (Actions tab), until the Feel Good Inc. FM app is ready.
 on:
-  push:
-    branches: [main]
-    paths: ['tools/release/VERSION']
   workflow_dispatch:
 permissions:
   contents: write
