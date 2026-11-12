@@ -21,6 +21,9 @@
   } catch (e) { console.warn('[cloud] init failed', e); authResolve(null); return; }
 
   const ref = name => db.collection('users').doc(C.user.uid).collection('radio').doc(name);
+  // Usage log (no sign-in needed): one small line per listening session, readable only by the radio's owner.
+  // It holds the day, the start time, the minutes played, and website or app. Nothing about what was played.
+  C.logUsage = (id, data) => db.collection('usage').doc(id).set(data, { merge: true }).catch(e => console.warn('[usage]', e.code || e));
   let unsub = [];
   firebase.auth().onAuthStateChanged(u => {
     C.user = u || null; C.ready = false;

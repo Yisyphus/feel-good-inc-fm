@@ -1,0 +1,20 @@
+rules_version = '2';
+// Deployed automatically from this file by .github/workflows/deploy.yml.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // each person's own radio data (library, playlists, liked songs, settings): only their own Google account
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    // the usage log: any copy of the radio may write its own small session line (no sign-in needed), with only
+    // these fields; only the radio's owner can read or delete it (report.html, the usage-report job)
+    match /usage/{id} {
+      allow create, update: if id.size() < 64
+        && request.resource.data.keys().hasOnly(['day', 'start', 'minutes', 'where', 'fresh', 'device', 'lastSeen'])
+        && request.resource.data.minutes is int && request.resource.data.minutes >= 0 && request.resource.data.minutes <= 1440
+        && request.resource.data.where in ['website', 'app']
+        && request.resource.data.day is string && request.resource.data.day.size() == 10;
+      allow read, delete: if request.auth != null && request.auth.token.email == 'ymoumou.axigeo@gmail.com' && request.auth.token.email_verified == true;
+    }
+  }
+}

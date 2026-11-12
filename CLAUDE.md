@@ -14,3 +14,14 @@ Rim's radio, built from Pale Blue Dot Radio.
 - Everything Joe and Luna say lives in the `content*.js` files, not in `app.js`.
 - Run `python3 tools/publish.py` before every commit.
 - Never reuse the Pale Blue Dot Firebase project or its data.
+
+## Usage report and fresh start
+- The radio logs one small line per listening session in Firestore `usage/` (day, start, minutes, website/app, device id):
+  nothing about what was played. Only the owner's Google account can read it (`firestore.rules`).
+- The owner reads it at `rim-fm.web.app/report.html`. When the owner asks for a report here, run the
+  `Usage report` workflow (`usage-report.yml`, it only runs while the repo is private) and read its job log.
+- "Refresh it" / "fresh start" (after the owner's testing, before Rim gets it): bump `R.freshStart` in `content.js`
+  (fresh-1 → fresh-2…), publish, push. Every device then forgets its local state once (tour, mission, local library).
+  Never bump it once Rim is using the radio.
+- The installer downloads from `rim-fm.web.app/download/` (the deploy copies the latest release there), so it works
+  for everyone while the repo is private.

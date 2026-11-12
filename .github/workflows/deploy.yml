@@ -1,18 +1,42 @@
-# Publishes the website to Firebase Hosting (https://rim-fm.web.app/) on every push to main.
+# Publishes the website to Firebase Hosting (https://rim-fm.web.app/) on every push to main, with:
+# - the Windows installer and portable zip of the latest GitHub release, copied into download/ (so they download for
+#   everyone even though the repository is private), and
+# - the database rules (firestore.rules).
 # Needs the repository secret FIREBASE_SERVICE_ACCOUNT_RIM_FM (Firebase > Project settings > Service accounts).
 name: Deploy website
 on:
   push:
     branches: [main]
   workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   hosting:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Copy the latest Windows downloads into download/
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p download
+          if gh release download --repo "${{ github.repository }}" --pattern '*.exe' --pattern '*.zip' --dir dl 2>/dev/null; then
+            cp dl/*-Setup-*.exe download/FeelGoodIncFM-Setup.exe
+            cp dl/*-portable.zip download/FeelGoodIncFM-portable.zip
+            ls -la download
+          else
+            echo "No release yet: the download button will wait for the first one."
+          fi
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_RIM_FM }}
           channelId: live
           projectId: rim-fm
+      - name: Deploy the database rules
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_RIM_FM }}
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx -y firebase-tools@13 deploy --only firestore:rules --project rim-fm --non-interactive
+          rm -f "$RUNNER_TEMP/sa.json"

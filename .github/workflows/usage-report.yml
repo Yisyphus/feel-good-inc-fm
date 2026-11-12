@@ -1,0 +1,26 @@
+# The listening report, printed in this job's log (run by hand, or by Claude when the owner asks).
+# It refuses to run on a public repository, because anyone can read the logs of a public repository.
+name: Usage report
+on:
+  workflow_dispatch:
+    inputs:
+      days: { description: 'How many days back', default: '30', required: false }
+      all: { description: 'Include sessions from before the fresh start (yes/no)', default: 'no', required: false }
+permissions:
+  contents: read
+jobs:
+  report:
+    if: github.event.repository.private == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install --no-save --silent firebase-admin@12
+      - name: Report
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_RIM_FM }}
+          DAYS: ${{ inputs.days }}
+        run: |
+          FRESH=""; if [ "${{ inputs.all }}" != "yes" ]; then FRESH=$(grep -o "R.freshStart = '[^']*'" content.js | cut -d"'" -f2); fi
+          FRESH="$FRESH" node tools/usage-report.js

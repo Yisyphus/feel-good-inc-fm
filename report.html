@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Listening report · Feel Good Inc. FM</title>
+<link rel="icon" type="image/png" href="icon.png">
+<style>
+/* The owner's listening report: when the radio was used, from the usage log. Readable only by the owner's account. */
+:root{--bg:#0d0b14;--panel:#17132a;--line:#342c5c;--pink:#ff3ea5;--cyan:#00e5ff;--green:#7cff3a;--yellow:#ffe600;--cream:#fff;--mute:#bcb4dc;--ink:#0d0b14;color-scheme:dark}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--cream);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:15px;line-height:1.5;padding:24px max(16px,env(safe-area-inset-right)) 40px max(16px,env(safe-area-inset-left))}
+main{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1{font-size:22px} h1 span{color:var(--pink)}
+.lead,.note{color:var(--mute)} .note{font-size:13px}
+.btn{background:var(--yellow);color:var(--ink);border:0;border-radius:10px;padding:10px 16px;font:inherit;font-weight:700;cursor:pointer;align-self:flex-start}
+.btn.ghost{background:none;color:var(--cream);border:2px solid var(--line);font-weight:500}
+.btn:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.tile{background:var(--panel);border-radius:12px;padding:12px}
+.tile b{display:block;font-size:24px;font-variant-numeric:tabular-nums}
+.tile small{color:var(--mute)}
+.wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--mute);font-weight:500;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+.tag{display:inline-block;font-size:12px;font-weight:700;padding:1px 8px;border-radius:99px;color:var(--ink)}
+.tag.app{background:var(--cyan)} .tag.website{background:var(--green)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+label{color:var(--mute);font-size:14px;display:flex;gap:6px;align-items:center;cursor:pointer}
+</style>
+</head>
+<body>
+<main>
+  <h1>Listening report <span>·</span> Feel Good Inc. FM</h1>
+  <p class="lead">When the radio was used: the day, the start time, how many minutes it played, and whether it was the website or the app. Nothing about what was played.</p>
+  <div class="row"><button class="btn" id="signin">Sign in with Google</button><button class="btn ghost" id="signout" hidden>Sign out</button><label><input type="checkbox" id="tests"> include sessions from before the fresh start (your tests)</label></div>
+  <p class="note" id="status"></p>
+  <div class="tiles" id="tiles" hidden></div>
+  <div class="wrap"><table id="table" hidden><thead><tr><th>Day</th><th>Started</th><th>Minutes played</th><th>Where</th><th>Device</th></tr></thead><tbody></tbody></table></div>
+</main>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="content.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id), fresh = (window.RADIO || {}).freshStart || '';
+  firebase.initializeApp(window.FIREBASE_CONFIG);
+  const db = firebase.firestore(); let rows = [];
+  const status = t => { $('status').textContent = t; };
+  $('signin').onclick = () => { const p = new firebase.auth.GoogleAuthProvider(); p.setCustomParameters({ prompt: 'select_account' }); firebase.auth().signInWithPopup(p).catch(e => status('Sign-in did not work: ' + (e.message || e))); };
+  $('signout').onclick = () => firebase.auth().signOut();
+  $('tests').onchange = () => paint();
+  firebase.auth().onAuthStateChanged(async u => {
+    $('signin').hidden = !!u; $('signout').hidden = !u;
+    if (!u) { status('Sign in with the owner\'s Google account to see the report.'); $('tiles').hidden = $('table').hidden = true; return; }
+    status('Loading…');
+    try { const q = await db.collection('usage').orderBy('start', 'desc').limit(1000).get(); rows = q.docs.map(d => d.data()); paint(); }
+    catch (e) { status(e.code === 'permission-denied' ? 'This Google account is not allowed to read the report.' : 'Could not load the report: ' + (e.message || e)); }
+  });
+  function paint() {
+    const list = rows.filter(r => $('tests').checked || r.fresh === fresh);
+    const tb = $('table').querySelector('tbody'); tb.innerHTML = '';
+    const devices = {}; let n = 0;
+    list.forEach(r => { if (!(r.device in devices)) devices[r.device] = 'device ' + (++n); });
+    list.forEach(r => {
+      const tr = document.createElement('tr'), t = new Date(r.start);
+      [new Date(r.day + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }), t.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }), String(r.minutes || 0), '', devices[r.device]].forEach((v, i) => {
+        const td = document.createElement('td'); if (i === 3) { const s = document.createElement('span'); s.className = 'tag ' + r.where; s.textContent = r.where === 'app' ? 'Windows app' : 'website'; td.appendChild(s); } else td.textContent = v; tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+    const days = new Set(list.map(r => r.day)), mins = list.reduce((a, r) => a + (r.minutes || 0), 0), last = list[0];
+    const week = list.filter(r => Date.now() - new Date(r.start) < 7 * 864e5).reduce((a, r) => a + (r.minutes || 0), 0);
+    $('tiles').innerHTML = '';
+    [[list.length, 'sessions'], [days.size, 'days with music'], [Math.round(mins / 6) / 10 + ' h', 'played in total'], [Math.round(week / 6) / 10 + ' h', 'in the last 7 days'], [last ? new Date(last.start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '–', 'last time']].forEach(([b, s]) => { const d = document.createElement('div'); d.className = 'tile'; d.innerHTML = '<b></b><small></small>'; d.querySelector('b').textContent = b; d.querySelector('small').textContent = s; $('tiles').appendChild(d); });
+    $('tiles').hidden = false; $('table').hidden = !list.length;
+    status(list.length ? `${list.length} sessions${$('tests').checked ? '' : ' since the fresh start'}. Times are in this device's time zone.` : 'No listening yet' + ($('tests').checked ? '.' : ' since the fresh start.'));
+  }
+})();
+</script>
+</body>
+</html>

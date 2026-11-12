@@ -22,6 +22,10 @@ const { setTimeout, setInterval, clearTimeout, clearInterval } = (() => {
 window.PBD_TIMERS = { setTimeout, setInterval, clearTimeout, clearInterval };   // jingles.js uses them too
 const R = window.RADIO;
 const $ = id => document.getElementById(id);
+// Fresh start (R.freshStart, content.js): when it changes, this device forgets what it remembers locally, once: the
+// tour, today's mission, the library kept only on this device. Used before Rim gets the radio, after testing.
+let freshWipe = false;
+try { if (localStorage.getItem('fgi-fresh') !== R.freshStart) { Object.keys(localStorage).filter(k => /^(fgi-|pbd-)/.test(k)).forEach(k => localStorage.removeItem(k)); localStorage.setItem('fgi-fresh', R.freshStart); freshWipe = true; } } catch {}
 const rnd = a => a[Math.floor(Math.random() * a.length)];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
@@ -56,6 +60,7 @@ async function loadLib() {
   const ping = await fetch('/api/ping').then(r => r.ok ? r.json() : null).catch(() => null);
   HELPER = !!(ping && (ping.app === 'feel-good-inc-fm' || ping.app === 'pale-blue-dot')); helperOpens = !!(ping && ping.open >= 2);
   if (HELPER) { try { const r = await fetch('/api/library'); lib = Object.assign(lib, await r.json()); } catch {} }
+  if (HELPER && freshWipe) { lib = { user: [], cache: {}, removed: [], settings: {}, trim: {}, disc: {} }; fetch('/api/library', { method: 'POST', body: JSON.stringify(lib) }).catch(() => {}); rlog('fresh start: the library on this PC was cleared'); }
   else { try { const c = JSON.parse(localStorage.getItem('pbd-lib') || 'null'); if (c) lib = Object.assign(lib, c); } catch {} }
   if (window.Cloud && Cloud.enabled) {
     const u = await Promise.race([Cloud.authKnown, sleep(6000)]);
@@ -1879,7 +1884,7 @@ function next() {
 function prev() { if (started && globalPaused) resumeAll(); if (started && marathon && !newsOn) return marathonBack(); if (started && albumShow && !newsOn) return albumBack(); if (!started || !history.length) return toast('No earlier song yet.'); const p = history.pop(); advance({ song: p, prev: null, silent: true, noCount: true, quick: true }); }
 async function tuneIn() {
   if (!songs.length) { $('tuneSub').textContent = 'one moment, loading your library…'; await bootDone; }   // play pressed while the library (or a slow sign-in) is still loading
-  started = true; $('tune').style.display = 'none'; unlockAudio();
+  started = true; $('tune').style.display = 'none'; unlockAudio(); usageStart();
   setTimeout(() => startTour(false), 1500);
   if (!voices.length) loadVoices();
   try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch {}
@@ -2466,6 +2471,21 @@ setInterval(paintBirthday, 60000);
 // ---------- Get the Windows app (the installed version), and the system check ----------
 $('btnGetApp').onclick = () => window.open(R.appDownload || 'https://github.com/Yisyphus/feel-good-inc-fm/releases/latest', '_blank', 'noopener');
 $('btnCheckPc').onclick = () => window.open('check.html', '_blank', 'noopener');
+
+// ---------- usage log: when the radio is used (day, start, minutes played, website or app), nothing else ----------
+// One line per listening session in the rim-fm database (Cloud.logUsage), readable only by the radio's owner
+// (report.html, or the private usage-report job). No sign-in needed, and nothing about what was played or searched.
+let usage = null, usageDirty = false;
+function usageWrite() { if (!usage || !window.Cloud || !Cloud.logUsage) return; usageDirty = false; Cloud.logUsage(usage.id, { day: usage.day, start: usage.start, minutes: usage.minutes, where: usage.where, fresh: usage.fresh, device: usage.device, lastSeen: new Date().toISOString() }); }
+function usageStart() {
+  if (usage || !window.Cloud || !Cloud.logUsage || !Cloud.enabled) return;
+  const now = new Date();
+  usage = { id: (Cloud.device || 'device') + '-' + now.getTime(), day: now.toLocaleDateString('en-CA'), start: now.toISOString(), minutes: 0, where: HELPER ? 'app' : 'website', fresh: R.freshStart || '', device: Cloud.device || '' };
+  usageWrite();
+}
+setInterval(() => { if (!usage) return; if (!globalPaused && (playing || speaking)) { usage.minutes = Math.min(1440, usage.minutes + 1); usageDirty = true; } if (usageDirty && usage.minutes % 5 === 0) usageWrite(); }, 60000);
+document.addEventListener('visibilitychange', () => { if (document.hidden && usageDirty) usageWrite(); });
+window.addEventListener('pagehide', () => { if (usageDirty) usageWrite(); });
 $('btnFocus').onclick = e => { e.stopPropagation(); $('focusMenu').classList.toggle('open'); paintFocus(); };
 $('focusMenu').onclick = e => {
   const ed = e.target.closest('[data-edit]'), b = e.target.closest('button'); if (!b) return;

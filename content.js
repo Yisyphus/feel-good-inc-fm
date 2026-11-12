@@ -8,7 +8,10 @@ window.RADIO = window.RADIO || {};
   R.cohost = 'Luna';
   R.tagline = 'Joe & Luna, on air for Rim';
   R.listener = { name: 'Rim', born: '2012-01-02' };   // her birthday: the birthday show, the banner, {age}
-  R.appDownload = 'https://github.com/Yisyphus/feel-good-inc-fm/releases/latest';
+  R.appDownload = 'download/FeelGoodIncFM-Setup.exe';   // copied from the latest GitHub release at every deploy
+  // Fresh start: when this changes, every device forgets what it remembers locally (the tour, today's mission, a
+  // library saved only on that device), once, the next time the radio opens. Change it ONLY before Rim has the radio.
+  R.freshStart = 'fresh-1';
   R.songs = [];          // every song is in the catalog (content_catalog.js)
   R.songScripts = {};
 

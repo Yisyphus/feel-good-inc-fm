@@ -7,6 +7,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+  actions: write
 jobs:
   windows:
     runs-on: windows-latest
@@ -23,3 +24,8 @@ jobs:
           $v = (Get-Content tools/release/VERSION -Raw).Trim()
           $notes = "Feel Good Inc. FM $v for Windows (10 or newer).`n`n- **FeelGoodIncFM-Setup-*.exe**: install it (no administrator rights needed). Installing over an older version keeps the data.`n- **FeelGoodIncFM-*-portable.zip**: the same radio without installing. Unzip it anywhere and open ``Feel Good Inc FM.vbs``.`n`nBoth update themselves from https://rim-fm.web.app/ after that. Sign in under Settings > My stuff to keep playlists and liked songs on every device."
           gh release create $v (Get-ChildItem dist\*.exe, dist\*.zip).FullName --title "Feel Good Inc. FM $v" --notes $notes --target ${{ github.sha }}
+      - name: Put the new downloads on the website
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yml --repo ${{ github.repository }} --ref main
