@@ -238,7 +238,7 @@ function loadVoices() {
   const en = [...voices].filter(isEn).sort((a, b) => /natural/i.test(b.name) - /natural/i.test(a.name) || a.name.localeCompare(b.name));
   const fill = (id, autoLabel, key, online) => { const el = $(id); if (!el) return; el.innerHTML = ''; const add = (val, label) => { const o = document.createElement('option'); o.value = val; o.textContent = label; el.appendChild(o); };
     add('', autoLabel); if (online) add(ONLINE, 'Online voice (if the others sound wrong)'); en.forEach(v => add(v.name, nice(v))); el.value = S[key] && (S[key] === ONLINE || en.some(v => v.name === S[key])) ? S[key] : ''; };
-  fill('voiceSel', 'Automatic (Andrew, natural)', 'voice', true);
+  fill('voiceSel', 'Automatic (Brian Multilingual, natural)', 'voice', true);
   fill('lunaSel', 'Automatic (Ava or Emma, natural)', 'lunaVoice');
   fill('bulletinSel', 'Automatic (a third natural voice)', 'bulletinVoice');
   const note = $('voiceNote');
@@ -248,7 +248,7 @@ function hostVoice() {
   if (S.voice === ONLINE) return null;
   if (S.voice) { const v = voices.find(v => v.name === S.voice); if (v) return v; }
   const en = voices.filter(isEn);
-  const pref = [/andrew multilingual.*natural/i, /andrew.*natural/i, /brian multilingual.*natural/i, /brian.*natural/i, /guy.*natural/i, /christopher.*natural/i, /eric.*natural/i, /natural/i, /guy|ryan|david|mark|george|james|daniel/i];
+  const pref = [/brian multilingual.*natural/i, /brian.*natural/i, /andrew multilingual.*natural/i, /andrew.*natural/i, /guy.*natural/i, /christopher.*natural/i, /eric.*natural/i, /natural/i, /guy|ryan|david|mark|george|james|daniel/i];
   for (const p of pref) { const v = en.find(v => p.test(v.name)); if (v) return v; }
   return en[0] || null;
 }
@@ -310,14 +310,22 @@ function say(text, who = 'h') {
       nextA(); return;
     }
     const gv = who !== 'h' ? voiceFor(who) : null;
-    parts.forEach((part, i) => {
-      const u = new SpeechSynthesisUtterance(part);
+    // One utterance for the whole block, so the natural voices never stop between sentences. Very long blocks are
+    // cut at a sentence end every ~1500 characters. The caption shows the sentence being said (word boundaries).
+    const chunks = []; let cur = [];
+    parts.forEach(p => { if (cur.length && cur.join(' ').length + p.length > 1500) { chunks.push(cur); cur = []; } cur.push(p); });
+    if (cur.length) chunks.push(cur);
+    chunks.forEach((sent, ci) => {
+      const whole = sent.join(' '), starts = []; let at = 0; sent.forEach(x => { starts.push(at); at += x.length + 1; });
+      const u = new SpeechSynthesisUtterance(whole);
       u.lang = 'en-US'; u.voice = gv || hv;
       u.rate = (S.rate || 100) / 100 * (who === 's' ? 0.96 : 1);
       u.pitch = who !== 'h' && !gv ? (who === 's' ? 1.3 : 1.12) : 1;   // no second voice installed: Luna and the bulletin at another pitch
-      u.onstart = () => { if (id === runId) $('capText').textContent = part; if (globalPaused) { try { speechSynthesis.pause(); } catch {} } };
-      u.onend = () => { if (i === parts.length - 1 || id !== runId) done(); };
-      u.onerror = () => { if (id !== runId || i === parts.length - 1) done(); };
+      let shown = -1; const show = i => { if (id === runId && i !== shown) { shown = i; $('capText').textContent = sent[i]; } };
+      u.onstart = () => { show(0); if (globalPaused) { try { speechSynthesis.pause(); } catch {} } };
+      u.onboundary = e => { let i = 0; while (i + 1 < starts.length && starts[i + 1] <= e.charIndex) i++; show(i); };
+      u.onend = () => { if (ci === chunks.length - 1 || id !== runId) done(); };
+      u.onerror = () => { if (id !== runId || ci === chunks.length - 1) done(); };
       speechSynthesis.speak(u);
     });
   });
@@ -938,15 +946,16 @@ async function runSegments(segs, id) {
     $('capKind').textContent = seg.title ? `${seg.kind} · ${seg.title}` : seg.kind;
     if (seg.jingle) { await runJingle(seg.jingle); continue; }
     bedOn();
-    for (const l of seg.lines) {
+    const merged = [];
+    seg.lines.forEach(l => { const w = l.w || 'h', last = merged[merged.length - 1]; if (last && (last.w || 'h') === w) last.t += ' ' + l.t; else merged.push({ ...l }); });
+    for (const l of merged) {
       if (id !== runId) return false;
       if (l.w === 's') $('capKind').textContent = 'Luna' + (seg.title ? ' · ' + seg.title : '');
-      else if (seg.lines.some(x => x.w === 's')) $('capKind').textContent = 'Joe' + (seg.title ? ' · ' + seg.title : '');
+      else if (merged.some(x => x.w === 's')) $('capKind').textContent = 'Joe' + (seg.title ? ' · ' + seg.title : '');
       breakSkip = () => { speechSynthesis.cancel(); try { if (curAudio && curAudio.onended) curAudio.onended(); } catch {} };   // Next skips the line being said
       await say(l.t, l.w && l.w !== 'h' ? l.w : 'h');
       breakSkip = null;
       if (id !== runId) return false;
-      await sleep(seg.lines.length > 3 ? 250 : 120);
     }
   }
   return id === runId;
@@ -1708,7 +1717,7 @@ async function runNews(manual) {
     await say(ls[i], 'n');
     if (id !== runId) return;
     if (tok !== newsLineTok) continue;
-    await sleep(350);
+    await sleep(120);
   }
   $('capSrc').textContent = ''; newsLink = ''; $('cap').classList.remove('linkable');
   if (id !== runId) return;
