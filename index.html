@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="pbd-version" content="2026-11-12T11:48:51Z">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pale Blue Dot</title>
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#04061a; --bg2:#0a0f2e; --panel:#0f1840; --line:#232f6b;
+  --amber:#8ec5ff; --amber2:#5a6cff; --glow:rgba(110,150,255,.4);
+  --cream:#e2ebff; --mute:#8190c4; --red:#d77bff;
+  --serif:'Fraunces',Georgia,serif; --mono:'DM Mono',ui-monospace,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{background:radial-gradient(90% 55% at 80% 0%,rgba(120,70,220,.28),transparent 70%),radial-gradient(80% 60% at 10% 100%,rgba(40,110,220,.25),transparent 70%),radial-gradient(120% 80% at 50% 0%,#141c52 0%,var(--bg) 62%);color:var(--cream);font-family:var(--serif);overflow:hidden;user-select:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.app{max-width:440px;height:100%;margin:0 auto;padding:14px 18px 16px;display:flex;flex-direction:column;gap:12px;position:relative}
+.grain{position:fixed;inset:0;pointer-events:none;opacity:.07;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence baseFrequency='.9' numOctaves='2'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>")}
+
+.stars{position:fixed;inset:0;pointer-events:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><circle cx='114' cy='261' r='1.2' fill='white' fill-opacity='0.38'/><circle cx='109' cy='202' r='0.5' fill='white' fill-opacity='0.97'/><circle cx='253' cy='256' r='1' fill='white' fill-opacity='0.96'/><circle cx='133' cy='33' r='1.5' fill='white' fill-opacity='0.61'/><circle cx='241' cy='100' r='1.5' fill='white' fill-opacity='0.37'/><circle cx='224' cy='169' r='0.7' fill='white' fill-opacity='0.66'/><circle cx='115' cy='8' r='1.5' fill='white' fill-opacity='0.37'/><circle cx='144' cy='215' r='1.3' fill='white' fill-opacity='0.54'/><circle cx='33' cy='49' r='0.6' fill='white' fill-opacity='0.39'/><circle cx='248' cy='45' r='1.1' fill='white' fill-opacity='0.96'/><circle cx='263' cy='198' r='0.6' fill='white' fill-opacity='0.39'/><circle cx='179' cy='287' r='1.3' fill='white' fill-opacity='0.72'/><circle cx='249' cy='43' r='0.7' fill='white' fill-opacity='0.92'/><circle cx='212' cy='274' r='1.2' fill='white' fill-opacity='0.88'/><circle cx='208' cy='54' r='1.2' fill='white' fill-opacity='0.57'/><circle cx='217' cy='5' r='1' fill='white' fill-opacity='0.43'/><circle cx='25' cy='45' r='1.4' fill='white' fill-opacity='0.53'/><circle cx='7' cy='244' r='1.1' fill='white' fill-opacity='0.77'/><circle cx='238' cy='280' r='0.7' fill='white' fill-opacity='0.41'/><circle cx='132' cy='32' r='1.5' fill='white' fill-opacity='0.63'/><circle cx='92' cy='115' r='0.7' fill='white' fill-opacity='0.57'/><circle cx='148' cy='269' r='1.1' fill='white' fill-opacity='0.48'/><circle cx='170' cy='80' r='0.9' fill='white' fill-opacity='0.77'/><circle cx='145' cy='61' r='0.7' fill='white' fill-opacity='0.91'/><circle cx='56' cy='299' r='1.6' fill='white' fill-opacity='0.64'/><circle cx='41' cy='131' r='1.1' fill='white' fill-opacity='0.36'/><circle cx='171' cy='170' r='0.6' fill='white' fill-opacity='0.85'/><circle cx='230' cy='153' r='0.9' fill='white' fill-opacity='0.73'/><circle cx='90' cy='71' r='0.5' fill='white' fill-opacity='0.57'/><circle cx='247' cy='41' r='1.2' fill='white' fill-opacity='0.47'/><circle cx='168' cy='186' r='1.3' fill='white' fill-opacity='0.84'/><circle cx='133' cy='278' r='0.7' fill='white' fill-opacity='0.73'/><circle cx='217' cy='85' r='1.5' fill='white' fill-opacity='0.64'/><circle cx='38' cy='130' r='0.8' fill='white' fill-opacity='0.92'/><circle cx='252' cy='53' r='1.3' fill='white' fill-opacity='0.95'/><circle cx='245' cy='245' r='1' fill='white' fill-opacity='0.39'/><circle cx='267' cy='234' r='0.9' fill='white' fill-opacity='0.51'/><circle cx='52' cy='260' r='0.5' fill='white' fill-opacity='0.38'/><circle cx='110' cy='238' r='1.5' fill='white' fill-opacity='0.69'/><circle cx='217' cy='236' r='1.1' fill='white' fill-opacity='0.77'/><circle cx='120' cy='147' r='0.6' fill='white' fill-opacity='0.66'/><circle cx='183' cy='280' r='1' fill='white' fill-opacity='0.91'/><circle cx='285' cy='46' r='1' fill='white' fill-opacity='0.77'/><circle cx='113' cy='211' r='0.9' fill='white' fill-opacity='0.83'/><circle cx='57' cy='196' r='1.4' fill='white' fill-opacity='0.78'/><circle cx='175' cy='276' r='1' fill='white' fill-opacity='0.91'/></svg>"),url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='170' height='170'><circle cx='114' cy='261' r='0.6' fill='white' fill-opacity='0.38'/><circle cx='109' cy='202' r='0.6' fill='white' fill-opacity='0.97'/><circle cx='253' cy='256' r='0.6' fill='white' fill-opacity='0.96'/><circle cx='133' cy='33' r='0.6' fill='white' fill-opacity='0.61'/><circle cx='241' cy='100' r='0.6' fill='white' fill-opacity='0.37'/><circle cx='224' cy='169' r='0.6' fill='white' fill-opacity='0.66'/><circle cx='115' cy='8' r='0.6' fill='white' fill-opacity='0.37'/><circle cx='144' cy='215' r='0.6' fill='white' fill-opacity='0.54'/><circle cx='33' cy='49' r='0.6' fill='white' fill-opacity='0.39'/><circle cx='248' cy='45' r='0.6' fill='white' fill-opacity='0.96'/><circle cx='263' cy='198' r='0.6' fill='white' fill-opacity='0.39'/><circle cx='179' cy='287' r='0.6' fill='white' fill-opacity='0.72'/><circle cx='249' cy='43' r='0.6' fill='white' fill-opacity='0.92'/><circle cx='212' cy='274' r='0.6' fill='white' fill-opacity='0.88'/><circle cx='208' cy='54' r='0.6' fill='white' fill-opacity='0.57'/><circle cx='217' cy='5' r='0.6' fill='white' fill-opacity='0.43'/><circle cx='25' cy='45' r='0.6' fill='white' fill-opacity='0.53'/><circle cx='7' cy='244' r='0.6' fill='white' fill-opacity='0.77'/><circle cx='238' cy='280' r='0.6' fill='white' fill-opacity='0.41'/><circle cx='132' cy='32' r='0.6' fill='white' fill-opacity='0.63'/><circle cx='92' cy='115' r='0.6' fill='white' fill-opacity='0.57'/><circle cx='148' cy='269' r='0.6' fill='white' fill-opacity='0.48'/><circle cx='170' cy='80' r='0.6' fill='white' fill-opacity='0.77'/><circle cx='145' cy='61' r='0.6' fill='white' fill-opacity='0.91'/><circle cx='56' cy='299' r='0.6' fill='white' fill-opacity='0.64'/><circle cx='41' cy='131' r='0.6' fill='white' fill-opacity='0.36'/><circle cx='171' cy='170' r='0.6' fill='white' fill-opacity='0.85'/><circle cx='230' cy='153' r='0.6' fill='white' fill-opacity='0.73'/><circle cx='90' cy='71' r='0.6' fill='white' fill-opacity='0.57'/><circle cx='247' cy='41' r='0.6' fill='white' fill-opacity='0.47'/><circle cx='168' cy='186' r='0.6' fill='white' fill-opacity='0.84'/><circle cx='133' cy='278' r='0.6' fill='white' fill-opacity='0.73'/><circle cx='217' cy='85' r='0.6' fill='white' fill-opacity='0.64'/><circle cx='38' cy='130' r='0.6' fill='white' fill-opacity='0.92'/><circle cx='252' cy='53' r='0.6' fill='white' fill-opacity='0.95'/><circle cx='245' cy='245' r='0.6' fill='white' fill-opacity='0.39'/><circle cx='267' cy='234' r='0.6' fill='white' fill-opacity='0.51'/><circle cx='52' cy='260' r='0.6' fill='white' fill-opacity='0.38'/><circle cx='110' cy='238' r='0.6' fill='white' fill-opacity='0.69'/><circle cx='217' cy='236' r='0.6' fill='white' fill-opacity='0.77'/><circle cx='120' cy='147' r='0.6' fill='white' fill-opacity='0.66'/><circle cx='183' cy='280' r='0.6' fill='white' fill-opacity='0.91'/><circle cx='285' cy='46' r='0.6' fill='white' fill-opacity='0.77'/><circle cx='113' cy='211' r='0.6' fill='white' fill-opacity='0.83'/><circle cx='57' cy='196' r='0.6' fill='white' fill-opacity='0.78'/><circle cx='175' cy='276' r='0.6' fill='white' fill-opacity='0.91'/></svg>");background-position:0 0,60px 90px;animation:tw 6s ease-in-out infinite alternate}
+@keyframes tw{from{opacity:.55}to{opacity:1}}
+/* top bar */
+.top{display:flex;align-items:center;gap:10px}
+.brand{flex:1;display:flex;flex-direction:column;line-height:1.05}
+.brand b{font-weight:600;font-size:17px;letter-spacing:.02em}
+.brand small{font-family:var(--mono);font-size:9.5px;color:var(--mute);letter-spacing:.12em;text-transform:uppercase}
+.onair{font-family:var(--mono);font-size:10px;letter-spacing:.14em;padding:3px 8px;border:1px solid var(--line);border-radius:99px;color:var(--mute);display:flex;gap:6px;align-items:center}
+.onair i{width:7px;height:7px;border-radius:50%;background:#34407a}
+.onair.live{color:var(--amber);border-color:var(--amber2)}
+.onair.live i{background:var(--red);box-shadow:0 0 8px var(--red);animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.35}}
+.ico{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--mute)}
+.ico:hover{background:var(--panel);color:var(--amber)}
+.ico svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* dial */
+.dial{position:relative;height:34px;border:1px solid var(--line);border-radius:10px;background:linear-gradient(#0a1034,#060a22);overflow:hidden}
+.ticks{position:absolute;inset:0;background:repeating-linear-gradient(90deg,var(--line) 0 1px,transparent 1px 10px);opacity:.8;mask:linear-gradient(transparent 52%,#000 52%)}
+.ticks.big{background:repeating-linear-gradient(90deg,var(--mute) 0 1px,transparent 1px 50px);mask:linear-gradient(transparent 28%,#000 28%)}
+.freq{position:absolute;left:10px;top:3px;font-family:var(--mono);font-size:10px;color:var(--amber);letter-spacing:.1em}
+.needle{position:absolute;top:0;bottom:0;width:2px;background:var(--red);box-shadow:0 0 10px var(--red);left:30%;transition:left 2.4s cubic-bezier(.6,0,.2,1)}
+
+/* stage */
+.stage{display:flex;flex-direction:column;align-items:center;gap:12px;padding:6px 0 0}
+.vinyl{width:188px;height:188px;border-radius:50%;position:relative;background:conic-gradient(from 20deg,#04061a,#16204f,#04061a 25%,#1a2560 40%,#04061a 60%,#16204f 80%,#04061a);box-shadow:0 0 0 1px #000,0 18px 50px rgba(0,0,0,.6),0 0 60px var(--glow);animation:spin 9s linear infinite;animation-play-state:paused}
+.vinyl.on{animation-play-state:running}
+.vinyl:before{content:'';position:absolute;inset:8px;border-radius:50%;background:repeating-radial-gradient(circle,transparent 0 3px,rgba(255,255,255,.03) 3px 4px)}
+.label{position:absolute;inset:60px;border-radius:50%;background:#1c2a6b center/cover;box-shadow:0 0 0 3px #000, inset 0 0 12px rgba(0,0,0,.6)}
+.label:after{content:'';position:absolute;inset:calc(50% - 4px);background:var(--bg);border-radius:50%}
+@keyframes spin{to{transform:rotate(360deg)}}
+.vinyl.talk{box-shadow:0 0 0 1px #000,0 18px 50px rgba(0,0,0,.6),0 0 90px rgba(120,160,255,.6)}
+.np{text-align:center;min-height:62px;width:100%}
+.lyrics{display:none;width:100%;height:188px;flex-direction:column;justify-content:space-between}
+body.lyr .stage .vinyl{display:none}
+body.lyr .lyrics{display:flex}
+.lyr-lines{flex:1;display:flex;flex-direction:column;justify-content:center;gap:6px;text-align:center;overflow:hidden;padding:0 6px}
+.lyr-lines p{margin:0;color:var(--mute);font-size:14px;line-height:1.35;opacity:.55;transition:color .3s,opacity .3s,font-size .3s;cursor:pointer;text-wrap:balance}
+.lyr-lines p.now{color:var(--cream);opacity:1;font-size:18px;font-weight:600}
+.lyr-lines p.near{opacity:.8}
+.lyr-lines.plain{justify-content:flex-start;overflow-y:auto}
+.lyr-lines.plain p{opacity:.85;cursor:default}
+.lyr-lines .lyr-msg{font-family:var(--mono);font-size:11px;letter-spacing:.06em;opacity:.8;cursor:default}
+.lyr-foot{display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:10px;color:var(--mute);padding:0 4px}
+.lyr-foot span:first-child{flex:1;min-width:0;line-height:1.4}
+.lyr-nudge{display:flex;gap:2px;flex:none}
+body.mini .lyrics{display:none}
+.np .kind{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--amber)}
+.np h1{font-weight:600;font-size:22px;line-height:1.15;margin:4px 0 2px;text-wrap:balance}
+.np p{color:var(--mute);font-size:14px}
+.chips{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:7px}
+.chip{font-family:var(--mono);font-size:10px;padding:2px 8px;border:1px solid var(--line);border-radius:99px;color:var(--mute)}
+
+/* caption */
+.cap{background:linear-gradient(var(--bg2),#080c26);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-height:124px;position:relative}
+.cap small{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--amber);text-transform:uppercase;display:block;margin-bottom:3px}
+.cap div{font-size:14px;line-height:1.42;font-style:italic;color:var(--cream)}
+.cap.idle div{color:var(--mute)}
+.cap-arrow{position:absolute;top:50%;transform:translateY(-50%);width:22px;height:40px;border-radius:6px;color:var(--amber);font-size:20px;line-height:1;opacity:.75;z-index:1}
+.cap-arrow:hover{opacity:1;background:var(--panel)}
+.cap.arrows{padding-left:28px;padding-right:28px;max-height:none}
+#capSrc{display:block;margin-top:3px;font-family:var(--mono);font-size:10.5px;color:#4fe3f0;direction:rtl;text-align:right}
+#capSrc:empty{display:none}
+.cap.linkable{cursor:pointer}
+.cap.linkable:hover #capSrc{text-decoration:underline}
+
+/* progress */
+.bar{height:3px;background:var(--line);border-radius:3px;overflow:hidden;cursor:pointer}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--amber2),var(--amber));box-shadow:0 0 10px var(--glow)}
+.times{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--mute);margin-top:4px}
+
+/* controls */
+.ctrl{display:flex;align-items:center;justify-content:center;gap:22px}
+.ctrl button{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;color:var(--cream)}
+.ctrl button:hover{color:var(--amber)}
+.ctrl svg{width:22px;height:22px;fill:currentColor}
+.ctrl .play{width:64px;height:64px;background:linear-gradient(var(--amber),var(--amber2));color:#060a2a;box-shadow:0 6px 24px var(--glow)}
+.ctrl .play:hover{color:#060a2a;filter:brightness(1.08)}
+.ctrl .play svg{width:26px;height:26px}
+.ctrl .rep,.ctrl-spacer{width:34px;height:34px}
+.ctrl .rep{color:var(--mute)}
+.ctrl .rep svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ctrl .rep.on{color:var(--amber);background:var(--panel);box-shadow:0 0 0 1px var(--line)}
+.row{display:flex;align-items:center;gap:8px}
+.row .grow{flex:1}
+.vol{display:flex;align-items:center;gap:8px;flex:1;color:var(--mute)}
+.volrow{justify-content:center;padding:0 4px}
+.volrow .vol{flex:0 1 320px}
+.vol svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2}
+input[type=range]{-webkit-appearance:none;appearance:none;height:3px;background:var(--line);border-radius:3px;width:100%}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--amber);box-shadow:0 0 8px var(--glow)}
+.pill{font-family:var(--mono);font-size:11px;letter-spacing:.06em;padding:7px 11px;border:1px solid var(--line);border-radius:99px;color:var(--cream);display:flex;gap:6px;align-items:center}
+.pill:hover{border-color:var(--amber);color:var(--amber)}
+
+/* overlay panels */
+.sheet{position:absolute;inset:0;background:rgba(3,5,18,.97);z-index:5;padding:16px 18px;display:none;flex-direction:column;gap:10px}
+.sheet.open{display:flex}
+.sheet h2{font-weight:600;font-size:20px}
+.sheet .hd{display:flex;align-items:center;justify-content:space-between}
+.field{display:flex;gap:8px}
+input[type=text]{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--cream);font:inherit;font-size:14px;user-select:text}
+select{background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--cream);padding:6px;font:inherit;font-size:13px;max-width:210px}
+.btn{background:linear-gradient(var(--amber),var(--amber2));color:#060a2a;border-radius:10px;padding:9px 14px;font-weight:600;font-size:13px}
+.btn.ghost{background:none;border:1px solid var(--line);color:var(--cream)}
+.list{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;padding-right:2px}
+.item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--panel);border:1px solid transparent;border-radius:10px;font-size:13.5px}
+.item:hover{border-color:var(--line)}
+.item .meta{flex:1;min-width:0;cursor:pointer}
+.item .meta b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .meta span{color:var(--mute);font-size:12px;font-family:var(--mono)}
+.item.now{border-color:var(--amber2)}
+.ico.on{color:var(--amber);background:var(--panel);box-shadow:0 0 0 1px var(--line)}
+.focus-menu{display:none;flex-direction:column;gap:6px;align-self:flex-end;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:-4px}
+.focus-menu.open{display:flex}
+.focus-menu small{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--mute);text-transform:uppercase}
+.focus-menu button{text-align:left;padding:8px 10px;border-radius:8px;color:var(--cream);font-size:13px}
+.focus-menu button:hover,.focus-menu button.on{background:var(--panel);color:var(--amber)}
+.focus-stations{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px}
+.focus-stations button{display:flex;flex-direction:column;gap:2px;padding:7px 10px}
+.focus-stations em{font-style:normal;font-size:11px;line-height:1.3;color:var(--mute)}
+.focus-stations button{position:relative}
+.focus-stations .edit{position:absolute;top:6px;right:8px;font-style:normal;font-size:10.5px;font-family:var(--mono);color:var(--mute);padding:2px 6px;border:1px solid var(--line);border-radius:6px}
+.focus-stations .edit:hover{color:var(--amber)}
+.focus-stations .add span{color:var(--amber)}
+@media (max-width:420px){.focus-stations{grid-template-columns:1fr}}
+.mar{display:flex;flex-direction:column;gap:8px;overflow-y:auto;min-height:0}
+.mar-g{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.mar-g:has(.mar-h input:checked){border-color:var(--amber2)}
+.mar-h{display:flex;align-items:center;gap:10px;cursor:pointer}
+.mar-h span{display:flex;flex-direction:column;font-size:14px;flex:1}
+.mar-h small{color:var(--mute);font-size:11.5px;line-height:1.4}
+.mar-h em{font-style:normal;font-family:var(--mono);font-size:10.5px;color:var(--mute)}
+.mar-c:empty{display:none}
+.mar-every{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;border-top:1px solid var(--line);padding-top:8px}
+.mar-more summary{font-family:var(--mono);font-size:10.5px;color:var(--mute);cursor:pointer;letter-spacing:.04em}
+.mar-more[open] summary{margin-bottom:6px}
+.run-info{align-self:center;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;color:var(--amber);border:1px solid var(--line);border-radius:99px;padding:3px 10px;text-align:center}
+.titlerow{display:flex;align-items:center;justify-content:center;gap:10px}
+.heart{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:var(--mute);flex:none}
+.heart svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round}
+#btnDownload svg{stroke-linecap:round}
+#btnDownload:disabled{opacity:.3}
+.heart:hover:not(:disabled){color:#ff8fc0;background:var(--panel)}
+.heart.on{color:#ff7ab8}.heart.on svg{fill:#ff7ab8}
+.heart:disabled{opacity:.3;cursor:default}
+.mini-btn{font-family:var(--mono);font-size:11px;color:var(--mute);padding:4px 7px;border-radius:6px}
+.mini-btn:hover{color:var(--amber);background:var(--bg2)}
+.np-acts{display:flex;flex-wrap:wrap;justify-content:center;gap:2px 6px}
+#btnRemoveSong.sure{color:#ff9aa8;border:1px solid #ff9aa8}
+.themes{display:flex;gap:6px;flex-wrap:wrap}
+.themes label{font-family:var(--mono);font-size:10.5px;padding:3px 9px;border:1px solid var(--line);border-radius:99px;color:var(--mute);cursor:pointer}
+.themes input{display:none}
+.themes input:checked+span{color:var(--amber)}
+.themes label:has(input:checked){border-color:var(--amber);color:var(--amber)}
+.set{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.seg{display:flex;border:1px solid var(--line);border-radius:99px;overflow:hidden}
+.seg button{font-family:var(--mono);font-size:11px;padding:6px 11px;color:var(--mute)}
+.seg button.on{background:var(--amber);color:#060a2a}
+.toast{position:absolute;left:18px;right:18px;bottom:78px;background:var(--amber);color:#060a2a;padding:9px 13px;border-radius:10px;font-size:13px;font-weight:600;z-index:9;opacity:0;transform:translateY(8px);transition:.3s;pointer-events:none}
+.toast.show{opacity:1;transform:none}
+
+/* tune-in */
+.tune{position:absolute;inset:0;z-index:20;background:radial-gradient(90% 60% at 50% 35%,#1b2672,var(--bg));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:30px}
+.tune h1{font-weight:600;font-size:34px;letter-spacing:.01em}
+.tune p{color:var(--mute);max-width:280px;line-height:1.5}
+.tune .big{width:96px;height:96px;border-radius:50%;background:linear-gradient(var(--amber),var(--amber2));display:grid;place-items:center;box-shadow:0 0 70px var(--glow);color:#060a2a}
+.tune .big svg{width:36px;height:36px;fill:currentColor}
+.tune .big:hover{transform:scale(1.04)}
+.tune small{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--amber);text-transform:uppercase}
+#yt{position:fixed;left:-9999px;top:0;width:320px;height:180px}
+
+/* compact */
+body.mini .stage .vinyl,body.mini .cap,body.mini .dial,body.mini .times,body.mini .bar,body.mini .row.extras{display:none}
+body.mini .stage{padding:0}
+body.mini .np{min-height:0}
+body.mini .np h1{font-size:16px}
+body.mini .ctrl{gap:10px}
+body.mini .ctrl button{width:38px;height:38px}
+body.mini .ctrl .play{width:46px;height:46px}
+body.mini .app{gap:6px}
+@media (prefers-reduced-motion:reduce){.vinyl{animation-duration:24s}}   /* computers set to reduce animations: the record still turns, slowly */
+</style>
+</head>
+<body>
+<div class="stars"></div><div class="grain"></div>
+<div class="app" id="app">
+
+  <div class="top">
+    <div class="brand"><b>Pale Blue Dot</b><small>radio from a small blue speck</small></div>
+    <div class="onair" id="onair"><i></i>ON AIR</div>
+    <button class="ico" id="btnMini" title="Compact mode" aria-label="Compact mode"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+    <button class="ico" id="btnClose" title="Close the radio" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+
+  <div class="dial"><div class="ticks"></div><div class="ticks big"></div><div class="freq" id="freq">88.8 FM</div><div class="needle" id="needle"></div></div>
+
+  <div class="stage">
+    <div class="vinyl" id="vinyl"><div class="label" id="label"></div></div>
+    <div class="lyrics" id="lyrics" aria-live="off"><div class="lyr-lines" id="lyrLines"></div><div class="lyr-foot"><span id="lyrNote"></span><span class="lyr-nudge"><button class="mini-btn" id="lyrEarly" title="The words come too late: show them half a second earlier">earlier</button><button class="mini-btn" id="lyrLate" title="The words come too early: show them half a second later">later</button></span></div></div>
+    <div class="np">
+      <div class="kind" id="kind">standing by</div>
+      <div class="titlerow"><button class="heart" id="btnDownload" aria-label="Download as MP3" title="Download this as MP3" disabled><svg viewBox="0 0 24 24"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg></button><h1 id="title">Pale Blue Dot</h1><button class="heart" id="btnHeart" aria-label="Favorite this song" aria-pressed="false" title="Add to favorites" disabled><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button></div>
+      <p id="artist">Press play to tune in</p>
+      <div class="chips" id="chips"></div>
+      <div class="np-acts"><button class="mini-btn" id="btnWrong" title="Play another upload of this song">no sound or wrong song? try another version</button><button class="mini-btn" id="btnRemoveSong" style="display:none" title="Never play this song again">&#10005; remove this song</button></div>
+    </div>
+  </div>
+
+  <div class="run-info" id="runInfo" style="display:none"></div>
+  <div class="cap idle" id="cap"><button class="mini-btn" id="marStop" style="display:none;position:absolute;right:8px;top:6px;z-index:2">&#9632; stop marathon</button><button class="mini-btn" id="btnAdRemove" style="display:none;position:absolute;right:8px;bottom:6px">&#10005; never play this ad</button><button class="cap-arrow" id="newsPrev" style="display:none;left:2px" aria-label="Previous headline" title="Previous headline">&#8249;</button><button class="cap-arrow" id="newsNext" style="display:none;right:2px" aria-label="Next headline" title="Next headline">&#8250;</button><small id="capKind">Astro</small><div id="capText">He will be with you in a moment.</div><span id="capSrc"></span></div>
+
+  <div>
+    <div class="bar" id="bar"><i id="barfill"></i></div>
+    <div class="times"><span id="tcur">0:00</span><span id="tdur">0:00</span></div>
+  </div>
+
+  <div class="ctrl">
+    <span class="ctrl-spacer" aria-hidden="true"></span>
+    <button id="btnPrev" aria-label="Previous"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+    <button class="play" id="btnPlay" aria-label="Play or pause"><svg viewBox="0 0 24 24" id="playIcon"><path d="M8 5v14l11-7z"/></svg></button>
+    <button id="btnNext" aria-label="Next"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+    <button class="rep" id="btnRepeat" aria-label="Repeat this song" aria-pressed="false" title="Repeat this song"><svg viewBox="0 0 24 24"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 013-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 01-3 3H3"/></svg></button>
+  </div>
+
+  <div class="row extras">
+    <button class="pill" id="btnAdd">+ Suggest</button>
+    <button class="pill" id="btnLib">Library</button>
+    <button class="ico" id="btnRun" title="Genre run: play the next 20 to 40 songs from one genre" aria-label="Genre run"><svg viewBox="0 0 24 24"><path d="M3 12h2M7 7v10M11 4v16M15 8v8M19 10v4M21 12h0"/></svg></button>
+    <button class="ico" id="btnNewsNow" title="The news, now" aria-label="Play the news now"><svg viewBox="0 0 24 24"><path d="M4 5h13v14H6a2 2 0 01-2-2z"/><path d="M17 9h3v8a2 2 0 01-2 2"/><path d="M7 9h7M7 12h7M7 15h4"/></svg></button>
+    <button class="ico" id="btnLyrics" title="Lyrics" aria-label="Lyrics" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 6h11M4 10h11M4 14h7"/><circle cx="17" cy="17" r="2.5"/><path d="M19.5 17V7l2-1"/></svg></button>
+    <button class="ico" id="btnFocus" title="Focus mode" aria-label="Focus mode"><svg viewBox="0 0 24 24"><path d="M4 14v-2a8 8 0 0116 0v2"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/></svg></button>
+    <button class="ico" id="btnSet" aria-label="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.1-1.2l2-1.5-2-3.4-2.3 1a7 7 0 00-2-1.2L14.2 3h-4l-.4 2.7a7 7 0 00-2 1.2l-2.3-1-2 3.4 2 1.5a7 7 0 000 2.4l-2 1.5 2 3.4 2.3-1a7 7 0 002 1.2l.4 2.7h4l.4-2.7a7 7 0 002-1.2l2.3 1 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"/></svg></button>
+  </div>
+  <div class="row extras volrow"><div class="vol"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 8a5 5 0 010 8"/></svg><input type="range" id="vol" min="0" max="100" value="80" aria-label="Volume"></div></div>
+  <div class="focus-menu" id="focusMenu" role="menu"><small>Focus mode: no talk, no commercials · the news stays</small><small>Instrumental</small><div id="focusStations" class="focus-stations"></div><small>Or</small><button data-v="sounds" role="menuitem">Ambient sounds</button><button data-v="" role="menuitem">Off</button></div>
+
+  <!-- add song -->
+  <div class="sheet" id="shAdd">
+    <div class="hd"><h2>Suggest</h2><button class="ico" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="seg" id="addTabs" style="align-self:flex-start"><button data-v="one" class="on">One song</button><button data-v="list">A list</button></div>
+    <div id="addOne" style="display:contents">
+      <div class="field"><input type="text" id="addq" placeholder="Artist - song title"><button class="btn" id="addGo">Search</button></div>
+      <div class="field"><input type="text" id="addDed" maxlength="200" autocomplete="off" placeholder="A dedication (optional): for my mother, to the boy I was…"></div>
+      <div class="themes" id="addThemes"></div>
+      <div class="list" id="addRes"><p style="color:var(--mute);font-size:13px;line-height:1.5">Type what you want to hear and pick the right result. I will add just that song to the library and play it next. Optionally, tick the themes it belongs to.</p></div>
+    </div>
+    <div id="addList" style="display:none;flex-direction:column;gap:12px;min-height:0">
+      <textarea id="listIn" rows="5" placeholder="Paste a YouTube playlist link, or one song per line:&#10;Pachyman - Destroy the Empire&#10;King Tubby - Mystical Dub" style="width:100%;box-sizing:border-box;resize:vertical;background:var(--bg2);color:inherit;border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;font-size:13px"></textarea>
+      <div class="field" style="align-items:center;flex-wrap:wrap">
+        <button class="btn" id="listGo">Read the list</button>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--mute);cursor:pointer"><input type="checkbox" id="listPlayNext"> Play these next</label>
+      </div>
+      <p id="listStatus" style="color:var(--mute);font-size:12.5px;line-height:1.5;margin:0">The list is kept under its name in Library &gt; Lists, so you can play it again. Give it a genre here, or label its songs later in Library &gt; Needs labels.</p>
+      <div class="list" id="listRes"></div>
+      <div id="listSave" style="display:none;flex-direction:column;gap:8px">
+        <div class="field"><input type="text" id="listName" placeholder="Name of this list (leave empty to only add the songs)"></div>
+        <div class="set" style="padding:4px 0;border:0"><span style="font-size:13px">Genre for songs that have none</span><select id="listGenre"></select></div>
+      </div>
+      <div class="field" style="flex-wrap:wrap"><button class="btn" id="listAdd" style="display:none">Add</button><button class="btn ghost" id="listAll" style="display:none">Tick all / none</button><button class="btn ghost" id="listRetry" style="display:none">Search the missing again</button></div>
+    </div>
+  </div>
+
+  <!-- labels for one song: genre, lyric themes, mood, energy -->
+  <div class="sheet" id="shLabel">
+    <div class="hd"><h2>Labels</h2><button class="ico" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <p id="labelSong" style="margin:0;font-weight:600"></p>
+    <div class="set"><span>Genre</span><select id="labelGenre"></select></div>
+    <div><span style="font-size:13px;color:var(--mute)">What the lyrics are about</span><div class="themes" id="labelThemes" style="margin-top:8px"></div></div>
+    <div class="set"><span>Mood</span><select id="labelMood"></select></div>
+    <div class="set"><span>Energy</span><div class="seg" id="labelEnergy"><button data-v="1">1 calm</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5 driving</button></div></div>
+    <button class="btn" id="labelSave" style="align-self:flex-start">Save labels</button>
+  </div>
+
+  <!-- playback report: the last events, to send when something does not play -->
+  <div class="sheet" id="shMarathon">
+    <div class="hd"><h2>Marathon</h2><button class="ico" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <p style="color:var(--mute);font-size:13px;line-height:1.5">Tick one or more. They take turns, mixed, until you stop. With only Songs ticked, it is all music, no host. The news still comes every 4 hours. Next skips to the next part.</p>
+    <div class="mar" id="marBox">
+      <div class="mar-g" data-g="songs">
+        <label class="mar-h"><input type="checkbox" value="songs"><span>Songs<small>no host over the music. From:</small></span><em></em></label>
+        <div class="themes mar-c" id="marSrc"></div>
+        <details class="mar-more"><summary>Genre groups</summary><div class="themes mar-c" id="marGenres"></div></details>
+        <div class="mar-every" id="marEvery" style="display:none"><span>Songs between parts</span><div class="seg"><button data-v="1">1</button><button data-v="2" class="on">2</button><button data-v="3">3</button><button data-v="5">5</button></div></div>
+      </div>
+      <div class="mar-g" data-g="voices">
+        <label class="mar-h"><input type="checkbox"><span>Voices<small>Astro and Luna</small></span><em></em></label>
+        <div class="themes mar-c">
+          <label><input type="checkbox" value="letter"><span>Letters</span></label>
+          <label><input type="checkbox" value="longletter"><span>Long letters</span></label>
+          <label><input type="checkbox" value="talk"><span>The Long Hour</span></label>
+          <label><input type="checkbox" value="convo"><span>Conversations</span></label>
+          <label><input type="checkbox" value="checkin"><span>Check-ins</span></label>
+          <label><input type="checkbox" value="reading"><span>Readings</span></label>
+        </div>
+      </div>
+      <div class="mar-g" data-g="podcast">
+        <label class="mar-h"><input type="checkbox" value="podcast"><span>Podcasts<small>on the PC radio</small></span><em></em></label>
+        <div class="themes mar-c" id="marPods">
+          <label><input type="checkbox" value="regular"><span>Regular</span></label>
+          <label><input type="checkbox" value="dahih"><span>الدحيح</span></label>
+          <label><input type="checkbox" value="hadara"><span>في الحضارة</span></label>
+          <label><input type="checkbox" value="huwa"><span>هو ليه؟</span></label>
+          <label><input type="checkbox" value="abdellatif"><span>مع عبد اللطيف</span></label>
+        </div>
+      </div>
+      <div class="mar-g" data-g="ads">
+        <label class="mar-h"><input type="checkbox" value="ads"><span>Commercials<small>one jingle between them</small></span><em></em></label>
+      </div>
+    </div>
+    <div class="field" style="margin-top:6px"><button class="btn" id="marGo">Start the marathon</button><button class="btn ghost" id="marEnd">Stop</button></div>
+    <p id="marNote" style="color:var(--mute);font-size:12px;line-height:1.5"></p>
+  </div>
+
+  <div class="sheet" id="shReport">
+    <div class="hd"><h2>Playback report</h2><button class="ico" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <p style="color:var(--mute);font-size:13px;line-height:1.5">If songs do not play on this device, take a screenshot of this page and send it. Newest lines are at the top.</p>
+    <button class="btn ghost" id="reportCopy" style="margin:6px 0">Copy</button>
+    <pre id="reportText" style="white-space:pre-wrap;font-size:11px;line-height:1.45;color:var(--ink,#ddd);max-height:60vh;overflow:auto"></pre>
+  </div>
+
+  <!-- choose another version of the playing song -->
+  <div class="sheet" id="shVer">
+    <div class="hd"><h2>Choose another version</h2><button class="ico" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="field"><input type="text" id="verq" placeholder="Artist - song title"><button class="btn" id="verGo">Search</button></div>
+    <div class="list" id="verRes"></div>
+  </div>
+
+  <!-- Focus > Add a genre -->
+  <div class="sheet" id="shGenre">
+    <div class="hd"><h2 id="genreTitle">Add a genre</h2><button class="ico" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="field"><input type="text" id="genreName" maxlength="40" autocomplete="off" placeholder="Name: Bossa Nova Guitar, Gnawa Instrumental…"></div>
+    <div class="field"><input type="text" id="genreQ" placeholder="Artist - track title (instrumental)"><button class="btn" id="genreGo">Search</button></div>
+    <div class="list" id="genreRes" style="flex:0 0 auto"></div>
+    <p id="genreCount" style="color:var(--mute);font-size:12.5px;line-height:1.5;margin:0"></p>
+    <div class="list" id="genreTracks"></div>
+    <div class="field" style="flex-wrap:wrap"><button class="btn" id="genreSave">Create the station</button><button class="btn ghost" id="genreDel" style="margin-left:auto">Delete this station</button></div>
+  </div>
+
+  <!-- commercials -->
+  <div class="sheet" id="shAds">
+    <div class="hd"><h2>Commercials <span id="adCount" style="color:var(--mute);font-size:14px"></span></h2><button class="ico" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="field"><input type="text" id="adq" placeholder="Paste a YouTube link or playlist, or search (pub maroc inwi)"><button class="btn" id="adGo">Add</button></div>
+    <div class="list" id="adRes" style="flex:none;max-height:170px"></div>
+    <div class="field" style="align-items:center"><div class="seg" id="adTabs"><button data-v="on" class="on">Playing</button><button data-v="off">Removed</button></div><button class="btn ghost" id="adCopy" style="margin-left:auto">Copy the list</button></div>
+    <div class="field"><button class="btn" id="adPlayNow" style="width:100%">Play commercials now</button></div>
+    <div class="list" id="adList"></div>
+  </div>
+
+  <!-- genre run -->
+  <div class="sheet" id="shRun">
+    <div class="hd"><h2>Genre run</h2><button class="ico" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <p style="color:var(--mute);font-size:13px;line-height:1.5">Pick a genre and the next 20 to 40 songs come from it. Then the radio returns to the normal mix on its own.</p>
+    <div class="list" id="runList"></div>
+  </div>
+
+  <!-- library -->
+  <div class="sheet" id="shLib">
+    <div class="hd"><h2>Library <span id="libCount" style="color:var(--mute);font-size:14px"></span></h2><button class="ico" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="seg" id="libTabs" style="align-self:flex-start"><button data-v="all" class="on">All songs</button><button data-v="fav">&#9829; Favorites</button><button data-v="lists">Lists</button><button data-v="unlabeled">Needs labels</button><button data-v="albums">Albums</button></div>
+    <input type="text" id="libQ" placeholder="Search by song or artist" autocomplete="off" style="flex:none">
+    <div class="list" id="libList"></div>
+  </div>
+
+  <!-- settings -->
+  <div class="sheet" id="shSet" style="overflow-y:auto">
+    <div class="hd"><h2>Settings</h2><button class="ico" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="set"><span>Host speaks</span><div class="seg" id="segTalk"><button data-v="normal">every 2 songs</button><button data-v="high">every song</button></div></div>
+    <div class="set"><span>Astro's voice</span><select id="voiceSel"></select></div>
+    <div class="set"><span>Luna's voice<br><small style="color:var(--mute);font-size:11px;line-height:1.4">the readings after the letters</small></span><div style="display:flex;gap:8px;align-items:center;min-width:0"><select id="lunaSel" style="max-width:190px"></select><button class="btn ghost" id="btnLunaTest">Test</button></div></div>
+    <div class="set"><span>News voice<br><small id="newsVoiceNote" style="color:var(--mute);font-size:11px;line-height:1.4">Arabic</small></span><div style="display:flex;gap:8px;align-items:center;min-width:0"><select id="newsVoiceSel" style="max-width:190px"></select><button class="btn ghost" id="btnNewsVoiceTest">Test</button></div></div>
+    <div class="set"><span>Speaking pace</span><input type="range" id="rate" min="70" max="110" value="90" style="width:120px"></div>
+    <div class="set"><span>Sleep timer</span><div class="seg" id="segSleep"><button data-v="0">off</button><button data-v="30">30m</button><button data-v="60">1h</button><button data-v="120">2h</button></div></div>
+    <div class="set"><span>Fade between songs<br><small style="color:var(--mute);font-size:11px;line-height:1.4">the old song fades out under what comes next</small></span><div class="seg" id="segFade"><button data-v="3">3s</button><button data-v="5">5s</button><button data-v="8">8s</button><button data-v="12">12s</button></div></div>
+    <div class="set"><span>Trim song endings</span><div class="seg" id="segTrim"><button data-v="0">off</button><button data-v="5">5s</button><button data-v="8">8s</button></div></div>
+    <div class="set"><span>Programming</span><span style="color:var(--mute);font-size:12px;text-align:right;line-height:1.5">a 64-song cycle, one big part every 8:<br>ads 8 · long talk 16 · ads 24 · long letter 32<br>ads 40 · conversation 48 · ads 56 · podcast 64<br>plus the news every 4 hours, on the hour</span></div>
+    <div class="set" style="flex-wrap:wrap"><span style="flex:1 1 100%">News<br><small id="newsNote" style="color:var(--mute);font-size:11px;line-height:1.4">every 4 hours on the hour, in Arabic</small></span><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end;margin-left:auto"><div class="seg" id="segNews"><button data-v="on">on</button><button data-v="off">off</button></div><button class="btn ghost" id="btnNews">Play now</button><button class="btn ghost" id="btnNewsCheck" title="See what every news source gives right now">Check sources</button><button class="btn ghost" id="btnNewsLast" title="Every line of the last bulletin, with the link of each headline">Last bulletin</button></div></div>
+    <div class="set" style="flex-wrap:wrap"><span style="flex:1 1 200px">A podcast, now<br><small style="color:var(--mute);font-size:11px;line-height:1.4">plays right away, then the music continues (on the PC radio)</small></span><div id="podNow" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto"><button class="btn ghost" data-v="dahih">الدحيح</button><button class="btn ghost" data-v="hadara">في الحضارة</button><button class="btn ghost" data-v="huwa">هو ليه؟</button><button class="btn ghost" data-v="abdellatif">مع عبد اللطيف</button><button class="btn ghost" data-v="regular">Regular</button></div></div>
+    <div class="set" style="flex-wrap:wrap"><span style="flex:1 1 200px">A live concert, now<br><small style="color:var(--mute);font-size:11px;line-height:1.4">a full performance from KEXP or a Tiny Desk Concert from NPR Music. Saturdays, one plays instead of the podcast (on the PC radio)</small></span><div id="concertNow" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto"><button class="btn ghost" data-v="concert">Either</button><button class="btn ghost" data-v="kexp">KEXP</button><button class="btn ghost" data-v="tinydesk">Tiny Desk</button></div></div>
+    <div class="set"><span>Album show<br><small style="color:var(--mute);font-size:11px;line-height:1.4">a whole album in its own order, with Astro: the story first, then a pause every 3 tracks (on the PC radio)</small></span><button class="btn ghost" id="btnAlbums">Choose an album…</button></div>
+    <div class="set"><span>Marathon<br><small style="color:var(--mute);font-size:11px;line-height:1.4">non-stop: commercials, letters, talks, podcasts… no songs in between</small></span><button class="btn ghost" id="btnMarathon">Choose…</button></div>
+    <div class="set"><span>Commercials</span><button class="btn ghost" id="btnAds">Manage commercials</button></div>
+    <div class="set"><span>Playback report<br><small style="color:var(--mute);font-size:11px">what YouTube did, for fixing problems</small></span><button class="btn ghost" id="btnReport">Show</button></div>
+    <div class="set"><span>Cloud sync<br><small id="cloudNote" style="color:var(--mute);font-size:11px;line-height:1.4">off</small></span><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button class="btn ghost" id="btnUpdate" title="Get the newest version of the radio now, without closing it">Update</button><button class="btn ghost" id="btnCloud">Sign in with Google</button></div></div>
+    <div class="set" style="flex-wrap:wrap"><span style="flex:1 1 200px">Library backup<br><small style="color:var(--mute);font-size:11px;line-height:1.4">save your favorites, lists and songs to a file, merge an old file back in, or a day from the last 30 (one copy is saved in the cloud every day). Nothing here is deleted</small></span><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto"><button class="btn ghost" id="btnLibSave">Save a backup</button><button class="btn ghost" id="btnLibRestore">Restore from a file</button><button class="btn ghost" id="btnLibDays">Daily backups</button><input type="file" id="libFile" accept=".json,application/json" multiple style="display:none"></div></div>
+    <div id="libDays" style="display:none;margin:0 0 6px"></div>
+    <div class="set"><button class="btn ghost" id="btnTest">Test the voice</button><button class="btn ghost" id="btnReset">Restore removed songs</button></div>
+    <p id="voiceNote" style="color:var(--amber);font-size:12px;line-height:1.5"></p>
+    <p style="color:var(--mute);font-size:12px;line-height:1.5">Tip: Microsoft Edge has free natural voices. Look for names ending in "(Natural)" like Aria, Jenny or Sonia.</p>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="tune" id="tune">
+    <small id="tuneSub">on the air tonight</small>
+    <h1>Pale Blue Dot</h1>
+    <p>Songs, long talks, poems, and a calm voice for the hours when the world is too loud or too quiet.</p>
+    <button class="big" id="btnTune" aria-label="Tune in"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+    <p style="font-size:12px">Tune in</p>
+  </div>
+</div>
+<div id="yt"><div id="yt0"></div><div id="yt1"></div></div>
+<script src="content.js?v=45f00d7b85dcbf83"></script>
+<script src="content2.js?v=d3855b56ef45b9dd"></script>
+<script src="content3.js?v=56b08beafc4c1707"></script>
+<script src="content4.js?v=b388dbfded469022"></script>
+<script src="content_songs.js?v=4362bfe563749cf2"></script>
+<script src="content5.js?v=db4717ce75765663"></script>
+<script src="content6.js?v=8a26dd2539bdb46f"></script>
+<script src="content7.js?v=e55cb6411cc261bc"></script>
+<script src="content8.js?v=9c9162852633638f"></script>
+<script src="content9.js?v=d3a3d989d495728e"></script>
+<script src="content10.js?v=9275cf846195a692"></script>
+<script src="content11.js?v=aadeac5b4aeca01a"></script>
+<script src="content12.js?v=26e13fb34a5f026a"></script>
+<script src="content13.js?v=4ed0f16a115f260f"></script>
+<script src="content14.js?v=88d02b90cff2fb51"></script>
+<script src="content15.js?v=26282eac091e34e6"></script>
+<script src="content16.js?v=d16981e1813ad647"></script>
+<script src="content17.js?v=fa82a3cfa0116ff4"></script>
+<script src="content18.js?v=55dd5f381b1f8891"></script>
+<script src="content19.js?v=fe61c606500ba72f"></script>
+<script src="content20.js?v=5b3d991b435b2d2a"></script>
+<script src="content21.js?v=db801564b6bdd4c3"></script>
+<script src="content22.js?v=97b2806116f2a4e7"></script>
+<script src="content23.js?v=2b2fed3a8873b89a"></script>
+<script src="content24.js?v=6aa264e46d2d069a"></script>
+<script src="jingles.js?v=82e560f3edddbd37"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js?v=61a02500bccd646f"></script>
+<script src="cloud.js?v=2fb3e9b1301d659f"></script>
+<script src="app.js?v=b11f976a32984340"></script>
+</body>
+</html>
