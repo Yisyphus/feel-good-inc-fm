@@ -100,6 +100,25 @@
         stab(ctx, d, w, t + 3.0, [50, 57, 62, 65, 69], 0.06, 1.5);
         hit(ctx, d, w, t + 3.0, 38, 0.4, 1.2); bell(ctx, d, w, t + 3.0, 86, 0.06, 1.8);
       } },
+    // the bulletin: bouncy and bright, not serious. A skipping bass, a quick major call, and a sparkly landing.
+    { id: 'bulletin', name: 'Feel Good Bulletin', length: 3.4, about: 'A bouncy major-key call with a skipping bass and a sparkle at the end.',
+      build(ctx, d, w, t) {
+        [0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75].forEach((x, i) => pluck(ctx, d, w, t + x, i % 2 ? 50 : 43, 0.2, 0.22));
+        SEQ(ctx, d, w, t + 0.25, [67, 71, 74, 79, 74, 79, 83], pluck, 0.18, 0.15, 0.3);
+        stab(ctx, d, w, t + 1.6, [55, 62, 67, 71], 0.05, 0.9);
+        SEQ(ctx, d, w, t + 1.9, [91, 95, 98], bell, 0.09, 0.07, 1.3);
+      } },
+    // her birthday: confetti. A fast rising arpeggio, bells everywhere, a big happy chord.
+    { id: 'party', name: 'Confetti', length: 4.0, about: 'A fast rising arpeggio, bursts of bells and a big happy chord. For the birthday.',
+      build(ctx, d, w, t) {
+        SEQ(ctx, d, w, t, [60, 64, 67, 72, 76, 79, 84, 88], pluck, 0.09, 0.17, 0.35);
+        for (let i = 0; i < 14; i++) bell(ctx, d, w, t + 0.75 + i * 0.11, 84 + [0, 4, 7, 12, 16, 7, 12][i % 7], 0.06, 0.9);
+        stab(ctx, d, w, t + 2.3, [48, 55, 60, 64, 67, 72], 0.07, 1.5);
+        bell(ctx, d, w, t + 2.3, 96, 0.08, 1.6);
+      } },
+    // the study timer: one soft double chime, nothing more
+    { id: 'chime', name: 'Study chime', length: 2.2, about: 'A soft double chime for the end of a study round or a break.',
+      build(ctx, d, w, t) { bell(ctx, d, w, t, 84, 0.1, 1.8); bell(ctx, d, w, t + 0.35, 91, 0.08, 1.8); } },
   ];
   function play(ctx, id) {
     const j = LIST.find(x => x.id === id) || LIST[0];

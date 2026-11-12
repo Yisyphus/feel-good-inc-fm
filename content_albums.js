@@ -1,0 +1,1 @@
+(function () { const R = window.RADIO; R.albums = []; R.albumPlaylists = []; R.albumOutros = ['That was {album}, by {artist}.']; R.albumIntroPlain = 'A whole album now: {album}, by {artist}.'; R.albumIds = {}; })();

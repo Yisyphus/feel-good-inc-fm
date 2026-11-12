@@ -1,11 +1,11 @@
-' Pale Blue Dot Radio: starts the helper (hidden) if it is not running yet, then opens the radio in its own window.
-' The helper is PaleBlueDotHelper.exe (Node.js, renamed) running server.js from this folder, on http://localhost:8787/
+' Feel Good Inc. FM: starts the helper (hidden) if it is not running yet, then opens the radio in its own window.
+' The helper is FeelGoodHelper.exe (Node.js, renamed) running server.js from this folder, on http://localhost:8789/
 Option Explicit
 Dim sh, fso, dir, url, i, edge, p
 Set sh = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 dir = fso.GetParentFolderName(WScript.ScriptFullName)
-url = "http://localhost:8787/"
+url = "http://localhost:8789/"
 sh.CurrentDirectory = dir
 
 Function Running()
@@ -18,7 +18,7 @@ Function Running()
   http.Send
   If Err.Number = 0 Then
     If http.Status = 200 Then
-      If InStr(http.responseText, "pale-blue-dot") > 0 Then ok = True
+      If InStr(http.responseText, "feel-good-inc-fm") > 0 Then ok = True
     End If
   End If
   Err.Clear
@@ -27,14 +27,14 @@ Function Running()
 End Function
 
 If Not Running() Then
-  sh.Run """" & dir & "\PaleBlueDotHelper.exe"" """ & dir & "\server.js""", 0, False
+  sh.Run """" & dir & "\FeelGoodHelper.exe"" """ & dir & "\server.js""", 0, False
   For i = 1 To 60
     WScript.Sleep 250
     If Running() Then Exit For
   Next
 End If
 
-' Microsoft Edge in app mode: its own small window, and Edge's natural voices (Brian, Emily, Mouna...).
+' Microsoft Edge in app mode: its own small window, and Edge's natural voices (Andrew, Ava, Emma...).
 ' Without Edge, the radio opens in the default browser.
 edge = ""
 For Each p In Array("%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe", "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe", "%LOCALAPPDATA%\Microsoft\Edge\Application\msedge.exe")

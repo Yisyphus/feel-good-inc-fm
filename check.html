@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check my PC · Feel Good Inc. FM</title>
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* The system check before installing the Windows app: a few quick tests, then a plain answer. */
+:root{--bg:#0d0b14;--panel:#17132a;--line:#342c5c;--pink:#ff3ea5;--cyan:#00e5ff;--green:#7cff3a;--yellow:#ffe600;--cream:#fff;--mute:#bcb4dc;--ink:#0d0b14;color-scheme:dark}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg) url(bg.webp) 0 0/1008px auto repeat;color:var(--cream);font-family:'Rubik',system-ui,'Segoe UI',sans-serif;font-size:15px;line-height:1.5;padding:24px max(16px,env(safe-area-inset-right)) 40px max(16px,env(safe-area-inset-left))}
+main{max-width:560px;margin:0 auto;background:var(--bg);border:2px solid var(--line);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:14px}
+h1{font-family:'Bungee','Arial Black',sans-serif;font-weight:400;font-size:24px;line-height:1.15}
+h1 span{color:var(--pink)}
+p.lead{color:var(--mute)}
+.btn{background:var(--yellow);color:var(--ink);border:0;border-radius:12px;padding:12px 18px;font:inherit;font-weight:700;font-size:16px;cursor:pointer;align-self:flex-start}
+.btn.ghost{background:none;color:var(--cream);border:2px solid var(--line);font-size:14px;padding:8px 14px}
+.btn:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+ul{list-style:none;padding:0;display:flex;flex-direction:column;gap:8px}
+li{display:flex;gap:10px;align-items:flex-start;background:var(--panel);border-radius:12px;padding:10px 12px}
+li b{display:block}
+li small{color:var(--mute);font-size:13px}
+.mark{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:var(--ink);background:var(--line)}
+.ok .mark{background:var(--green)} .warn .mark{background:var(--yellow)} .bad .mark{background:var(--pink)}
+.verdict{border-radius:14px;padding:14px 16px;font-weight:700;font-size:17px;color:var(--ink)}
+.verdict.ok{background:var(--green)} .verdict.warn{background:var(--yellow)} .verdict.bad{background:var(--pink)}
+.verdict small{display:block;font-weight:400;font-size:14px;margin-top:4px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+</style>
+</head>
+<body>
+<main>
+  <h1>Check my PC <span>·</span> Feel Good Inc. FM</h1>
+  <p class="lead">A few quick tests (about 10 seconds) to see if this PC is ready for the Windows app, or if the website is the better choice here.</p>
+  <button class="btn" id="go">Check my PC</button>
+  <ul id="list" hidden></ul>
+  <div class="verdict" id="verdict" hidden></div>
+  <div class="row" id="after" hidden><button class="btn ghost" id="copy">Copy results</button><a class="btn ghost" id="dl" href="https://github.com/Yisyphus/feel-good-inc-fm/releases/latest" target="_blank" rel="noopener" style="text-decoration:none">Download the app</a><a class="btn ghost" href="./" style="text-decoration:none">Open the website</a></div>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id), res = [];
+  const add = (cls, title, detail) => { res.push({ cls, title, detail }); const li = document.createElement('li'); li.className = cls; li.innerHTML = '<span class="mark">' + (cls === 'ok' ? '✓' : cls === 'warn' ? '!' : '✕') + '</span><span><b></b><small></small></span>'; li.querySelector('b').textContent = title; li.querySelector('small').textContent = detail; $('list').appendChild(li); };
+  const T = (p, ms) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('timeout')), ms))]);
+  async function windows() {
+    const ua = navigator.userAgent;
+    if (!/Windows/i.test(ua)) return { cls: 'warn', title: 'Not a Windows PC', detail: 'The app is for Windows. On this device, use the website.', win: 0 };
+    let v = 0;
+    try { if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) { const h = await navigator.userAgentData.getHighEntropyValues(['platformVersion']); const major = +String(h.platformVersion || '0').split('.')[0]; v = major >= 13 ? 11 : major >= 1 ? 10 : 0; } } catch {}
+    if (!v) { const m = ua.match(/Windows NT (\d+\.\d+)/); const nt = m ? +m[1] : 0; v = nt >= 10 ? 10 : nt === 6.3 ? 8.1 : nt === 6.2 ? 8 : nt === 6.1 ? 7 : 0; }
+    if (v >= 10) return { cls: 'ok', title: 'Windows ' + (v === 11 ? '11' : '10'), detail: 'Good: the app works on this Windows.', win: v };
+    if (v) return { cls: 'bad', title: 'Windows ' + v, detail: 'Too old for the app (it needs Windows 10 or newer). The website still works here in a browser.', win: v };
+    return { cls: 'warn', title: 'Windows (version unknown)', detail: 'Could not tell which Windows. If it is 10 or 11, the app works.', win: 10 };
+  }
+  function memory() {
+    const ram = navigator.deviceMemory, cpu = navigator.hardwareConcurrency || 0;
+    const r = ram ? (ram >= 4 ? 'ok' : ram >= 2 ? 'warn' : 'bad') : 'warn';
+    const c = cpu >= 4 ? 'ok' : cpu >= 2 ? 'warn' : 'bad';
+    const cls = [r, c].includes('bad') ? 'bad' : [r, c].includes('warn') ? 'warn' : 'ok';
+    return { cls, title: `Memory ${ram ? (ram >= 8 ? '8 GB or more' : 'about ' + ram + ' GB') : 'unknown'} · ${cpu || '?'} processor cores`, detail: cls === 'ok' ? 'Plenty for the radio.' : cls === 'warn' ? 'A bit weak, but the radio is built to be light. It should be fine.' : 'Very weak: the website in one browser tab may be smoother.', weak: cls === 'bad' };
+  }
+  function edge() {
+    const m = navigator.userAgent.match(/Edg\/(\d+)/);
+    if (!m) return { cls: 'warn', title: 'Not Microsoft Edge', detail: 'The app opens in Edge by itself. For the website, Edge gives Joe and Luna their best voices.' };
+    const v = +m[1];
+    return v >= 110 ? { cls: 'ok', title: 'Microsoft Edge ' + v, detail: 'Up to date.' } : { cls: 'warn', title: 'Microsoft Edge ' + v + ' (old)', detail: 'Edge has not updated for a while. Windows Update may fix it.' };
+  }
+  function voices() {
+    return new Promise(res => {
+      const done = () => { const v = speechSynthesis.getVoices(), nat = v.filter(x => /^en/i.test(x.lang) && /natural/i.test(x.name)); res(nat.length ? { cls: 'ok', title: nat.length + ' natural English voices', detail: 'Joe and Luna will sound real (' + nat.slice(0, 3).map(x => x.name.replace('Microsoft ', '').replace(/ Online \(Natural\).*/, '')).join(', ') + '…).' } : v.some(x => /^en/i.test(x.lang)) ? { cls: 'warn', title: 'Only basic voices', detail: 'Joe and Luna will sound robotic here. In Edge they get natural voices.' } : { cls: 'warn', title: 'No English voice found', detail: 'An online voice will be used instead.' }); };
+      if (speechSynthesis.getVoices().length) return done();
+      speechSynthesis.onvoiceschanged = done; setTimeout(done, 2500);
+    });
+  }
+  async function wifi() {
+    const c = navigator.connection; let mbps = c && c.downlink ? c.downlink : 0;
+    try {   // a small test download (the background picture, about 190 KB), timed
+      const t0 = performance.now(); const r = await T(fetch('bg.webp?t=' + Date.now(), { cache: 'no-store' }), 15000); const b = await r.arrayBuffer();
+      const s = (performance.now() - t0) / 1000; mbps = Math.max(mbps, (b.byteLength * 8 / 1e6) / s);
+    } catch { return { cls: 'bad', title: 'Wi-Fi: very slow or offline', detail: 'The test download did not finish. Music will stutter on this connection.', slow: true }; }
+    const v = mbps.toFixed(1);
+    if (mbps >= 3) return { cls: 'ok', title: 'Wi-Fi: about ' + v + ' Mbps', detail: 'Fast enough for smooth music.' };
+    if (mbps >= 1) return { cls: 'warn', title: 'Wi-Fi: about ' + v + ' Mbps', detail: 'A bit slow, but the radio waits instead of skipping. It should work.' };
+    return { cls: 'bad', title: 'Wi-Fi: about ' + v + ' Mbps', detail: 'Slow. Music may pause sometimes. Being closer to the router helps.', slow: true };
+  }
+  $('go').onclick = async () => {
+    $('go').disabled = true; $('go').textContent = 'Checking…'; $('list').innerHTML = ''; $('list').hidden = false; res.length = 0;
+    const w = await windows(); add(w.cls, w.title, w.detail);
+    const m = memory(); add(m.cls, m.title, m.detail);
+    const e = edge(); add(e.cls, e.title, e.detail);
+    const v = await voices(); add(v.cls, v.title, v.detail);
+    const f = await wifi(); add(f.cls, f.title, f.detail);
+    const vd = $('verdict'); vd.hidden = false;
+    if (w.win && w.win < 10) { vd.className = 'verdict warn'; vd.innerHTML = 'Use the website, it will work better here.<small>This Windows is too old for the app. The website plays everything except YouTube searches.</small>'; }
+    else if (!w.win) { vd.className = 'verdict warn'; vd.innerHTML = 'Use the website on this device.<small>The app is for Windows PCs.</small>'; }
+    else if (m.weak || f.slow) { vd.className = 'verdict warn'; vd.innerHTML = 'The app will work, but this PC needs a little help.<small>' + [m.weak && 'Close other programs while the radio plays.', f.slow && 'A better Wi-Fi spot will make music smoother.'].filter(Boolean).join(' ') + '</small>'; }
+    else { vd.className = 'verdict ok'; vd.innerHTML = 'Ready for the app!<small>Download it and open it once: it updates itself after that.</small>'; }
+    $('after').hidden = false; $('go').disabled = false; $('go').textContent = 'Check again';
+  };
+  $('copy').onclick = async () => {
+    const t = 'Feel Good Inc. FM: PC check, ' + new Date().toLocaleString('en-GB') + '\n' + res.map(r => (r.cls === 'ok' ? '✓ ' : r.cls === 'warn' ? '! ' : '✕ ') + r.title + ': ' + r.detail).join('\n') + '\n' + $('verdict').innerText.replace(/\n+/g, ' ') + '\n' + navigator.userAgent;
+    try { await navigator.clipboard.writeText(t); $('copy').textContent = 'Copied'; } catch { const a = document.createElement('textarea'); a.value = t; document.body.appendChild(a); a.select(); try { document.execCommand('copy'); $('copy').textContent = 'Copied'; } catch {} a.remove(); }
+  };
+})();
+</script>
+</body>
+</html>

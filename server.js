@@ -1,11 +1,11 @@
-// Radio Amber — tiny local helper. No dependencies, no API keys.
+// Feel Good Inc. FM: the tiny helper of the Windows app. No dependencies, no API keys.
 // Serves the player, searches YouTube by scraping the public results page,
 // finds "similar" songs from YouTube's own radio mix, and stores your library.
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = +process.env.PORT || 8787;
+const PORT = +process.env.PORT || 8789;   // not 8787, so it never clashes with another radio on the same PC
 const ROOT = path.join(__dirname, 'public');
 const DATA = path.join(__dirname, 'data');
 const LIB = path.join(DATA, 'library.json');
@@ -186,7 +186,7 @@ async function longVideos(q) {
     .filter(v => v.id && v.seconds >= 1800 && !/live|#shorts/i.test(v.title)).slice(0, 10);
 }
 // ---------- news: the radio page reads the news sites through here (only these sites), and picks the headlines itself ----------
-const NEWS_HOSTS = /(^|\.)(kech24\.com|marrakechalaan\.com|hespress\.com|le360\.ma|map\.ma|mapnews\.ma|bbci\.co\.uk|aljazeera\.net|france24\.com|aitnews\.com|cnn\.com|bbc\.com|alarabiya\.net|snrtnews\.com|hitradio\.ma|news\.google\.com|open\.er-api\.com|aladhan\.com|open-meteo\.com|usgs\.gov)$/i;
+const NEWS_HOSTS = /(^|\.)(pitchfork\.com|nme\.com|consequence\.net|theguardian\.com|rollingstone\.com|dexerto\.com|ign\.com|feedburner\.com|gamespot\.com|eurogamer\.net|goodnewsnetwork\.org|upi\.com|open-meteo\.com|wikipedia\.org)$/i;
 async function newsFetch(url) {
   const u = new URL(url);
   if (!/^https?:$/.test(u.protocol) || !NEWS_HOSTS.test(u.hostname)) throw new Error('not a news site');
@@ -376,7 +376,7 @@ let lastActivity = Date.now();
 const server = http.createServer(async (req, res) => {
   lastActivity = Date.now();
   const u = new URL(req.url, 'http://localhost');
-  if (u.pathname === '/api/ping') return send(res, 200, { app: 'pale-blue-dot', ok: true, dir: __dirname, open: 2 });   // open 2: links open in the browser (not explorer.exe)
+  if (u.pathname === '/api/ping') return send(res, 200, { app: 'feel-good-inc-fm', ok: true, dir: __dirname, open: 2 });   // open 2: links open in the browser (not explorer.exe)
   try {
     if (u.pathname === '/api/search') return send(res, 200, await search(u.searchParams.get('q') || '', u.searchParams.get('a') || '', u.searchParams.get('t') || ''));
     if (u.pathname === '/api/playlist') { try { return send(res, 200, await readPlaylist(u.searchParams.get('list') || '')); } catch (e) { return send(res, 400, { error: String(e.message || e) }); } }
@@ -457,7 +457,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, '127.0.0.1', () => { console.log('Pale Blue Dot Radio is on air: http://localhost:' + PORT); syncApp(); });
+server.listen(PORT, '127.0.0.1', () => { console.log('Feel Good Inc. FM is on air: http://localhost:' + PORT); syncApp(); });
 setInterval(syncApp, 6 * 3600e3);
 let portTries = 0;
 server.on('error', e => {

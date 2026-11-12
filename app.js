@@ -25,12 +25,12 @@ const $ = id => document.getElementById(id);
 const rnd = a => a[Math.floor(Math.random() * a.length)];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
-const THEMES = ['time', 'death', 'alienation', 'letting-go', 'love', 'hope', 'routine', 'absurd', 'faith', 'desire', 'peace'];
+const THEMES = ['love', 'fun', 'friends', 'freedom', 'rebel', 'dreams', 'self', 'night', 'summer', 'space', 'weird', 'heartbreak', 'hope', 'school', 'dance', 'chill', 'growing-up'];
 const MAX_DISCOVERED = 220;
 
 // ---------- state ----------
 let lib = { user: [], cache: {}, removed: [], settings: {}, trim: {}, disc: {} };
-let S = { talk: 'normal', rate: 90, voice: '', sleep: 0, deep: 30, vol: 80, trim: 5, news: 'on', fade: 8 };
+let S = { talk: 'normal', rate: 100, voice: '', sleep: 0, vol: 80, trim: 5, news: 'on', fade: 2, justMusic: false };
 let songs = [];
 let current = null, history = [], played = [], upNext = [], planned = null, preload = null;
 let batch = null, startAnnounce = null, lastRunSong = null; // genre run state
@@ -44,18 +44,17 @@ const key = s => (s.a + '|' + s.t).toLowerCase();
 // - on the PC, the helper (server.js) keeps data/library.json, a local copy that also works offline;
 // - opened from the web with no helper (the phone), a copy is kept in the browser;
 // - signed in, the cloud (cloud.js) keeps the shared copy, and the newest copy wins.
-let HELPER = false, cloudAds = null, helperOpens = false;   // helperOpens: this PC's helper opens links in the browser (older ones opened Documents)
-const NEEDS_PC = 'Searching YouTube needs the radio running on your PC (start.bat). Here you can still play, skip, choose favorites, and remove songs or ads.';
+let HELPER = false, helperOpens = false;   // helperOpens: this PC's helper opens links in the browser (older ones opened Documents)
+const NEEDS_PC = 'That works in the installed app (Settings > My stuff > Get the Windows app). On the website you can paste a YouTube link instead.';
 function normalizeLib() {
   if (lib.cacheV !== 2) { lib.cache = {}; lib.cacheV = 2; } // earlier versions cached some wrong videos; search again with the stricter matching
   lib.used = lib.used || {}; lib.b = lib.b || 0; lib.trim = lib.trim || {}; lib.disc = lib.disc || {}; lib.cache = lib.cache || {}; lib.user = lib.user || []; lib.removed = lib.removed || []; lib.lists = lib.lists || [];
   S = Object.assign(S, lib.settings || {});
-  if (S.talk === 'low') S.talk = 'normal';
-}
+  }
 let libLoaded = false;
 async function loadLib() {
   const ping = await fetch('/api/ping').then(r => r.ok ? r.json() : null).catch(() => null);
-  HELPER = !!(ping && ping.app === 'pale-blue-dot'); helperOpens = !!(ping && ping.open >= 2);
+  HELPER = !!(ping && (ping.app === 'feel-good-inc-fm' || ping.app === 'pale-blue-dot')); helperOpens = !!(ping && ping.open >= 2);
   if (HELPER) { try { const r = await fetch('/api/library'); lib = Object.assign(lib, await r.json()); } catch {} }
   else { try { const c = JSON.parse(localStorage.getItem('pbd-lib') || 'null'); if (c) lib = Object.assign(lib, c); } catch {} }
   if (window.Cloud && Cloud.enabled) {
@@ -108,7 +107,6 @@ function syncWithCloud() { return cloudSyncing || (cloudSyncing = syncWithCloudN
 async function syncWithCloudNow() {
   try {
     const c = await Cloud.pull(); if (!c) return;
-    cloudAds = c.ads || null;
     const merged = mergeLib(lib, c.lib ? Object.assign({ savedAt: c.savedAt || 0 }, c.lib) : {});
     const changedHere = libSig(merged) !== libSig(lib), changedThere = !c.lib || libSig(merged) !== libSig(c.lib);
     lib = Object.assign({ user: [], cache: {}, removed: [], settings: {}, trim: {}, disc: {} }, merged);
@@ -144,7 +142,7 @@ function saveLib() {
 if (window.Cloud) {
   Cloud.merge = mergeLib;
   // signed in later than the start (a slow sign-in, or signing in from Settings): merge first, like at the start
-  Cloud.onSignedIn = async () => { if (!libLoaded) return; await syncWithCloud(); normalizeLib(); buildSongs(); updateHeart(); await syncAds(); runAdCleanups(); };
+  Cloud.onSignedIn = async () => { if (!libLoaded) return; await syncWithCloud(); normalizeLib(); buildSongs(); updateHeart(); paintJust(); };
 }
 if (window.Cloud) Cloud.onRemote = ({ lib: rl, savedAt }) => {
   if (!rl) return;
@@ -166,7 +164,7 @@ function buildSongs() {
   [...seed, ...cat, ...user].forEach(s => { if (seen.has(s.key) || lib.removed.includes(s.key)) return; seen.add(s.key); songs.push(s); });
   songs.forEach(s => {
     if (lib.cache[s.key]) s.cands = lib.cache[s.key];
-    else if (R.catalogIds && R.catalogIds[s.key]) { const v = R.catalogIds[s.key]; s.cands = [{ id: v.id, title: v.title, channel: v.channel, seconds: 0 }]; }   // checked in advance: no search needed
+    else if (R.catalogIds && R.catalogIds[s.key]) { const v = R.catalogIds[s.key]; s.cands = [{ id: v.id, title: v.title, channel: v.channel, seconds: v.seconds || 0 }, ...(v.more || [])]; }   // checked in advance: no search needed, with backups
     const L = (lib.labels || {})[s.key];   // your own labels (Library > the pencil) win over the catalog's
     if (L) { if (L.genre) s.genre = L.genre; if (L.tags) s.tags = L.tags.slice(); if (L.mood) s.mood = L.mood; if (L.energy) s.energy = L.energy; }
   });
@@ -210,94 +208,71 @@ function setArt(s, id) {
   tryAt(0);
 }
 function setNow(s, kind) {
-  $('kind').textContent = kind || (s && s.podcast ? (s.midnight ? 'midnight podcast' : 'podcast') : 'now playing');
-  $('title').textContent = s ? s.t : 'Pale Blue Dot';
+  $('kind').textContent = kind || (s && s.podcast ? (s.show === 'concert' ? 'live concert' : 'podcast') : 'now playing');
+  $('title').textContent = s ? s.t : R.station;
   $('artist').textContent = s ? s.a : '';
   $('chips').innerHTML = s ? [...(s.tags || []).slice(0, 3), s.genre].filter(Boolean).map(t => `<span class="chip">${t}</span>`).join('') : '';
   const id = s && s.cands && s.cands[0] ? (s.cands[candIdx] || s.cands[0]).id : null;
   setArt(s, id);
   if (s) { let h = 0; for (const c of s.key) h = (h * 31 + c.charCodeAt(0)) >>> 0; const p = 8 + (h % 84); $('needle').style.left = p + '%'; $('freq').textContent = (87.5 + p * 0.2).toFixed(1) + ' FM'; }
-  document.title = s ? `${s.t} · ${s.a}` : 'Pale Blue Dot Radio';
+  document.title = s ? `${s.t} · ${s.a}` : R.station;
   updateHeart();
-  if ('mediaSession' in navigator && s) navigator.mediaSession.metadata = new MediaMetadata({ title: s.t, artist: s.a, album: 'Pale Blue Dot Radio' });
+  if ('mediaSession' in navigator && s) navigator.mediaSession.metadata = new MediaMetadata({ title: s.t, artist: s.a, album: R.station });
 }
 function setLive(on) { $('onair').classList.toggle('live', on); $('vinyl').classList.toggle('on', on); }
 
 // ---------- voice ----------
+// Three voices, all English: Joe (the host), Luna (the co-host: Book Nook, readings, banter) and the bulletin.
+// Edge's natural voices are preferred; an online voice is the fallback.
 let voices = [];
 const isEn = v => /^en/i.test(v.lang);
 const ONLINE = '__online';
+const nice = v => `${v.name.replace('Microsoft ', '').replace(/ Online \(Natural\)/, ' (Natural)')} · ${v.lang}`;
 function loadVoices() {
   voices = speechSynthesis.getVoices();
-  const sel = $('voiceSel'); sel.innerHTML = '';
-  const add = (val, label) => { const o = document.createElement('option'); o.value = val; o.textContent = label; sel.appendChild(o); };
-  add('', 'Automatic (Brian Multilingual, natural)');
-  add(ONLINE, 'Online English voice (fallback)');
-  [...voices].sort((a, b) => (isEn(b) - isEn(a)) || a.name.localeCompare(b.name)).forEach(v => add(v.name, `${v.name.replace('Microsoft ', '')} · ${v.lang}`));
-  sel.value = S.voice || '';
-  // Luna (the readings) and the news voice: Automatic keeps the radio's own choice
-  const fill = (id, autoLabel, list, key) => { const el = $(id); if (!el) return; el.innerHTML = ''; const o = document.createElement('option'); o.value = ''; o.textContent = autoLabel; el.appendChild(o);
-    list.forEach(v => { const x = document.createElement('option'); x.value = v.name; x.textContent = `${v.name.replace('Microsoft ', '').replace(/ Online \(Natural\)/, ' (Natural)')} · ${v.lang}`; el.appendChild(x); }); el.value = list.some(v => v.name === S[key]) ? S[key] : ''; };
-  fill('lunaSel', 'Automatic (Emily, Ireland, natural)', [...voices].filter(isEn).sort((a, b) => /natural/i.test(b.name) - /natural/i.test(a.name) || a.name.localeCompare(b.name)), 'lunaVoice');
-  const arList = [...voices].filter(v => /^ar/i.test(v.lang)).sort((a, b) => /natural/i.test(b.name) - /natural/i.test(a.name) || a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name));
-  fill('newsVoiceSel', 'Automatic (Mouna, Morocco, natural)', arList, 'newsVoice');
-  if ($('newsVoiceNote')) $('newsVoiceNote').textContent = arList.length ? `Arabic · ${arList.length} on this device` : 'no Arabic voice on this device: the online voice reads the news (Microsoft Edge has free natural ones: Hamed, Zariyah, Jamal, Mouna…)';
+  const en = [...voices].filter(isEn).sort((a, b) => /natural/i.test(b.name) - /natural/i.test(a.name) || a.name.localeCompare(b.name));
+  const fill = (id, autoLabel, key, online) => { const el = $(id); if (!el) return; el.innerHTML = ''; const add = (val, label) => { const o = document.createElement('option'); o.value = val; o.textContent = label; el.appendChild(o); };
+    add('', autoLabel); if (online) add(ONLINE, 'Online voice (if the others sound wrong)'); en.forEach(v => add(v.name, nice(v))); el.value = S[key] && (S[key] === ONLINE || en.some(v => v.name === S[key])) ? S[key] : ''; };
+  fill('voiceSel', 'Automatic (Andrew, natural)', 'voice', true);
+  fill('lunaSel', 'Automatic (Ava or Emma, natural)', 'lunaVoice');
+  fill('bulletinSel', 'Automatic (a third natural voice)', 'bulletinVoice');
   const note = $('voiceNote');
-  if (note) note.textContent = voices.some(isEn) ? '' : 'No English voice is installed on this computer, so the host uses the online English fallback. For a better voice: Windows Settings > Time & language > Speech > Add voices > English, or open the radio in Microsoft Edge for its free natural voices.';
+  if (note) note.textContent = voices.some(v => isEn(v) && /natural/i.test(v.name)) ? '' : 'Tip: open the radio in Microsoft Edge for free natural voices (Andrew, Ava, Emma…). Without them an online voice is used.';
 }
 function hostVoice() {
   if (S.voice === ONLINE) return null;
   if (S.voice) { const v = voices.find(v => v.name === S.voice); if (v) return v; }
   const en = voices.filter(isEn);
-  const pref = [/brian multilingual.*natural/i, /brian.*natural/i, /andrew.*natural/i, /guy.*natural/i, /christopher.*natural/i, /eric.*natural/i, /natural/i, /guy|ryan|david|mark|george|james|daniel/i];
+  const pref = [/andrew multilingual.*natural/i, /andrew.*natural/i, /brian multilingual.*natural/i, /brian.*natural/i, /guy.*natural/i, /christopher.*natural/i, /eric.*natural/i, /natural/i, /guy|ryan|david|mark|george|james|daniel/i];
   for (const p of pref) { const v = en.find(v => p.test(v.name)); if (v) return v; }
   return en[0] || null;
 }
-function guestVoice() { const host = hostVoice(); const en = voices.filter(v => isEn(v) && v !== host); return en.find(v => /(aria|jenny|ava|emma|ana|sonia|libby).*natural/i.test(v.name)) || en.find(v => /natural/i.test(v.name)) || null; }
-// Other voices, by the code a script line carries: s = Luna (the readings, in the Sonia voice), and the versions of you in
-// "Conversations with You": y = you, younger; o = you, older; r = the part that refuses; k = the part that keeps going;
-// b = you on your best day. Each takes the first installed natural voice from its list that is not the host's.
+// Other voices, by the code a script line carries: s = Luna, n = the bulletin. Each takes the first installed natural
+// voice from its list that is not Joe's.
 const VOICE_PREFS = {
-  s: [/emily.*natural/i, /sonia.*natural/i, /libby.*natural/i, /(emma|ava|jenny|aria).*natural/i],
-  y: [/liam.*natural/i, /andrew.*natural/i, /connor.*natural/i],
-  o: [/roger.*natural/i, /christopher.*natural/i, /thomas.*natural/i],
-  r: [/ryan.*natural/i, /thomas.*natural/i, /guy.*natural/i],
-  k: [/steffan.*natural/i, /eric.*natural/i, /guy.*natural/i],
-  b: [/william.*natural/i, /connor.*natural/i, /andrew.*natural/i],
+  s: [/ava multilingual.*natural/i, /ava.*natural/i, /emma multilingual.*natural/i, /emma.*natural/i, /jenny.*natural/i, /aria.*natural/i, /sonia.*natural/i, /libby.*natural/i],
+  n: [/ryan.*natural/i, /sonia.*natural/i, /libby.*natural/i, /steffan.*natural/i, /eric.*natural/i, /jenny.*natural/i, /natural/i],
 };
-// the news is read in Arabic: Mouna (Moroccan, natural) if there is one, then another Moroccan natural voice, then any Arabic voice
-function arabicVoice() {
-  const ar = voices.filter(v => /^ar/i.test(v.lang));
-  if (S.newsVoice) { const v = ar.find(v => v.name === S.newsVoice); if (v) return v; }   // chosen in Settings
-  return ar.find(v => /mouna.*natural/i.test(v.name)) || ar.find(v => /ar-MA/i.test(v.lang) && /natural/i.test(v.name)) || ar.find(v => /natural/i.test(v.name)) || ar.find(v => /ar-MA/i.test(v.lang)) || ar[0] || null;
-}
 function voiceFor(code) {
-  if (code === 'ar') return arabicVoice();
-  if (code === 'g') return guestVoice();
-  if (code === 's' && S.lunaVoice) { const v = voices.find(v => v.name === S.lunaVoice); if (v) return v; }   // Luna, chosen in Settings
+  const chosen = { s: S.lunaVoice, n: S.bulletinVoice }[code];
+  if (chosen) { const v = voices.find(v => v.name === chosen); if (v) return v; }
   const host = hostVoice(), en = voices.filter(v => isEn(v) && v !== host);
-  for (const p of VOICE_PREFS[code] || []) { const v = en.find(v => p.test(v.name)); if (v) return v; }
-  return code === 's' ? guestVoice() : (en.find(v => /natural/i.test(v.name) && !/(sonia|libby|emma|ava|jenny|aria|ana|maisie|michelle)/i.test(v.name)) || null);
+  for (const p of VOICE_PREFS[code] || []) { const v = en.find(v => p.test(v.name) && (code !== 'n' || v.name !== (voiceFor('s') || {}).name)); if (v) return v; }
+  return en.find(v => /natural/i.test(v.name)) || null;
 }
 speechSynthesis.onvoiceschanged = loadVoices;
 
 let curAudio = null;
-const splitParts = text => (text.match(/[^.!?…؟]+[.!?…؟]+["')\]]*\s*|[^.!?…؟]+$/g) || [text]).map(s => s.trim()).filter(Boolean);
-
-// Speak a block of text. All sentences are queued at once so there is no gap between them.
-// The website opened on a phone (no PC helper). Everything made for phones (the checked Arabic voice, the unlocked
-// audio player, the online voice asked directly, the gentler way of fetching the news) applies only there; the PC
-// and computer browsers keep working exactly as before.
+const splitParts = text => (text.match(/[^.!?…]+[.!?…]+["')\]]*\s*|[^.!?…]+$/g) || [text]).map(s => s.trim()).filter(Boolean);
+// The website opened on a phone (no PC helper). Phone-only fixes apply only there; the PC keeps its own behaviour.
 const mobileWeb = () => !HELPER && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-// The online voice (Google): through the PC helper when there is one; on a phone, the page asks Google directly.
-// It takes at most about 200 characters at a time, so long lines are cut at commas, then at spaces.
-const ttsUrl = (q, tl) => HELPER ? '/api/tts?q=' + encodeURIComponent(q) + (tl === 'ar' ? '&tl=ar' : '')
-  : 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=' + tl + '&q=' + encodeURIComponent(q);
+// The online voice: through the PC helper when there is one; otherwise the page asks Google directly.
+const ttsUrl = q => HELPER ? '/api/tts?q=' + encodeURIComponent(q) : 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en-GB&q=' + encodeURIComponent(q);
 function onlineChunks(parts) {
   const out = [];
   parts.forEach(p => {
     while (p.length > 180) {
-      let cut = Math.max(p.lastIndexOf('،', 180), p.lastIndexOf(',', 180));
+      let cut = p.lastIndexOf(',', 180);
       if (cut < 60) cut = p.lastIndexOf(' ', 180);
       if (cut < 60) cut = 180;
       out.push(p.slice(0, cut + 1).trim()); p = p.slice(cut + 1).trim();
@@ -306,127 +281,41 @@ function onlineChunks(parts) {
   });
   return out;
 }
-// ---------- the news voice: Arabic, checked sentence by sentence ----------
-// Phones often list an Arabic voice whose data is not installed: it "finishes" at once, without a sound. So each
-// sentence is spoken alone, and a voice that ends instantly or fails is dropped for the session and the next one is
-// tried: the device's Arabic voice, then Google's online voice, then StreamElements' Zeina (Amazon's Arabic voice).
-// The one that works is kept and tried first after that. The Playback report says what happened.
-const AR_ONLINE = [
-  { name: 'Google', url: q => ttsUrl(q, 'ar') },
-  { name: 'Zeina (StreamElements)', url: q => 'https://api.streamelements.com/kappa/v2/speech?voice=Zeina&text=' + encodeURIComponent(q) },
-];
-let arDeviceBroken = false, arOnlineFirst = 0;
-const arWho = () => { const v = !arDeviceBroken && arabicVoice(); return v ? v.name : AR_ONLINE[arOnlineFirst].name; };
-function speakDevice(part, v, alive) {   // true when the voice really spoke (it started, and took a plausible time)
-  return new Promise(res => {
-    let u; try { u = new SpeechSynthesisUtterance(part); u.voice = v; u.lang = v.lang; u.rate = 0.95; } catch { return res(false); }
-    let began = 0, over = false; const end = ok => { if (over) return; over = true; clearInterval(t); res(ok); };
-    let left = Math.max(4000, part.length * 200); const t = setInterval(() => { if (!alive()) { speechSynthesis.cancel(); end(true); } else if (!globalPaused && (left -= 250) <= 0) end(!!began); }, 250);
-    u.onstart = () => { began = Date.now(); if (globalPaused) { try { speechSynthesis.pause(); } catch {} } };
-    u.onend = () => end(!!began && (Date.now() - began > Math.min(600, part.length * 25)));
-    u.onerror = () => end(!alive());   // cancelled by an arrow or by Next: not the voice's fault
-    try { speechSynthesis.speak(u); } catch { end(false); }
-  });
-}
-// Phones only let a page start sound from a tap. So the online voices use ONE audio player, unlocked by your tap on
-// Play or on the news buttons (a tenth of a second of silence), and reused for every sentence after that.
+// Phones only let a page start sound from a tap: one audio player, unlocked by the first tap, is reused after that.
 const ttsPlayer = new Audio(); ttsPlayer.preload = 'auto';
-const SILENT_WAV = 'data:audio/wav;base64,UklGRmQGAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YUAGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
 function unlockAudio() { if (!mobileWeb()) return; try { ttsPlayer.src = SILENT_WAV; const p = ttsPlayer.play(); if (p) p.catch(() => {}); } catch {} }
-let lastAudioError = '';
-function playOnline(url, alive) {   // true when the audio really played
-  return new Promise(res => {
-    const a = ttsPlayer; let played = false, over = false; curAudio = a;
-    const end = (ok, why) => { if (over) return; over = true; clearInterval(t); a.onplaying = a.onended = a.onerror = null; if (!ok && why) lastAudioError = why; res(ok); };
-    a.onplaying = () => { played = true; };
-    a.onended = () => end(played && a.currentTime > 0.3, 'ended without sound');
-    a.onerror = () => end(false, 'media error ' + (a.error ? a.error.code : '?') + (a.error && a.error.code === 4 ? ' (blocked or not audio)' : a.error && a.error.code === 2 ? ' (network)' : ''));
-    let left = 20000; const t = setInterval(() => { if (!alive()) { try { a.pause(); } catch {} end(true); } else if (!globalPaused && !played && (left -= 250) <= 0) end(false, 'no answer in 20 s'); }, 250);
-    try { a.src = url; const p = a.play(); if (p) p.catch(e => end(false, (e && e.name) + (e && e.name === 'NotAllowedError' ? ' (the browser blocked sound that did not start from a tap)' : ''))); } catch (e) { end(false, String(e)); }
-  });
-}
-async function sayArabic(text) {
-  const id = runId, tok = newsLineTok, alive = () => id === runId && tok === newsLineTok; speaking = true;
-  for (const part of splitParts(text)) {
-    if (!alive()) break;
-    $('capText').textContent = part;
-    const v = !arDeviceBroken && arabicVoice();
-    if (v) {
-      if (await speakDevice(part, v, alive)) continue;
-      if (!alive()) break;
-      arDeviceBroken = true; speechSynthesis.cancel(); rlog('arabic voice on this device is silent, using an online voice', { voice: v.name + ' (' + v.lang + ')' });
-    }
-    let ok = false;
-    for (let k = 0; k < AR_ONLINE.length && !ok && alive(); k++) {
-      const src = AR_ONLINE[(arOnlineFirst + k) % AR_ONLINE.length];
-      ok = true;
-      for (const chunk of onlineChunks([part])) { if (!alive()) break; if (!(await playOnline(src.url(chunk), alive))) { ok = false; break; } }
-      if (ok) arOnlineFirst = (arOnlineFirst + k) % AR_ONLINE.length;
-      else rlog('online arabic voice failed', { voice: src.name, why: lastAudioError });
-    }
-    if (!ok && alive()) { rlog('no arabic voice could speak', { part: part.slice(0, 40) }); toast('No Arabic voice could speak here. See Settings > Playback report.'); }
-  }
-  speaking = false;
-}
 
+// Speak a block of text. All sentences are queued at once so there is no gap between them.
 function say(text, who = 'h') {
   (R.sayAs || []).forEach(([re, to]) => { text = String(text).replace(re, to); });
   return new Promise(res => {
     const id = runId, parts = splitParts(text);
-    const hv = who === 'ar' ? arabicVoice() : hostVoice();
+    const hv = hostVoice();
     speaking = true;
     let finished = false, guard;
     const done = () => { if (finished) return; finished = true; clearInterval(guard); speaking = false; res(); };
     let budget = parts.reduce((n, p) => n + Math.max(2500, p.length * 130), 6000);   // safety net; time spent paused does not count
     guard = setInterval(() => { if (!globalPaused && (budget -= 250) <= 0) done(); }, 250);
-    if (!hv) { // online fallback, with the next sentences preloaded
-      const m = mobileWeb(), src = p => m ? ttsUrl(p, who === 'ar' ? 'ar' : 'en-GB') : '/api/tts?q=' + encodeURIComponent(p) + (who === 'ar' ? '&tl=ar' : '');
-      const auds = (m ? onlineChunks(parts) : parts.slice()).map(p => { const a = new Audio(src(p)); a.preload = 'auto'; a.playbackRate = who === 'ar' ? 1 : who !== 'h' ? 0.88 : 0.95; a._text = p; return a; });
-      parts.length = 0; auds.forEach(x => parts.push(x._text));
+    if (!hv) {   // online fallback, the next sentences preloaded
+      const list = onlineChunks(parts);
+      const auds = list.map(p => { const a = new Audio(ttsUrl(p)); a.preload = 'auto'; a.playbackRate = who === 'h' ? 1 : 0.95; a._text = p; return a; });
       let i = 0;
-      const nextA = () => { if (id !== runId || i >= auds.length) return done(); const a = auds[i]; $('capText').textContent = parts[i]; i++; curAudio = a; a.onended = nextA; a.onerror = nextA; a.play().catch(nextA); };
+      const nextA = () => { if (id !== runId || i >= auds.length) return done(); const a = auds[i]; $('capText').textContent = list[i]; i++; curAudio = a; a.onended = nextA; a.onerror = nextA; a.play().catch(nextA); };
       nextA(); return;
     }
-    const gv = who !== 'h' && who !== 'ar' ? voiceFor(who) : null;
-    const pitchFor = { g: 1.25, s: 1.3, y: 1.15, o: 0.85, r: 0.92, k: 1.05, b: 1.08 };
+    const gv = who !== 'h' ? voiceFor(who) : null;
     parts.forEach((part, i) => {
       const u = new SpeechSynthesisUtterance(part);
-      u.lang = who === 'ar' ? hv.lang : 'en-US'; u.voice = gv || hv;
-      u.rate = who === 'ar' ? 0.95 : (S.rate || 90) / 100 * (who === 'o' ? 0.9 : who === 's' ? 0.92 : who !== 'h' && !gv ? 0.95 : 1);   // readings and the older you go a little slower
-      u.pitch = who !== 'h' && who !== 'ar' && !gv ? (pitchFor[who] || 1.2) : 1;
+      u.lang = 'en-US'; u.voice = gv || hv;
+      u.rate = (S.rate || 100) / 100 * (who === 's' ? 0.96 : 1);
+      u.pitch = who !== 'h' && !gv ? (who === 's' ? 1.3 : 1.12) : 1;   // no second voice installed: Luna and the bulletin at another pitch
       u.onstart = () => { if (id === runId) $('capText').textContent = part; if (globalPaused) { try { speechSynthesis.pause(); } catch {} } };
       u.onend = () => { if (i === parts.length - 1 || id !== runId) done(); };
       u.onerror = () => { if (id !== runId || i === parts.length - 1) done(); };
       speechSynthesis.speak(u);
     });
   });
-}
-// The news on a computer: one sentence at a time, so an arrow can stop it cleanly. A sentence that does not start
-// within 3 seconds (Chrome and Edge sometimes drop one spoken right after a cancel) is tried once more, then left,
-// so the bulletin never freezes.
-function speakOnce(part, v, alive) {
-  return new Promise(res => {
-    let began = false, over = false; const end = r => { if (over) return; over = true; clearInterval(t); res(r); };
-    const u = new SpeechSynthesisUtterance(part); u.voice = v; u.lang = v.lang; u.rate = 0.95;
-    u.onstart = () => { began = true; $('capText').textContent = part; if (globalPaused) { try { speechSynthesis.pause(); } catch {} } };
-    u.onend = () => end('ok'); u.onerror = () => end(began ? 'ok' : 'nostart');
-    let wait = 3000, left = Math.max(5000, part.length * 180);
-    const t = setInterval(() => { if (!alive()) return end('abort'); if (globalPaused) return; if (!began && (wait -= 200) <= 0) end('nostart'); else if (began && (left -= 200) <= 0) end('ok'); }, 200);
-    try { speechSynthesis.speak(u); } catch { end('nostart'); }
-  });
-}
-async function sayNewsComputer(text) {
-  const v = arabicVoice(); if (!v) return say(text, 'ar');   // no Arabic voice here: the online voice, as before
-  const id = runId, tok = newsLineTok, alive = () => id === runId && tok === newsLineTok;
-  speaking = true;
-  for (const part of splitParts(text)) {
-    if (!alive()) break;
-    $('capText').textContent = part;
-    let r = await speakOnce(part, v, alive);
-    if (r === 'nostart' && alive()) { try { speechSynthesis.cancel(); speechSynthesis.resume(); } catch {} await sleep(200); r = await speakOnce(part, v, alive); }
-    if (r === 'nostart') rlog('a news sentence would not start, moving on', { part: part.slice(0, 40) });
-  }
-  speaking = false;
 }
 function stopSpeech() { runId++; if (breakSkip) { const b = breakSkip; breakSkip = null; try { b(); } catch {} } speechSynthesis.cancel(); try { if (curAudio) { curAudio.onended = null; curAudio.pause(); curAudio = null; } } catch {} speaking = false; }
 
@@ -451,57 +340,44 @@ function bedOff(sec = 3) {
   try { b.g.gain.cancelScheduledValues(actx.currentTime); b.g.gain.setValueAtTime(b.g.gain.value, actx.currentTime); b.g.gain.linearRampToValueAtTime(0, actx.currentTime + sec); setTimeout(() => { b.oscs.forEach(o => o.stop()); b.lfo.stop(); b.g.disconnect(); }, sec * 1000 + 300); } catch {}
 }
 
-// ---------- youtube: two players so the next song can be prepared and crossfaded ----------
+// ---------- youtube: ONE hidden player (light on an old PC and a slow connection) ----------
+// The player is never visible and kept small, so YouTube sends a lighter stream; the sound is the same. Songs follow
+// each other on the same player: the old one fades out, the next one loads. pl[0] and pl[1] are the same player, so
+// the code written for two players (ai, 1 - ai) still works.
 window.onYouTubeIframeAPIReady = () => {
-  let ready = 0;
-  [0, 1].forEach(i => {
-    pl[i] = new YT.Player('yt' + i, { height: '180', width: '320', playerVars: { controls: 0, disablekb: 1, playsinline: 1, rel: 0, origin: location.origin }, events: {
-      onReady: () => { setVol(pl[i], 0); if (++ready === 2) ytReady = true; },
-      onStateChange: e => {
-        if (adHook && adHook.idx === i) { adHook.state(e.data); return; }
-        if (i !== ai) return;
-        if (e.data === YT.PlayerState.PLAYING) { clearTimeout(startWatch); playing = true; setPlayIcon(true); setLive(true); try { pl[i].unMute(); if (Number.isFinite(pl[i]._vol)) pl[i].setVolume(pl[i]._vol); } catch {} }
-        else if (e.data === YT.PlayerState.PAUSED) {
-          if (newsOn) return;   // the news paused it on purpose
-          // paused, but not by the radio's pause button: YouTube (or the phone) stopped it. Note it, and start it again twice at most.
-          if (!globalPaused && current && !current._selfPauses) current._selfPauses = 0;
-          if (!globalPaused && current) {
-            rlog('song paused by itself', { song: current.key, t: Math.round(pl[i].getCurrentTime()), busy, retry: current._selfPauses });
-            if (current._selfPauses < 2) { current._selfPauses++; setTimeout(() => { try { if (!globalPaused && pl[ai] === pl[i]) pl[i].playVideo(); } catch {} }, 700); return; }
-          }
-          if (busy) return; playing = false; setPlayIcon(false); setLive(false);
+  const p = new YT.Player('yt0', { height: '200', width: '200', playerVars: { controls: 0, disablekb: 1, playsinline: 1, rel: 0, iv_load_policy: 3, origin: location.origin }, events: {
+    onReady: () => { setVol(p, 0); ytReady = true; },
+    onStateChange: e => {
+      if (e.data === YT.PlayerState.PLAYING) { clearTimeout(startWatch); playing = true; setPlayIcon(true); setLive(true); try { p.unMute(); if (Number.isFinite(p._vol)) p.setVolume(p._vol); } catch {} }
+      else if (e.data === YT.PlayerState.PAUSED) {
+        if (newsOn) return;   // the bulletin paused it on purpose
+        // paused, but not by the radio's pause button: YouTube stopped it. Start it again twice at most.
+        if (!globalPaused && current && !current._selfPauses) current._selfPauses = 0;
+        if (!globalPaused && current) {
+          rlog('song paused by itself', { song: current.key, t: Math.round(p.getCurrentTime()), busy, retry: current._selfPauses });
+          if (current._selfPauses < 2) { current._selfPauses++; setTimeout(() => { try { if (!globalPaused) p.playVideo(); } catch {} }, 700); return; }
         }
-        else if (e.data === YT.PlayerState.ENDED) { console.info('[radio] ENDED event, busy=' + busy); if (started && !busy && !repeatSong()) advance(); }
-      },
-      onError: e => {
-        if (adHook && adHook.idx === i) { adHook.error(e && e.data); return; }
-        if (i === ai) { const c = current && current.cands && current.cands[candIdx]; rlog('player error ' + (e && e.data), { song: current && current.key, id: c && c.id }); tryNextCand(e && e.data); }
-        else preload = null;
-      },
-    } });
-  });
+        if (busy) return; playing = false; setPlayIcon(false); setLive(false);
+      }
+      else if (e.data === YT.PlayerState.ENDED) { if (started && !busy && !repeatSong()) advance(); }
+    },
+    onError: e => { const c = current && current.cands && current.cands[candIdx]; rlog('player error ' + (e && e.data), { song: current && current.key, id: c && c.id }); tryNextCand(e && e.data); },
+  } });
+  pl = [p, p];
 };
 const tag = document.createElement('script'); tag.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(tag);
 const waitYT = async () => { while (!ytReady) await sleep(200); };
 const P = () => pl[ai];
-window.__radio = { setAds: x => { adPool = x; }, brk: (n, prevPodcast) => {   // test helper: what the break after song n would contain (does not change the saved cycle)
+window.__radio = { brk: (n, prevPodcast) => {   // test helper: what the break after song n would contain (does not change the saved cycle)
     const keepB = lib.b, keepUsed = JSON.stringify(lib.used); lib.b = n / breakEvery() - 1;
     const p = prevPodcast ? { a: 'x', t: 'y', podcast: true, key: 'p' } : songs[0];
     const out = makeBreak(p, songs[1], false); lib.b = keepB; lib.used = JSON.parse(keepUsed); saveLib();
     return { podcastDue, parts: out.map(s => ({ kind: s.kind, title: s.title, lines: (s.lines || []).map(l => (l.w || 'h') + ': ' + l.t) })) };
-  }, sim: (n, startKey) => {   // test helper: simulate the picker without playing anything
-    let cur = (startKey && songs.find(s => s.key === startKey)) || rnd(songs); const hist = [], out = [];
-    for (let i = 0; i < n; i++) {
-      const l3 = hist.slice(-2).concat([cur]); const rs = { recentKeys: new Set(hist.slice(-200).map(s => s.key)), recentArtists: new Set(hist.slice(-6).map(s => (s.a || "").toLowerCase()).concat([(cur.a || "").toLowerCase()])), streakGenre: l3.length >= 3 && l3.every(s => s.genre === l3[0].genre) ? l3[0].genre : null, streakFamily: l3.length >= 3 && l3.every(s => famOf(s.genre) === famOf(l3[0].genre)) ? famOf(l3[0].genre) : null, pairGenre: l3.length >= 2 && l3[l3.length - 2].genre === cur.genre ? cur.genre : null };
-      const c = choose(cur, rs); hist.push(cur);
-      out.push({ from: cur.a + " - " + cur.t, fg: cur.genre, to: c.song.a + " - " + c.song.t, tg: c.song.genre, why: c.why, shared: (c.song.tags || []).filter(t => (cur.tags || []).includes(t)), e: [cur.energy, c.song.energy], user: !!c.song.user });
-      cur = c.song;
-    }
-    return out;
-  }, songsCount: () => songs.length, intro: (k, pk, why) => { const s = songs.find(x => x.key === k), p = songs.find(x => x.key === pk); if (why) lastPick = { key: k, why }; return introFor(s, p); }, pl, fadeP: (...x) => fadeP(...x), state: () => ({ ai, busy, speaking, playing, vol: S.vol, paused: globalPaused, ctx: actx ? actx.state : null, voiceAudioPaused: curAudio ? curAudio.paused : null, icon: document.getElementById('playIcon').innerHTML.indexOf('M8 5v14') >= 0 ? 'play' : 'pause', players: pl.map(p => { try { return { vol: p.getVolume(), muted: p.isMuted(), st: p.getPlayerState(), t: Math.round(p.getCurrentTime()) }; } catch { return null; } }) }) }; // debug helper
+  }, welcome: () => makeBreak(null, songs[0], true).map(s => ({ kind: s.kind, lines: (s.lines || []).map(l => l.t) })),
+  songsCount: () => songs.length, intro: (k, pk) => { const s = songs.find(x => x.key === k), p = songs.find(x => x.key === pk); return introFor(s, p); }, back: k => backFor(songs.find(x => x.key === k)),
+  mask: t => maskWords(t), lib: () => lib, S: () => S, bulletin: () => buildBulletin, state: () => ({ ai, busy, speaking, playing, vol: S.vol, paused: globalPaused, current: current && current.key }) };
 
-// Volume is tracked by us, never read back from YouTube: right after a video loads, getVolume() returns undefined,
-// which used to turn a fade-in into NaN and leave the song playing at volume 0 (silent).
+// Volume is tracked by us, never read back from YouTube: right after a video loads, getVolume() returns undefined.
 function setVol(p, v) {
   v = Math.max(0, Math.min(100, Math.round(+v)));
   if (!Number.isFinite(v)) v = 0;
@@ -521,42 +397,51 @@ function fadeP(p, to, ms) {
     }, 100);
   });
 }
+// Where a song's video comes from: its saved videos (checked in advance, content13.js), else a search through the PC
+// helper, else (the website) a search through public relays.
 async function resolve(s) {
   if (s.cands && s.cands.length) return s.cands;
   if (s.focus) return resolveFocus(s);
   if (s.album) return resolveAlbum(s);
-  try {
-    const r = await fetch('/api/search?q=' + encodeURIComponent(s.a + ' ' + s.t) + '&a=' + encodeURIComponent(s.a) + '&t=' + encodeURIComponent(s.t));
-    const c = (await r.json()).slice(0, 5);
-    if (Array.isArray(c) && c.length) { s.cands = c; lib.cache[s.key] = c; saveLib(); return c; }
-  } catch {}
+  const c = (await ytSearch(s.a + ' ' + s.t, s.a, s.t)).slice(0, 5);
+  if (c.length) { s.cands = c; lib.cache[s.key] = c; saveLib(); return c; }
   return [];
 }
-// Every transition lets the old song fade from where it is down to silence, slowly, under the host's voice or the
-// next song, instead of cutting it off (Settings > Fade between songs; at the end of a song, the seconds that are left).
-const fadeMs = () => (S.fade || 8) * 1000;
-// Start a song on the idle player. startVol: initial volume. fadeInMs: ramp up to S.vol after starting. outMs: the old song's fade.
+// A song that does not start: on a slow connection it may only be loading. The radio waits while YouTube is still
+// buffering (up to a minute), and only moves to another version when the player really is stuck.
+function armStartWatch() {
+  clearTimeout(startWatch);
+  const t0 = Date.now(), my = current;
+  const check = () => {
+    if (playing || globalPaused || current !== my) return;
+    let st = -1; try { st = P().getPlayerState(); } catch {}
+    const waited = Date.now() - t0;
+    if ((st === 3 || st === -1 || st === 5) && waited < 60000 && (st === 3 || waited < 25000)) { startWatch = setTimeout(check, 2000); return; }
+    rlog('did not start, trying another version', { song: my && my.key, state: st, waited: Math.round(waited / 1000) });
+    tryNextCand();
+  };
+  startWatch = setTimeout(check, 8000);
+}
+// Short fade-out of the old song before the next one loads on the same player.
+const fadeMs = () => (S.fade || 2) * 1000;
 async function startSong(s, startVol, fadeInMs = 0, outMs = fadeMs()) {
   const run = runId;
   await waitYT();
   const c = await resolve(s);
-  // you pressed Next (or something else took over) while this song was still being looked up: do not start it late,
-  // on top of the newer song, at the quiet volume used under the host's voice
   if (run !== runId) { rlog('stale start ignored', { song: s.key }); return null; }
   if (!c.length) { toast(`Could not find "${s.t}". Skipping.`); return false; }
-  const old = pl[ai], n = 1 - ai;
-  candIdx = 0; current = s; ai = n; playing = false;
-  const np = pl[n];
-  setVol(np, fadeInMs ? 0 : startVol);
-  if (preload && preload.key === s.key && preload.idx === n) np.playVideo(); else np.loadVideoById(c[0].id);
+  const p = P();
+  // the old song: fade it out first (unless the host already faded it under his voice)
+  let st = -1; try { st = p.getPlayerState(); } catch {}
+  if ((st === 1 || st === 3) && Number.isFinite(p._vol) && p._vol > 0 && outMs > 0) { await fadeP(p, 0, Math.min(outMs, 3000)); if (run !== runId) return null; }
+  candIdx = 0; current = s; playing = false;
+  setVol(p, fadeInMs ? 0 : startVol);
+  p.loadVideoById(c[0].id);
   preload = null;
   rlog('start', { song: s.key, id: c[0].id });
-  const stopOld = () => { try { if (pl[ai] !== old) old.pauseVideo(); } catch {} };
-  if (old._fading && old._fadeTo === 0) { const w = setInterval(() => { if (!old._fading) { clearInterval(w); stopOld(); } }, 250); }   // already fading under the host: let it finish
-  else fadeP(old, 0, outMs).then(stopOld);
   setNow(s);
-  clearTimeout(startWatch); startWatch = setTimeout(() => { if (!playing && !globalPaused) tryNextCand(); }, 14000);
-  if (fadeInMs) fadeP(np, S.vol, fadeInMs);
+  armStartWatch();
+  if (fadeInMs) fadeP(p, S.vol, fadeInMs);
   if (!s.podcast && !s.focus && !s.album) {   // remembered across sessions, so the radio does not replay the same songs every time it opens
     lib.hist = lib.hist || []; lib.hist.push({ k: s.key, a: s.a }); if (lib.hist.length > 400) lib.hist.splice(0, lib.hist.length - 400); saveLib();
   }
@@ -583,14 +468,9 @@ function openVersions() {
 async function searchVersions() {
   const s = verSong, q = $('verq').value.trim(); if (!s || !q) return;
   const box = $('verRes');
-  if (!HELPER) {   // without the helper: only the versions already saved for this song
-    box.innerHTML = `<p style="color:var(--mute);font-size:13px">${NEEDS_PC}</p>`;
-    (s.cands || []).forEach((v, i) => { const d = document.createElement('div'); d.className = 'item'; d.innerHTML = `<div class="meta"><b></b><span></span></div><button class="btn" style="padding:6px 11px"></button>`; d.querySelector('b').textContent = cleanTitle(v.title || s.t); d.querySelector('span').textContent = v.channel || ''; const b = d.querySelector('button'); const on = i === candIdx; b.textContent = on ? 'Playing' : 'Use this'; b.disabled = on; b.onclick = () => useVersion(s, v); box.appendChild(d); });
-    return;
-  }
   box.innerHTML = '<p style="color:var(--mute)">Searching…</p>';
   try {
-    const r = await (await fetch('/api/search?q=' + encodeURIComponent(q))).json();
+    const r = await ytSearch(q);
     if (verSong !== s) return;
     const playingId = current === s && s.cands ? (s.cands[candIdx] || s.cands[0] || {}).id : null;
     const list = (Array.isArray(r) ? r : []).slice(0, 8);
@@ -617,7 +497,7 @@ function useVersion(s, v) {
   saveLib(); openSheet(null);
   if (current === s) {
     candIdx = 0; playing = false; P().loadVideoById(v.id); setNow(s);
-    clearTimeout(startWatch); startWatch = setTimeout(() => { if (!playing && !globalPaused) tryNextCand(); }, 14000);
+    armStartWatch();
   }
   toast('Saved: this version of "' + s.t + '" will play from now on.');
 }
@@ -651,15 +531,14 @@ function tryNextCand(code) {
     // the saved versions could not play: search YouTube once for other uploads of the same song before giving up
     if (!current.podcast && !current._searched) {
       const s = current; s._searched = true;
-      fetch('/api/search?q=' + encodeURIComponent(s.a + ' ' + s.t) + '&a=' + encodeURIComponent(s.a) + '&t=' + encodeURIComponent(s.t))
-        .then(r => r.json()).catch(() => [])
+      ytSearch(s.a + ' ' + s.t, s.a, s.t).catch(() => [])
         .then(c => {
           if (current !== s) return;
           const more = (Array.isArray(c) ? c : []).filter(x => !s.cands.some(y => y.id === x.id)).slice(0, 5);
           if (!more.length) return skipBroken();
           s.cands = s.cands.concat(more); lib.cache[s.key] = s.cands; saveLib();
           P().loadVideoById(s.cands[candIdx].id); setNow(s);
-          clearTimeout(startWatch); startWatch = setTimeout(() => { if (!playing && !globalPaused) tryNextCand(); }, 14000);
+          armStartWatch();
         });
       return;
     }
@@ -667,7 +546,7 @@ function tryNextCand(code) {
   }
   if (current.podcast) { const v = current.cands[candIdx]; current.a = v.channel; current.t = cleanTitle(v.title); }
   P().loadVideoById(current.cands[candIdx].id); setNow(current);
-  clearTimeout(startWatch); startWatch = setTimeout(() => { if (!playing && !globalPaused) tryNextCand(); }, 14000);
+  armStartWatch();
 }
 function skipBroken() {
   if (!current) return;
@@ -763,16 +642,17 @@ function choose(cur, rs) {
 function lastHeard() { const h = (lib.hist || []).slice(-1)[0]; return h ? songs.find(s => s.key === h.k) : null; }
 function pick() {
   if (upNext.length) return upNext.shift();
-  if (focusMode && HELPER) return focusPick();   // the phone and the web cannot search YouTube for them
+  if (focusMode && focusOk()) return focusPick();   // the phone and the web cannot search YouTube for them
   if (batch) { const s = nextFromRun(); if (s) return s; }
   const c = choose(current || lastHeard(), recentSets());
   lastPick = { key: c.song.key, why: c.why };
   return c.song;
 }
-// ---------- Focus mode: instrumental only (or ambient sounds), no talk, no commercials, until you turn it off ----------
+// ---------- Homework mode: instrumental only (or ambient sounds), no talking, until you turn it off ----------
 // Its tracks (content23.js) live apart from the library; the news still comes every 4 hours.
 // Instrumental music is split into stations (R.focusStations): the one you pick plays alone until you change it.
-const focusSong = (a, t, st) => ({ a, t, style: st, genre: 'focus', tags: [], focus: true, key: 'focus|' + (a + '|' + t).toLowerCase() });
+const focusSong = (a, t, st) => { const key = 'focus|' + (a + '|' + t).toLowerCase(), v = (R.focusIds || {})[(a + '|' + t).toLowerCase()]; return { a, t, style: st, genre: 'focus', tags: [], focus: true, key, pin: v ? [].concat(v).map(x => typeof x === 'string' ? { id: x, title: t, channel: a, seconds: 0 } : x) : null }; };
+const focusOk = () => HELPER || (R.focusStations || []).length > 0;
 const focusStations = (R.focusStations || []).map(st => ({ ...st, songs: st.tracks.map(l => { const [a, t] = l.split('|'); return focusSong(a, t, st.id); }) }));
 // Your own genres (Focus > Add a genre, lib.focusCustom, synced): only the tracks you chose for them, in lib.focusAdd
 const allStations = () => focusStations.concat((lib.focusCustom || []).map(c => ({ id: c.key, label: c.label, note: 'your genre', songs: [], custom: true })));
@@ -786,7 +666,8 @@ function focusPick() {
     const all = R.focusSounds || []; let used = []; try { used = JSON.parse(localStorage.getItem('pbd-focus-snd') || '[]'); } catch {}
     let pool = all.filter(x => !used.includes(x.label)); if (!pool.length) { used = []; pool = all; }
     const x = rnd(pool); used.push(x.label); try { localStorage.setItem('pbd-focus-snd', JSON.stringify(used)); } catch {}
-    return { a: 'Ambient sounds', t: x.label, q: x.q, genre: 'focus', tags: [], focus: true, sounds: true, key: 'focus-sound|' + x.label.toLowerCase() };
+    const ids = (R.focusSoundIds || {})[x.label];
+    return { a: 'Ambient sounds', t: x.label, q: x.q, genre: 'focus', tags: [], focus: true, sounds: true, key: 'focus-sound|' + x.label.toLowerCase(), pin: ids ? ids.map(id => ({ id, title: x.label, channel: 'Ambient sounds', seconds: 0 })) : null };
   }
   let used = []; try { used = JSON.parse(localStorage.getItem('pbd-focus-used') || '[]'); } catch {}
   let st = focusStation(focusMode), songs = st ? stationSongs(st).filter(s => !lib.removed.includes(st.id + '>' + s.key)) : [];
@@ -800,15 +681,15 @@ async function resolveFocus(s) {
   if (s.pin) return (s.cands = s.pin);   // a track you suggested: the exact video you picked
   if (!s.sounds && fc[s.key] && fc[s.key].length) return (s.cands = fc[s.key]);
   try {
-    const r = await fetch(s.sounds ? '/api/long?q=' + encodeURIComponent(s.q) : '/api/search?q=' + encodeURIComponent(s.a + ' ' + s.t) + '&a=' + encodeURIComponent(s.a) + '&t=' + encodeURIComponent(s.t));
-    let c = await r.json(); if (!Array.isArray(c) || !c.length) return [];
+    let c = s.sounds ? (HELPER ? await fetch('/api/long?q=' + encodeURIComponent(s.q)).then(r => r.json()).catch(() => []) : []) : await ytSearch(s.a + ' ' + s.t, s.a, s.t);
+    if (!Array.isArray(c) || !c.length) return [];
     c = s.sounds ? [...c].sort(() => Math.random() - 0.5).slice(0, 5) : c.slice(0, 5);
     s.cands = c; if (!s.sounds) { fc[s.key] = c; try { localStorage.setItem('pbd-focus-cache', JSON.stringify(fc)); } catch {} }
     return c;
   } catch { return []; }
 }
 function paintFocus() {
-  const b = $('btnFocus'); if (b) { b.classList.toggle('on', !!focusMode); b.title = focusMode ? 'Focus mode is on (' + (focusMode === 'sounds' ? 'ambient sounds' : (focusStation(focusMode) || { label: 'instrumental music' }).label) + ')' : 'Focus mode'; }
+  const b = $('btnFocus'); if (b) { b.classList.toggle('on', !!focusMode); b.title = focusMode ? 'Homework mode is on (' + (focusMode === 'sounds' ? 'ambient sounds' : (focusStation(focusMode) || { label: 'chill beats' }).label) + ')' : 'Homework mode'; }
   const box = $('focusStations'); box.innerHTML = '';
   allStations().forEach(st => {
     const b = document.createElement('button'); b.dataset.v = st.id; b.setAttribute('role', 'menuitem'); b.innerHTML = '<span></span><em></em>';
@@ -816,16 +697,15 @@ function paintFocus() {
     if (st.custom) { const e = document.createElement('i'); e.className = 'edit'; e.dataset.edit = st.id; e.title = 'Edit ' + st.label; e.textContent = 'Edit'; b.appendChild(e); }
     box.appendChild(b);
   });
-  const add = document.createElement('button'); add.className = 'add'; add.dataset.act = 'add'; add.innerHTML = '<span>+ Add a genre</span><em>your own station, from tracks you choose</em>'; box.appendChild(add);
+  const add = document.createElement('button'); add.className = 'add'; add.dataset.act = 'add'; add.innerHTML = '<span>+ Make my own station</span><em>from tracks you choose (in the installed app)</em>'; box.appendChild(add);
   document.querySelectorAll('#focusMenu button').forEach(x => x.classList.toggle('on', x.hasAttribute('data-v') && x.dataset.v === focusMode));
 }
 function setFocus(mode) {
-  if (mode && !HELPER) { focusMode = ''; paintFocus(); return toast('Focus mode works on the PC radio: it finds its tracks on YouTube through your PC.'); }
   if (mode === focusMode) return;
   focusMode = mode; try { localStorage.setItem('pbd-focus', mode); } catch {}
   paintFocus(); planned = null; preload = null;
   rlog('focus mode', { mode: mode || 'off' });
-  toast(mode === 'sounds' ? 'Focus: ambient sounds. No talk, no commercials.' : mode ? 'Focus: ' + (focusStation(mode) || { label: 'instrumental music' }).label + '. No talk, no lyrics, no commercials.' : 'Focus mode off. Back to the radio.');
+  toast(mode === 'sounds' ? 'Homework mode: ambient sounds. No talking.' : mode ? 'Homework mode: ' + (focusStation(mode) || { label: 'chill beats' }).label + '. No talking, no shows. Good luck!' : 'Homework mode off. Joe is back.');
   if (started && !newsOn) { stopSpeech(); advance({ silent: true, noCount: true, quick: true }); }   // switch now, with a crossfade
 }
 const takePlanned = () => { const p = planned; planned = null; return p || pick(); };
@@ -833,7 +713,7 @@ function planPreload() {
   if (albumShow) return albumPreload();
   if (planned || marathon) return;   // a marathon chooses its next part when this one ends planned = pick(); if (!planned) return;
   const p = planned;
-  resolve(p).then(c => { if (planned !== p || !c.length || !ytReady) return; const n = 1 - ai; try { setVol(pl[n], 0); pl[n].cueVideoById(c[0].id); preload = { key: p.key, idx: n }; } catch {} });
+  resolve(p);
 }
 const clock = () => new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 const period = () => { const h = new Date().getHours(); return h < 5 ? 'night' : h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening'; };
@@ -856,14 +736,14 @@ function fresh(name, arr) {
 }
 const seedByKey = new Map(R.songs.map(s => [key(s), s]));
 const scriptFor = s => (seedByKey.has(s.key) && R.songScripts) ? R.songScripts[s.t.toLowerCase()] : null;
-const tagOf = s => s.tags && s.tags.length ? (Math.random() < 0.6 ? s.tags[0] : rnd(s.tags)) : 'absurd';   // the first theme is the song's main one
+const tagOf = s => s.tags && s.tags.length ? (Math.random() < 0.6 ? s.tags[0] : rnd(s.tags)) : 'fun';   // the first theme is the song's main one
 // What the host knows about a song (content22.js): its own notes first, otherwise a word about the artist, now and then.
 let artistNoteMap = null;
+const artistNotesMap = () => artistNoteMap || (artistNoteMap = new Map(Object.entries(R.artistNotes || {}).map(([k, v]) => [fold(k).trim(), v])));
 function noteFor(s, back) {
   const own = (R.songNotes || {})[s.key];
   if (own && own.length) return fresh((back ? 'noteb:' : 'note:') + s.key, own);
-  if (!artistNoteMap) { artistNoteMap = new Map(); Object.entries(R.artistNotes || {}).forEach(([k, v]) => artistNoteMap.set(fold(k).trim(), v)); }
-  const main = artistParts(s.a)[0], an = main && artistNoteMap.get(main);
+  const main = artistParts(s.a)[0], an = main && artistNotesMap().get(main);
   return an && Math.random() < (back ? 0.25 : 0.5) ? fresh('anote:' + main, an) : '';
 }
 const moodLine = s => { const m = R.moodBy && R.moodBy[s.mood]; return m && m.length && Math.random() < 0.7 ? fresh('moodby:' + s.mood, m) : fresh('mood', R.moodLines); };
@@ -872,17 +752,17 @@ function energyLine(prev, s) {   // only for a big change, and not every time
   const d = s.energy - prev.energy;
   return d <= -2 && R.energyDown ? fresh('edown', R.energyDown) : d >= 2 && R.energyUp ? fresh('eup', R.energyUp) : '';
 }
-const themeLine = s => { const tg = tagOf(s); return fresh('theme:' + tg, R.themeLine[tg] || R.themeLine.absurd); };
+const themeLine = s => { const tg = tagOf(s); return fresh('theme:' + tg, R.themeLine[tg] || R.themeLine.fun); };
 function genreNote(s) {
   const g = s.genre || ''; const base = R.genreNotes.find(x => x.g === g);
   let pool = [base && base.t, ...((R.genreMore || {})[g] || [])].filter(Boolean);
   if (!pool.length) pool = R.genreNotes.map(x => x.t);
   return fresh('genre:' + (g || 'any'), pool);
 }
-// Dedications from Suggest: kept only here, in memory, until Astro has said them; never saved, synced or logged.
+// Shout-outs from Add a song: kept only here, in memory, until Joe has said them; never saved, synced or logged.
 const dedications = new Map();
 function introFor(s, prev) {
-  if (dedications.has(s.key)) {   // a few words from Astro, your words exactly, then the song
+  if (dedications.has(s.key)) {   // a few words from Joe, your words exactly, then the song
     const d = dedications.get(s.key).replace(/[.!?،]+$/, ''); dedications.delete(s.key);
     return sub(fresh('dedication', R.dedicationLines || ['A dedication now. {d}. Here is {a}, {t}.']), s).replace('{d}', () => d);
   }
@@ -911,7 +791,7 @@ function introFor(s, prev) {
 }
 function backFor(s) {
   if (s.podcast && s.show && R.podShows && R.podShows[s.show]) return sub(fresh('podshowout:' + s.show, R.podShows[s.show].outros), s);
-  if (s.podcast) return sub(s.midnight ? fresh('podoutro', R.podcastOutros) : fresh('podoutroday', R.podcastOutrosDay), s);
+  if (s.podcast) return sub(fresh('podoutro', R.podOutros || ['That was {a}. Back to the music.']), s);
   const sc = scriptFor(s);
   if (sc && sc.backs && sc.backs.length) return sub(fresh('back:' + s.key, sc.backs), s);
   let r = Math.random(), note = r < 0.3 ? noteFor(s, true) : '';
@@ -919,396 +799,144 @@ function backFor(s) {
   return sub(fresh('back', R.backTemplates), s) + (note ? ' ' + note : r < 0.75 ? ' ' + themeLine(s) : '');
 }
 
-// The host speaks after every 2 songs (or after every song, if you choose that in Settings).
-const breakEvery = () => S.talk === 'high' ? 1 : 2;
+// Joe speaks after every 2 songs (Settings: a lot = every song, a little = every 4).
+const breakEvery = () => S.talk === 'high' ? 1 : S.talk === 'low' ? 4 : 2;
+const today = () => new Date().toDateString();
 
-// Programming: a cycle of 64 songs, with at most ONE big part per break, so the host never promises music
-// that a long part is about to delay. After song 8, 24, 40, 56: commercials; 16: the Long Hour; 32: a long letter
-// to you; 48: a conversation with another version of you; 64: a podcast episode. The cycle position is saved, so
-// it continues where it stopped. The other breaks may get a small extra (a genre note, a letter + reading, an ident, a check-in).
+// Programming: a cycle of 64 songs, with at most ONE big part per break. After song 8, 24, 40, 56: a trivia shot, a
+// genre trivia bit or a side quest (taking turns); 16: Book Nook with Luna; 32: a note to Rim; 48: Today's Mission
+// (when it has not been given yet today); 64: a podcast (Saturdays: a live concert). The cycle position is saved.
+// The other breaks may get a small extra (an ident, a bit of banter with Luna, a check-in, genre trivia).
 const CYCLE = 64;
 function bigPartAt(n) {
   const pos = n % CYCLE;
   if (pos === 0) return 'podcast';
-  if (pos % 16 === 8) return 'ads';
-  return { 16: 'talk', 32: 'longletter', 48: 'convo' }[pos] || null;
+  if (pos % 16 === 8) return 'shot';
+  return { 16: 'book', 32: 'note', 48: 'mission' }[pos] || null;
 }
 let lastBreakN = 0, podcastDue = false;
+const lines = (kind, arr, extra) => ({ kind, lines: arr.filter(Boolean).map(x => typeof x === 'string' ? { t: x } : x), ...(extra || {}) });
 
-// Readings for the letters are read by a second voice (Luna). A letter may name its reading; otherwise one that
-// shares its themes is chosen, never one heard recently.
-function pickReading(L) {
-  const all = (R.readings || []).filter(r => !(r.tags || []).includes('mortality'));   // death as rest is never offered as the answer to a letter
-  if (L.read) { const r = all.find(x => x.title === L.read); if (r) { const u = (lib.used.reading = lib.used.reading || []); u.push(idOf(r)); if (u.length > 500) u.shift(); return r; } }
-  const used = (lib.used.reading = lib.used.reading || []);
-  const tg = L.tags || [];
-  const fresh1 = all.filter(r => !used.includes(idOf(r)));
-  const pool = fresh1.length ? fresh1 : all;
-  const match = pool.filter(r => (r.tags || []).some(t => tg.includes(t)));
-  const r = rnd(match.length ? match : pool);
-  if (!fresh1.length) used.length = 0;
-  used.push(idOf(r)); if (used.length > 500) used.shift(); saveLib();
-  return r;
+// Today's Mission: once a day, the first time the radio is on that day. No follow-up later.
+function missionSeg(birthday) {
+  lib.missionDay = today(); saveLib();
+  const m = birthday && R.birthday && R.birthday.mission ? R.birthday.mission : fresh('mission', R.missions);
+  return lines("Today's Mission", [sub(fresh('missionlead', R.missionLeads || ['Okay Rim, mission time.'])), sub(m)]);
 }
-function letterSeg(L, long) {
-  const lines = [{ t: sub(fresh(long ? 'longletterbridge' : 'letterbridge', long ? R.longLetterBridges : R.letterBridges)) }];
-  (Array.isArray(L.t) ? L.t : [L.t]).forEach(x => lines.push({ t: sub(x) }));
-  const rd = pickReading(L);
-  if (rd) {
-    lines.push({ t: sub(fresh('sonia', R.soniaHandoffs)).replace(/\{title\}/g, rd.title).replace(/\{by\}/g, rd.by) });
-    lines.push({ t: rd.t, w: 's' });
+const missionDue = () => lib.missionDay !== today() && (R.missions || []).length;
+// A trivia shot about the song that is coming (or the one that just played); otherwise a general one.
+function triviaSeg(next, prev) {
+  for (const s of [next, prev]) {
+    if (!s || s.podcast || s.focus) continue;
+    const own = (R.songNotes || {})[s.key];
+    if (own && own.length) return lines('Trivia shot', [sub(fresh('triviashot', R.triviaLeads || ['Trivia shot.'])), sub(fresh('note:' + s.key, own), s)]);
+    const main = artistParts(s.a)[0], an = main && artistNotesMap().get(main);
+    if (an && an.length) return lines('Trivia shot', [sub(fresh('triviashot', R.triviaLeads || ['Trivia shot.'])), sub(fresh('anote:' + main, an), s)]);
   }
-  return { kind: long ? 'A Long Letter to You' : 'Letters to the Absurd, and to You', title: L.title, lines };
+  return lines('Trivia shot', [sub(fresh('triviashot', R.triviaLeads || ['Trivia shot.'])), sub(fresh('triviaany', R.triviaShots || []))]);
 }
+function genreSeg(next) { return lines('Genre trivia', [sub(fresh('genrelead', R.genreLeads || ['A little genre trivia.']), next), genreNote(next)], { title: (R.genreMap[next.genre] || {}).name }); }
+function sideQuestSeg() {
+  const kinds = Object.keys(R.sideQuests || {}); if (!kinds.length) return null;
+  const k = kinds[(lib.sqTurn = ((lib.sqTurn || 0) + 1)) % kinds.length];
+  return lines('Side quest', [sub(fresh('sqlead', R.sideQuestLeads || ['Side quest, if you feel like it.'])), sub(fresh('sq:' + k, R.sideQuests[k]))], { title: (R.sideQuestNames || {})[k] });
+}
+function bookSeg() {
+  const b = fresh('book', R.bookNook || []); if (!b) return null;
+  const out = [{ t: sub(fresh('booklead', R.bookLeads || ['Book Nook time. Luna?']).replace(/\{title\}/g, b.title).replace(/\{by\}/g, b.by)) }];
+  (Array.isArray(b.t) ? b.t : [b.t]).forEach(x => out.push({ t: sub(x), w: 's' }));
+  if (b.joe) out.push({ t: sub(b.joe) });
+  return { kind: 'Book Nook', title: b.title + ' · ' + b.by, lines: out };
+}
+function noteSeg() { const n = fresh('note', R.notes || []); return n ? lines('A note to Rim', (Array.isArray(n) ? n : [n]).map(x => sub(x))) : null; }
+function banterSeg() { const b = fresh('banter', R.banter || []); return b ? { kind: R.station, title: 'Joe & Luna', lines: b.map(l => ({ t: sub(l.t), w: l.w })) } : null; }
+function birthdaySegs() {
+  lib.bdayDone = today(); saveLib();
+  const B = R.birthday || {};
+  return [{ kind: 'Happy birthday', jingle: 'party' }, lines('Happy birthday, Rim', (B.show || []).map(x => typeof x === 'string' ? sub(x) : { t: sub(x.t), w: x.w })), missionSeg(true)];
+}
+const birthdayDue = () => isBirthday() && lib.bdayDone !== today();
 
-// a commercial break: announced, then jingle, ad, jingle, ad, jingle, and a closing line
-function adBreakSegs() {
-  return [
-    { kind: 'Commercial break', adGroup: true, lines: [{ t: sub(fresh('breakintro', R.breakIntros)) }] },
-    { kind: 'Jingle', adGroup: true, jingle: true },
-    { kind: 'Commercial', adGroup: true, ad: true },
-    { kind: 'Jingle', adGroup: true, jingle: true },
-    { kind: 'Commercial', adGroup: true, ad: true },
-    { kind: 'Jingle', adGroup: true, jingle: true },
-    { kind: 'Commercial break', adGroup: true, lines: [{ t: sub(fresh('breakoutro', R.breakOutros)) }] },
-  ];
-}
 function makeBreak(prev, next, first) {
   const out = [], station = R.station;
   podcastDue = false;
-  if (first) { out.push({ kind: station, lines: [{ t: sub(fresh('welcome:' + period(), R.welcomes[period()]), next) }] }); return out; }
-  if (prev) out.push({ kind: station, lines: [{ t: backFor(prev) }] });
+  if (first) {
+    out.push(lines(station, [sub(fresh('welcome:' + period(), R.welcomes[period()]), next)]));
+    if (birthdayDue()) { out.push(...birthdaySegs()); return out; }
+    if (missionDue()) out.push(missionSeg());
+    return out;
+  }
+  if (prev) out.push(lines(station, [backFor(prev)]));
   let runAnnounced = false;
-  if (prev && lastRunSong && prev.key === lastRunSong.key) { out.push({ kind: 'Genre run', title: lastRunSong.label, lines: [{ t: sub(fresh('runend', R.runEnds), null, { label: lastRunSong.label }) }] }); lastRunSong = null; runAnnounced = true; }
+  if (prev && lastRunSong && prev.key === lastRunSong.key) { out.push({ kind: 'Genre Mix', title: lastRunSong.label, lines: [{ t: sub(fresh('runend', R.runEnds), null, { label: lastRunSong.label }) }] }); lastRunSong = null; runAnnounced = true; }
   lib.b = (lib.b || 0) + 1; saveLib();
   const n = lib.b * breakEvery();
   lastBreakN = n;
-  const big = bigPartAt(n);
+  let big = bigPartAt(n);
+  if (big === 'mission' && !missionDue()) big = 'shot';
   podcastDue = big === 'podcast';
-  const wantAd = big === 'ads';
-  if (wantAd) out.push(...adBreakSegs());
-  if (big === 'talk') {
-    const tg = next.tags || [];
-    const match = R.talks.filter(t => t.tags.some(x => tg.includes(x)));
-    const t = fresh('talk', match.length && Math.random() < 0.6 ? match : R.talks);
-    out.push({ kind: 'The Long Hour', title: t.title, lines: [{ t: sub(fresh('talkbridge', R.talkBridges).replace(/\{title\}/g, t.title)) }, ...t.p.map(x => ({ t: sub(x) }))] });
+  const afterPod = !!(prev && prev.podcast);
+  if (birthdayDue() && !afterPod) { out.push(...birthdaySegs()); big = big === 'podcast' ? big : null; }
+  else if (missionDue() && !big && !afterPod) out.push(missionSeg());   // the radio was opened without a welcome (after an update): the mission still comes
+  if (big === 'shot') {
+    const turn = (lib.shotTurn = ((lib.shotTurn || 0) + 1)) % 3;
+    out.push(turn === 0 ? triviaSeg(next, prev) : turn === 1 ? genreSeg(next) : (sideQuestSeg() || triviaSeg(next, prev)));
   }
-  if (big === 'longletter' && (R.longLetters || []).length) {
-    out.push(letterSeg(fresh('longletter', R.longLetters.filter(x => !x.birthday)), true));   // the birthday letter has its own day (below)
-  }
-  if (big === 'convo' && (R.conversations || []).length) {
-    const c = fresh('convo', R.conversations);
-    out.push({ kind: 'Conversations with You', title: c.title, lines: [{ t: sub(c.intro) }, ...c.lines.map(l => ({ t: sub(l.t), w: l.w }))] });
-  }
-  // small extras: only on breaks with no big part, and never right after a podcast (its outro already says "back to the music")
-  const today = new Date().toDateString(), bdayLetter = (R.longLetters || []).find(x => x.birthday);
-  if (!big && !(prev && prev.podcast) && !startAnnounce && bdayLetter && isBirthday() && lib.bdayDone !== today) {
-    lib.bdayDone = today; saveLib(); out.push(letterSeg(bdayLetter, true));   // on the birthday: its own letter, at the first free break of the day
-  } else if (!big && !runAnnounced && !(prev && prev.podcast) && !startAnnounce && Math.random() < 0.8) {
+  if (big === 'book') { const b = bookSeg(); if (b) out.push(b); }
+  if (big === 'note') { const x = noteSeg(); if (x) out.push(x); }
+  if (big === 'mission') out.push(missionSeg());
+  // small extras: only on breaks with no big part, and never right after a podcast
+  if (!big && !runAnnounced && !afterPod && !startAnnounce && Math.random() < 0.6) {
     const r = Math.random();
-    if (r < 0.24) out.push({ kind: 'On the genre', title: next.genre, lines: [{ t: genreNote(next) }] });
-    else if (r < 0.72) out.push(letterSeg(fresh('letter', R.letters), false));
-    else if (r < 0.9) out.push({ kind: station, lines: [{ t: sub(fresh('ident', R.idents), next) }] });
-    else out.push({ kind: 'Check-in', lines: [{ t: sub(fresh('checkin', R.checkins)) }] });
+    const x = r < 0.25 ? lines(station, [sub(fresh('ident', R.idents), next)])
+      : r < 0.5 ? banterSeg()
+      : r < 0.65 ? lines('Check-in', [sub(fresh('checkin', R.checkins))])
+      : r < 0.85 ? genreSeg(next)
+      : sideQuestSeg();
+    if (x) out.push(x);
   }
-  // a genre run is announced last, right before its first song; if a podcast comes first, it waits until after it
-  if (startAnnounce && !podcastDue) { out.push({ kind: 'Genre run', title: startAnnounce, lines: [{ t: sub(fresh('runstart', R.runStarts), null, { label: startAnnounce }) }] }); startAnnounce = null; }
-  return out;
+  // a Genre Mix is announced last, right before its first song; if a podcast comes first, it waits until after it
+  if (startAnnounce && !podcastDue) { out.push({ kind: 'Genre Mix', title: startAnnounce, lines: [{ t: sub(fresh('runstart', R.runStarts), null, { label: startAnnounce }) }] }); startAnnounce = null; }
+  return out.filter(Boolean);
 }
 
-// ---------- commercial break: jingle, ad, jingle, ad, jingle (audio only, the vinyl keeps spinning) ----------
-let breakSkip = null, adHook = null, adPool = [];
+let breakSkip = null;
 const getCtx = () => { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); return actx; };
-// Commercials: on the PC the helper keeps the list (your playlist, ads found by search, and your edits) and a copy
-// goes to the cloud; on the phone the list comes from the cloud. cloudAds = { edits, pool, savedAt } as stored there.
-const parseJ = (s, d) => { try { return JSON.parse(s); } catch { return d; } };
-async function loadAds() {
-  if (HELPER) { try { const r = await (await fetch('/api/ads')).json(); if (r && Array.isArray(r.items) && r.items.length) adPool = r.items; } catch {} return; }
-  if (cloudAds) adPool = parseJ(cloudAds.pool, []).filter(v => !v.removed);
-}
-let lastAdsPushed = '';
-async function pushAdsToCloud() {   // after an edit on the PC (or at start): send the helper's list to the cloud
-  if (!HELPER || !window.Cloud || !Cloud.user) return;
-  try {
-    const [e, all] = await Promise.all([fetch('/api/ads/edits').then(r => r.json()), fetch('/api/ads/all').then(r => r.json())]);
-    const edits = { removed: e.removed || [], added: e.added || [] }, pool = all.items || [];
-    const sig = JSON.stringify([edits, pool.map(v => v.id + (v.removed ? '-' : ''))]);
-    if (sig === lastAdsPushed) return;
-    lastAdsPushed = sig; await Cloud.pushAds(edits, pool);
-  } catch {}
-}
-async function syncAds() {   // at start: your commercial edits from every device are MERGED into this PC's list, never swapped
-  if (HELPER && cloudAds) {
-    try {
-      const e = await (await fetch('/api/ads/edits')).json(), c = JSON.parse(cloudAds.edits || '{}');
-      const removed = [...new Set([...(e.removed || []), ...(c.removed || [])])];
-      const added = []; [...(e.added || []), ...(c.added || [])].forEach(v => { if (v && v.id && !removed.includes(v.id) && !added.some(x => x.id === v.id)) added.push(v); });
-      if (JSON.stringify([removed.slice().sort(), added.map(v => v.id).sort()]) !== JSON.stringify([(e.removed || []).slice().sort(), (e.added || []).map(v => v.id).sort()]))
-        await fetch('/api/ads/edits', { method: 'POST', body: JSON.stringify({ removed, added }) });
-      // a fresh install has no commercials list of its own yet: take the playlist part from the cloud copy
-      const all = await (await fetch('/api/ads/all')).json();
-      if (!(all.items || []).some(v => v.src === 'playlist')) {
-        const pl = parseJ(cloudAds.pool || '[]', []).filter(v => v && v.src === 'playlist');
-        if (pl.length) { const r = await (await fetch('/api/ads/seed', { method: 'POST', body: JSON.stringify({ items: pl }) })).json(); if (r.seeded) rlog('commercials list copied from the cloud', { ads: r.seeded }); }
-      }
-    } catch {}
-  }
-  await loadAds(); pushAdsToCloud();
-}
-if (window.Cloud) Cloud.onRemoteAds = a => { cloudAds = a; syncAds(); };
-let lastAdId = '';
-const nextAd = () => { if (!adPool.length) return null; let a = fresh('adpick', adPool); if (a.id === lastAdId && adPool.length > 1) a = fresh('adpick', adPool); lastAdId = a.id; return a; };   // a shuffle bag: no ad repeats until all have played, and never the same one twice in a row
-
-async function runJingle() {
-  $('kind').textContent = 'jingle'; $('capKind').textContent = 'Commercial break'; $('capText').textContent = '♪';
+async function runJingle(id) {
+  $('kind').textContent = 'jingle'; $('capText').textContent = '♪';
   bedOff(0.5);
-  const j = Jingles.play(getCtx(), S.jingle || Jingles.defaultId);
+  const j = Jingles.play(getCtx(), id || S.jingle || Jingles.defaultId);
   breakSkip = () => j.stop();
   await j.done; breakSkip = null;
 }
-// Plays one ad on the idle player. Resolves true when it played (or you skipped it), false when it could not load.
-function playAdVideo(v) {
-  return new Promise(res => {
-    const idx = 1 - ai, p = pl[idx]; let started = false, done = false, tick;
-    const finish = ok => { if (done) return; done = true; clearInterval(tick); adHook = null; breakSkip = null; try { p.pauseVideo(); } catch {} res(ok); };
-    // YouTube's error 100: the video was removed (or made private). Any other error only means it cannot play right now.
-    adHook = { idx, state: s => { if (s === YT.PlayerState.PLAYING) { started = true; setLive(true); } else if (s === YT.PlayerState.ENDED) finish(true); }, error: code => finish(code === 100 ? 'gone' : false) };
-    breakSkip = () => finish(true);                       // the Next button skips this ad
-    preload = null;
-    try { p.unMute(); } catch {}
-    setVol(p, Math.round(S.vol * 0.9)); p.loadVideoById(v.id);
-    // Not started within 12 s: the caller tries the next ad. Once playing, it runs to its real end (up to 3 minutes and a
-    // bit): the time is measured on the video itself, so loading and buffering on a slow connection never cut it short.
-    // An ad stuck for 45 s without moving ends. Paused time does not count.
-    let waited = 0, stall = 0, last = -1;
-    tick = setInterval(() => {
-      if (globalPaused) return;
-      if (!started) { if ((waited += 500) >= 12000) finish(false); return; }
-      let c = 0, d = 0; try { c = p.getCurrentTime() || 0; d = p.getDuration() || 0; } catch {}
-      if (c > last + 0.05) { last = c; stall = 0; } else if ((stall += 500) >= 45000) return finish(true);
-      if (c >= Math.min(d || v.seconds || 200, 200) - 0.2 && c > 1) finish(true);
-    }, 500);
-  });
-}
-async function runAd(id) {
-  $('kind').textContent = 'commercial';
-  for (let tries = 0; tries < 8 && id === runId; tries++) {
-    const ad = nextAd();
-    if (!ad) { toast('No commercials loaded. If you just updated the radio, close it completely and open it again.'); return; }
-    $('capKind').textContent = 'Commercial'; $('capText').textContent = ad.title;
-    console.info('[radio] ad', ad.src, ad.id, ad.title);
-    curAd = ad; $('btnAdRemove').style.display = '';
-    const played = await playAdVideo(ad);
-    curAd = null; $('btnAdRemove').style.display = 'none';
-    if (played === true) return;
-    if (played === 'gone') adRemovedFromYouTube(ad);   // anything else: just skipped this time, another one plays
-    if (id !== runId) return;
-  }
-}
 
-// A commercial that YouTube says was removed (error 100) leaves the playing list, with a note in Removed.
-// One that only fails to start, or that its owner will not let play here, is skipped for this break and stays.
-function adRemovedFromYouTube(ad) {
-  rlog('commercial removed from YouTube', { id: ad.id, title: ad.title });
-  lib.adNotes = lib.adNotes || {}; lib.adNotes[ad.id] = 'no longer on YouTube'; saveLib();
-  adPool = adPool.filter(v => v.id !== ad.id);
-  adsEditCall({ action: 'remove', id: ad.id }).catch(() => {});
-}
-
-// ---------- managing the commercials: remove some, add others ----------
-let curAd = null, adTab = 'on';
-async function adsEditCall(body) {
-  if (!HELPER) return cloudAdsEdit(body);
-  const r = await fetch('/api/ads/edit', { method: 'POST', body: JSON.stringify(body) });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j.error || 'Something went wrong.');
-  await loadAds(); pushAdsToCloud(); return j;
-}
-// Without the helper (the phone): remove and restore work on the cloud copy; adding a new ad needs the PC.
-async function cloudAdsEdit(body) {
-  if (!window.Cloud || !Cloud.user || !cloudAds) throw new Error('Sign in (Settings > Cloud sync) to change the commercials here.');
-  if (body.action === 'add') throw new Error('Adding a new commercial needs the radio on your PC.');
-  const edits = Object.assign({ removed: [], added: [] }, parseJ(cloudAds.edits, {})), pool = parseJ(cloudAds.pool, []);
-  const id = body.id, gone = body.action === 'remove';
-  edits.removed = edits.removed.filter(x => x !== id); if (gone) edits.removed.push(id);
-  pool.forEach(v => { if (v.id === id) v.removed = gone; });
-  await Cloud.pushAds(edits, pool);
-  cloudAds = { edits: JSON.stringify(edits), pool: JSON.stringify(pool), savedAt: Date.now() };
-  await loadAds(); return { ok: true };
-}
-$('btnAdRemove').onclick = async () => {   // the ad that is playing right now
-  if (!curAd) return; const ad = curAd;
-  try { await adsEditCall({ action: 'remove', id: ad.id }); toast('That ad will not play again. You can restore it in Settings > Manage commercials.'); } catch (e) { toast(e.message); }
-  if (breakSkip) { const b = breakSkip; breakSkip = null; b(); }
-};
-const fmtSec = s => s ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : '';
-async function allAds() {
-  if (HELPER) { try { return (await (await fetch('/api/ads/all')).json()).items || []; } catch { return []; } }
-  return cloudAds ? parseJ(cloudAds.pool, []) : [];
-}
-// "Clear the list" hides removed ads from the Removed tab; they stay removed (forgetting them would bring them back)
-const adHidden = () => new Set(lib.adsHidden || []);
-async function renderAds() {
-  document.querySelectorAll('#adTabs button').forEach(b => b.classList.toggle('on', b.dataset.v === adTab));
-  const items = await allAds(), hidden = adHidden();
-  const on = items.filter(v => !v.removed), off = items.filter(v => v.removed && !hidden.has(v.id));
-  adListed = { on, off };
-  $('adCount').textContent = `· ${on.length} playing, ${off.length} removed`;
-  const l = $('adList'); l.innerHTML = '';
-  const shown = adTab === 'on' ? on : off;
-  if (!shown.length) l.innerHTML = `<p style="color:var(--mute);font-size:13px;line-height:1.5">${adTab === 'on' ? 'No commercials are playing. Add some above.' : 'Nothing removed.'}</p>`;
-  if (adTab === 'off' && off.length) {
-    const c = document.createElement('div'); c.innerHTML = '<button class="btn ghost" style="width:100%;margin-bottom:4px">Clear the list (they stay removed)</button>';
-    c.querySelector('button').onclick = () => { lib.adsHidden = [...new Set([...(lib.adsHidden || []), ...off.map(v => v.id)])]; saveLib(); renderAds(); };
-    l.appendChild(c);
-  }
-  const badge = { playlist: 'playlist', search: 'found', mine: 'yours' };
-  shown.forEach(v => {
-    const d = document.createElement('div'); d.className = 'item';
-    d.innerHTML = `<div class="meta"><b></b><span></span></div><button class="mini-btn"></button>`;
-    d.querySelector('b').textContent = v.title; d.querySelector('span').textContent = `${fmtSec(v.seconds)} · ${badge[v.src] || v.src}${v.removed && (lib.adNotes || {})[v.id] ? ' · ' + lib.adNotes[v.id] : ''}`;
-    const b = d.querySelector('.mini-btn'); b.textContent = adTab === 'on' ? '✕' : 'Restore'; b.title = adTab === 'on' ? 'Never play this ad' : 'Play this ad again';
-    b.onclick = async () => { try { await adsEditCall({ action: adTab === 'on' ? 'remove' : 'restore', id: v.id }); renderAds(); } catch (e) { toast(e.message); } };
-    l.appendChild(d);
-  });
-}
-const ytId = s => { const m = String(s).match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([\w-]{11})/) || String(s).trim().match(/^([\w-]{11})$/); return m ? m[1] : ''; };
-const adTitleKey = t => fold(t).replace(/\b(pub|publicite|publicité|spot|tv|maroc|morocco|ad|commercial|اشهار|إشهار|إعلان|اعلان)\b/gi, '').replace(/\s+/g, ' ').trim();
-async function addAd(idOrLink) {
-  const id = ytId(idOrLink), have = id ? (await allAds()).find(v => v.id === id) : null;
-  if (have && !have.removed) { toast(`"${have.title}" is already playing. Not added again.`); $('adq').value = ''; $('adRes').innerHTML = ''; return; }
-  try { const r = await adsEditCall({ action: 'add', id: idOrLink }); toast(r.already ? `"${r.added.title}" is already in the list.` : `Added "${r.added.title}".`); $('adq').value = ''; $('adRes').innerHTML = ''; adTab = 'on'; renderAds(); }
-  catch (e) { toast(e.message); }
-}
-// A playlist link: every video in it is added (the ones already playing are left as they are)
-async function adsFromPlaylist(link, progress = () => {}) {   // returns { title, added, already }
-  progress('Reading the playlist…');
-  const r = await fetch('/api/playlist?list=' + encodeURIComponent((link.match(/[?&]list=([\w-]+)/) || [, link])[1]));
-  const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'The playlist could not be read.');
-  // nothing that is already in the list (playing, or removed by you), and no second copy of a title already playing
-  // (titles are compared only when long enough to tell ads apart: "pub maroc telecom" could be any of them)
-  const list = await allAds(), have = new Set(list.map(v => v.id)), titles = new Set(list.filter(v => !v.removed).map(v => adTitleKey(v.title)).filter(Boolean));
-  const todo = (j.items || []).filter(v => { if (!v.id || have.has(v.id)) return false; const k = adTitleKey(v.title || ''); if (k.length >= 12 && titles.has(k)) return false; if (k.length >= 12) titles.add(k); have.add(v.id); return true; });
-  let n = 0;
-  for (const v of todo) { progress(`Adding ${n + 1} of ${todo.length}: ${v.title || v.id}`); try { await adsEditCall({ action: 'add', id: v.id }); n++; } catch {} }
-  return { title: j.title || 'Playlist', added: n, already: (j.items || []).length - todo.length };
-}
-const playlistToast = x => `"${x.title}": ${x.added} commercial${x.added === 1 ? '' : 's'} added${x.already ? `, ${x.already} ${x.already === 1 ? 'was' : 'were'} already in the list` : ''}.`;
-async function addAdPlaylist(link) {
-  const st = m => { $('adRes').innerHTML = '<p style="color:var(--mute);font-size:13px"></p>'; $('adRes').querySelector('p').textContent = m; };
-  try {
-    const x = await adsFromPlaylist(link, st);
-    $('adRes').innerHTML = ''; $('adq').value = ''; adTab = 'on'; renderAds();
-    toast(playlistToast(x));
-  } catch (e) { st(e.message || String(e)); }
-}
-async function adGo() {
-  const q = $('adq').value.trim(); if (!q) return;
-  if (!HELPER) { $('adRes').innerHTML = `<p style="color:var(--mute)">${NEEDS_PC}</p>`; return; }
-  if (/[?&]list=|^(PL|OL|UU|FL)[\w-]{10,}$/.test(q)) return addAdPlaylist(q);   // a whole playlist
-  if (/youtu|^[\w-]{11}$/.test(q)) return addAd(q);   // a link or a video id: add it directly
-  $('adRes').innerHTML = '<p style="color:var(--mute)">Searching…</p>';
-  try {
-    const r = await (await fetch('/api/ads/search?q=' + encodeURIComponent(q))).json();
-    if (!r.length) throw 0;
-    $('adRes').innerHTML = '';
-    r.forEach(v => {
-      const d = document.createElement('div'); d.className = 'item';
-      d.innerHTML = `<img src="https://i.ytimg.com/vi/${v.id}/default.jpg" width="48" height="36" style="border-radius:6px;object-fit:cover"><div class="meta"><b></b><span></span></div><button class="btn" style="padding:6px 11px">Add</button>`;
-      d.querySelector('b').textContent = v.title; d.querySelector('span').textContent = `${v.channel} · ${fmtSec(v.seconds)}`;
-      d.querySelector('button').onclick = () => addAd(v.id);
-      $('adRes').appendChild(d);
-    });
-  } catch { $('adRes').innerHTML = '<p style="color:var(--mute)">Nothing found. Try other words, or paste a YouTube link.</p>'; }
-}
-// Every commercial as a numbered line with its YouTube link, ready to paste into a message
-let adListed = { on: [], off: [] };
-$('adCopy').onclick = async () => {
-  const line = (v, i) => `${i + 1}. ${v.title} (${fmtSec(v.seconds) || '?'}) https://www.youtube.com/watch?v=${v.id}`;
-  const text = `Commercials playing (${adListed.on.length}):\n${adListed.on.map(line).join('\n')}` + (adListed.off.length ? `\n\nRemoved (${adListed.off.length}):\n${adListed.off.map(line).join('\n')}` : '');
-  try { await navigator.clipboard.writeText(text); toast(`Copied ${adListed.on.length + adListed.off.length} commercials. Paste them anywhere.`); }
-  catch { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); toast('Copied.'); } catch { toast('Could not copy here.'); } t.remove(); }
-};
-// One-time clean-ups of the commercials, as you asked for them. Each runs once, on the first device that can save it
-// (the PC, or a phone signed in to the cloud), through the same path as the ✕ button, so it reaches the cloud too.
-const AD_CLEANUPS = [
-  { id: '2026-10-25', hideRemoved: true, remove: [
-    '3f6gmNpVqQU', 'C457wcIvIoc', 'bKEqz8kaWgI', 'j-EIZeR9yZ4', 'DwwhLsLtzMk', 'B6FdsqhfxJE', 'jZ5q65PD0eI', 'J87mPeNK9gk', 'Zt0jgM69byo',
-    'pvHoqZ_idZI', 'xAtuB6T7JeI', 'DRApcrEyyCM', 'JKzxHtV-ex8', '0DAXd5Te1h8', 'z7MDSWv7_lU', '-pmL6aZQRMM', '0Zn-K2Jjkf0',
-    'pjk3G3K9UUc',   // the second "Colorado pub" (0:34): "Colorado pub 2m" stays
-  ] },
-  { id: '2026-10-25-playlist', addPlaylist: 'PLe8DdggI3F7k' },   // reading a playlist needs the PC; tried at 3 openings at most
-];
-async function runAdCleanups() {
-  let tries = lib.adCleanupTries = lib.adCleanupTries || {};
-  if (HELPER) { try { tries = JSON.parse(localStorage.getItem('pbd-adcleanup-tries') || '{}'); } catch { tries = {}; } }   // counted per PC
-  const saveTries = () => { if (HELPER) try { localStorage.setItem('pbd-adcleanup-tries', JSON.stringify(tries)); } catch {} else saveLib(); };
-  let here = []; try { here = JSON.parse(localStorage.getItem('pbd-adcleanups-here') || '[]'); } catch {}
-  const doneHere = id => { here.push(id); try { localStorage.setItem('pbd-adcleanups-here', JSON.stringify(here)); } catch {} };
-  const todo = AD_CLEANUPS.filter(c => !(HELPER ? here : (lib.adCleanups || [])).includes(c.id) && (tries[c.id] || 0) < 3);
-  if (!todo.length || !(HELPER || (window.Cloud && Cloud.user && cloudAds))) return;
-  for (const c of todo) {
-    if (c.addPlaylist) {
-      if (!HELPER) continue;
-      tries[c.id] = (tries[c.id] || 0) + 1; saveTries();
-      try {
-        const x = await adsFromPlaylist(c.addPlaylist);
-        lib.adCleanups = [...new Set([...(lib.adCleanups || []), c.id])]; saveLib(); doneHere(c.id);
-        rlog('commercials playlist added', { playlist: c.addPlaylist, ...x }); toast(playlistToast(x));
-      } catch (e) {
-        rlog('commercials playlist failed', { playlist: c.addPlaylist, error: e.message, attempt: tries[c.id] });
-        toast(`Could not add the commercials playlist: ${e.message}${tries[c.id] < 3 ? ' I will try again next time.' : ''}`);
-      }
-      continue;
-    }
-    let items = await allAds(); if (!items.length) return;
-    let n = 0;
-    for (const id of c.remove) { const v = items.find(x => x.id === id); if (v && !v.removed) { try { await adsEditCall({ action: 'remove', id }); n++; } catch {} } }
-    if (c.hideRemoved) { items = await allAds(); lib.adsHidden = [...new Set([...(lib.adsHidden || []), ...items.filter(v => v.removed).map(v => v.id)])]; }
-    lib.adCleanups = [...new Set([...(lib.adCleanups || []), c.id])]; saveLib(); if (HELPER) doneHere(c.id);
-    rlog('commercials cleaned up', { cleanup: c.id, removed: n });
-    if (n) toast(`${n} commercials removed, as you asked.`);
-  }
-}
-// Manage commercials > Play commercials: a break right now; the song that was playing fades out under it, then the next one
-$('adPlayNow').onclick = () => {
-  if (!started) return toast('Press play first, then try the commercials.');
-  if (!adPool.length) return toast('No commercials are playing. Add some first.');
-  if (newsOn) return toast('The news is on. Try again after it.');
-  openSheet(null); planned = null; preload = null;
-  advance({ forceTalk: true, noCount: true, replaySegs: adBreakSegs() });
-};
-function openAds() { $('adRes').innerHTML = ''; renderAds(); openSheet('shAds'); }
-
-// In a marathon nothing promises music: no "back to the music", "before the next song", "the songs will wait"…
-const MUSIC_TALK = /\b(back to (the )?(music|songs?|it)|more music|right back|be back|back in a (moment|minute)|the (songs?|music) (will )?(wait|return|resume|come back)|(music|songs?) returns?|here comes (more )?(music|a song)|we return|stay with (us|me)|after the break|(before|after|for) the next song|the next song|then we come back|then the music|let the (music|song)|music continues|between songs)\b/i;
+// In a Non-stop session nothing promises music: no "back to the music", "before the next song"…
+const MUSIC_TALK = /\b(back to (the )?(music|songs?|it)|more music|right back|be back|back in a (moment|minute)|the (songs?|music) (will )?(wait|return|resume|come back)|(music|songs?) returns?|here comes (more )?(music|a song)|we return|stay with (us|me)|after the break|(before|after|for) the next song|the next song|then we come back|then the music|let the (music|song)|music continues|between songs|up next|coming up)\b/i;
 function marathonLines(seg) {
   const last = seg.lines.length - 1;
   return seg.lines.map((l, i) => {
     if (!MUSIC_TALK.test(l.t)) return l;
-    if (i === last && seg.lines.length > 2) return null;   // a talk's closing paragraph that hands back to the music
+    if (i === last && seg.lines.length > 2) return null;
     const kept = splitParts(l.t).filter(x => !MUSIC_TALK.test(x)).join(' ');
     return kept ? { ...l, t: kept } : null;
   }).filter(Boolean);
 }
 async function runSegments(segs, id) {
-  if (marathon) segs = segs.filter(s => !(s.adGroup && s.lines));   // commercials back to back: no "short break" or "back to the music"
   for (let si = 0; si < segs.length; si++) {
     let seg = segs[si];
     if (id !== runId) return false;
     if (marathon && seg.lines) seg = { ...seg, lines: marathonLines(seg) };
-    if (curBreak && curBreak.segs === segs) curBreak.idx = si;   // where the news would pick this break up again
+    if (curBreak && curBreak.segs === segs) curBreak.idx = si;   // where the bulletin would pick this break up again
     $('vinyl').classList.add('talk');
     $('kind').textContent = seg.kind.toLowerCase();
     $('capKind').textContent = seg.title ? `${seg.kind} · ${seg.title}` : seg.kind;
-    if (seg.jingle) { await runJingle(); continue; }
-    if (seg.ad) { await runAd(id); continue; }
-    if (seg.adGroup) bedOff(0.5); else bedOn();
+    if (seg.jingle) { await runJingle(seg.jingle); continue; }
+    bedOn();
     for (const l of seg.lines) {
       if (id !== runId) return false;
-      if (seg.adGroup) breakSkip = () => { speechSynthesis.cancel(); try { if (curAudio && curAudio.onended) curAudio.onended(); } catch {} };   // Next skips the spoken line
-      if (l.w === 's') $('capKind').textContent = 'Luna · reading';
-      else if (seg.lines.some(x => x.w === 's')) $('capKind').textContent = seg.title ? `${seg.kind} · ${seg.title}` : seg.kind;
+      if (l.w === 's') $('capKind').textContent = 'Luna' + (seg.title ? ' · ' + seg.title : '');
+      else if (seg.lines.some(x => x.w === 's')) $('capKind').textContent = 'Joe' + (seg.title ? ' · ' + seg.title : '');
+      breakSkip = () => { speechSynthesis.cancel(); try { if (curAudio && curAudio.onended) curAudio.onended(); } catch {} };   // Next skips the line being said
       await say(l.t, l.w && l.w !== 'h' ? l.w : 'h');
       breakSkip = null;
       if (id !== runId) return false;
@@ -1318,83 +946,62 @@ async function runSegments(segs, id) {
   return id === runId;
 }
 
-// ---------- podcast episodes (song 64 of every cycle) ----------
-// What is playing or being said right now, so the news can bring it back from the start: a break (from the part that
-// was interrupted, a talk from its first sentence), a podcast being introduced, or the song or episode itself.
+// ---------- podcasts and concerts (song 64 of every cycle) ----------
+// Hand-picked episodes only, saved by their exact video (content23.js): never a random search. Played episodes do
+// not return until all of that show's have played. Saturdays: a live concert from the hand-picked list instead.
 let curBreak = null, curPod = null;
-// The podcast slot takes turns: a regular episode before each show (content23.js).
-const POD_TURNS = ['regular', 'hadara', 'regular', 'dahih', 'regular', 'huwa', 'regular', 'abdellatif'];
-async function findShow(id) {
-  const show = (R.podShows || {})[id]; if (!show) return null;
+const POD_TURNS = () => Object.keys(R.podShows || {}).filter(k => !(R.podShows[k] || {}).concert);
+function pickEpisode(list, tag) {
   lib.pod = lib.pod || [];
-  for (const q of [...show.queries].sort(() => Math.random() - 0.5)) {
-    try {
-      let res = show.concert ? await fetch('/api/concert?q=' + encodeURIComponent(q)) : null;
-      if (!res || !res.ok) res = await fetch('/api/podcast?min=480&q=' + encodeURIComponent(q));   // an older PC helper: only concerts over 20 minutes
-      const r = await res.json(); if (!Array.isArray(r)) continue;
-      const ok = r.filter(x => show.channel.test(x.channel || '') && show.title.test(x.title || '') && !(show.notTitle && show.notTitle.test(x.title || '')) && !lib.pod.includes(x.id)).slice(0, 5);
-      if (!ok.length) continue;
-      const v = rnd(ok);
-      return { topic: { label: show.name }, show: id, v, alts: ok.filter(x => x.id !== v.id) };
-    } catch {}
-  }
-  return null;
+  let left = list.filter(e => !lib.pod.includes(e.id));
+  if (!left.length) { lib.pod = lib.pod.filter(id => !list.some(e => e.id === id)); left = list.slice(); rlog('all episodes played, starting again', { tag }); }
+  return left.length ? rnd(left) : null;
 }
-// A live concert: a KEXP full performance or a Tiny Desk Concert, whichever is found first, in random order
-async function findConcert() {
-  for (const id of shuffle(['kexp', 'tinydesk'])) { const c = await findShow(id); if (c) return c; }
-  return null;
+function podFrom(e, show) {
+  const sh = R.podShows[show] || { name: show };
+  return { topic: { label: sh.name }, show, v: { id: e.id, title: e.t, channel: e.ch || sh.name, seconds: e.sec || 0 }, alts: [] };
+}
+function findShow(show) {
+  const eps = (R.podEpisodes || []).filter(e => e.show === show), e = pickEpisode(eps, show);
+  return e ? podFrom(e, show) : null;
+}
+function findConcert() {
+  const e = pickEpisode(R.concerts || [], 'concerts');
+  return e ? podFrom(Object.assign({ ch: e.src }, e), 'concert') : null;
 }
 async function findPodcast() {
-  lib.pod = lib.pod || [];
-  if (new Date().getDay() === 6) { const c = await findConcert(); if (c) return c; rlog('saturday: no concert found, a podcast instead'); }   // Saturdays: a concert in the podcast slot
-  const turn = POD_TURNS[(lib.podTurn || 0) % POD_TURNS.length]; lib.podTurn = (lib.podTurn || 0) + 1; saveLib();
-  if (turn !== 'regular') { const sp = await findShow(turn); if (sp) return sp; rlog('podcast show not found, a regular episode instead', { show: turn }); }
-  return findRegular();
-}
-async function findRegular() {
-  lib.pod = lib.pod || [];
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const topic = fresh('podtopic', R.podcastTopics);
-    try {
-      const r = await (await fetch('/api/podcast?q=' + encodeURIComponent(topic.q))).json();
-      if (!Array.isArray(r)) continue;
-      const fresh5 = r.filter(x => !lib.pod.includes(x.id)).slice(0, 5);
-      if (!fresh5.length) continue;
-      const v = rnd(fresh5);
-      return { topic, v, alts: fresh5.filter(x => x.id !== v.id) };
-    } catch {}
-  }
-  return null;
+  if (new Date().getDay() === 6) { const c = findConcert(); if (c) return c; }   // Saturdays: a concert in the podcast slot
+  const turns = POD_TURNS(); if (!turns.length) return null;
+  const turn = turns[(lib.podTurn || 0) % turns.length]; lib.podTurn = (lib.podTurn || 0) + 1; saveLib();
+  return findShow(turn);
 }
 async function playPodcast(pod, prev, opts, id) {
-  const midnight = false;
   curBreak = null; curPod = pod;
-  const v = pod.v;
-  const ep = { a: v.channel, t: cleanTitle(v.title), key: 'podcast|' + v.id, podcast: true, show: pod.show || '', midnight, tags: [], genre: 'podcast', cands: [v, ...pod.alts] };
-  if (!lib.pod.includes(v.id)) { lib.pod.push(v.id); if (lib.pod.length > 300) lib.pod.shift(); saveLib(); }
+  const v = pod.v, live = pod.show === 'concert';
+  const ep = { a: v.channel, t: v.title, key: 'podcast|' + v.id, podcast: true, show: pod.show || '', tags: [], genre: 'podcast', cands: [v, ...pod.alts] };
+  lib.pod = lib.pod || []; if (!lib.pod.includes(v.id)) { lib.pod.push(v.id); if (lib.pod.length > 400) lib.pod.shift(); saveLib(); }
   const old = P();
-  if (!opts.first) fadeP(old, 0, opts.fadeOldMs || fadeMs()).then(() => { try { if (pl[ai] === old) old.pauseVideo(); } catch {} });
+  if (!opts.first) fadeP(old, 0, opts.fadeOldMs || fadeMs()).then(() => { try { if (id === runId) old.pauseVideo(); } catch {} });
   bedOn();
   const segs = [];
-  if (opts.first) segs.push({ kind: R.station, lines: [{ t: sub(fresh('welcome:' + period(), R.welcomes[period()]), ep) }] });
-  else if (prev) segs.push({ kind: R.station, lines: [{ t: backFor(prev) }] });
-  const extra = { min: Math.max(1, Math.round(v.seconds / 60)), topic: pod.topic.label };
-  const live = !!(pod.show && R.podShows[pod.show] && R.podShows[pod.show].concert);
-  const lead = live ? fresh('concertlead', ['Live music now.', 'And now, a concert.', 'Time for some live music.', 'A concert now.']) : fresh('podlead', ['Podcast time.', 'And now, a podcast.', 'Time for a podcast.', 'A podcast now.', 'Let us make room for a podcast.']);
-  segs.push({ kind: live ? 'Live concert' : midnight ? 'Midnight podcast' : 'Podcast', title: pod.topic.label, lines: [{ t: lead + ' ' + sub(pod.show ? fresh('podshow:' + pod.show, R.podShows[pod.show].intros) : midnight ? fresh('podintro', R.podcastIntros) : fresh('podintroday', R.podcastIntrosDay), ep, extra) }] });
-  console.info('[radio] podcast', ep.t, '|', ep.a, '|', extra.min + ' min');
+  if (opts.first) segs.push(lines(R.station, [sub(fresh('welcome:' + period(), R.welcomes[period()]), ep)]));
+  else if (prev) segs.push(lines(R.station, [backFor(prev)]));
+  const sh = R.podShows[pod.show] || {};
+  const extra = { min: Math.max(1, Math.round((v.seconds || 0) / 60)), topic: pod.topic.label };
+  segs.push({ kind: live ? 'Live concert' : 'Podcast', title: pod.topic.label, lines: [{ t: sub(fresh('podshow:' + pod.show, sh.intros || ['Podcast time.']), ep, extra) }] });
   const ok = await runSegments(segs, id);
   if (!ok) return;
-  const okEp = await startSong(ep, S.vol);
+  const okEp = await startSong(ep, S.vol, 0, 0);
   if (id !== runId) return;
   curPod = null;
   if (!okEp) { busy = false; bedOff(); return advance({ noCount: true }); }
   $('vinyl').classList.remove('talk');
   bedOff(2.5);
-  caption((live ? 'Live concert' : 'Podcast') + (pod.show ? ' · ' + R.podShows[pod.show].name : ''), (live ? 'Now playing a live concert: ' : 'Now playing a podcast: ') + ep.t + (ep.a ? ', from ' + ep.a : '') + (marathon ? '.' : '. The music returns when it ends.'));
+  caption((live ? 'Live concert' : 'Podcast') + ' · ' + pod.topic.label, (live ? 'Live now: ' : 'Now playing: ') + ep.t + (marathon ? '.' : '. The music comes back when it ends.'));
   busy = false;
 }
+
+
 
 // ---------- Repeat: the song (or track, episode, Focus track…) that is playing starts again when it ends ----------
 // It stays on until you press it again; Next still moves on (and the next song repeats too).
@@ -1409,7 +1016,7 @@ $('btnRepeat').onclick = () => { repeatOn = !repeatOn; try { localStorage.setIte
 paintRepeat();
 
 // ---------- Album show: a whole album in its own order, from the artist's YouTube "Topic" channel ----------
-// Astro tells the story of the band and the album, plays 3 tracks, pauses to talk about them, and so on to the end
+// Joe tells the story of the band and the album, plays 3 tracks, pauses to talk about them, and so on to the end
 // (content24.js). Never programmed: you start it (Library > Albums, or Settings > Album show). The tracks are kept
 // apart from the library, like Focus tracks. Next skips a track, Previous goes back one, ■ stops the show.
 let albumShow = null;   // { al, i: next track, said: Set of talk points already said }
@@ -1535,18 +1142,20 @@ function allAlbums() {   // the albums with notes, plus the playlists that are a
 }
 const albumById = id => allAlbums().find(x => x.id === id);
 function albumVideo(al, n) {   // the exact video saved for this track, if any
+  const fixed = (R.albumIds || {})[al.id];   // checked in advance (content_ids.js): plays on the website too
+  if (fixed && fixed[n] && !savedVideos(al.id)) return { id: fixed[n], title: al.tracks[n], channel: al.artist, seconds: (al.lengths || [])[n] || 0 };
   if (al.videos) return al.videos[n] || null;
   const e = savedVideos(al.id); return (e && e.map && e.map[n]) || null;
 }
-function albumTalk(id, text, title) {   // Astro speaks between tracks, then the album goes on
+function albumTalk(id, text, title) {   // Joe speaks between tracks, then the album goes on
   const al = albumShow.al; albumShow.said.add(id);
-  const segs = [{ kind: 'Album show', title: title || al.artist + ' · ' + al.title, lines: [{ t: sub(text) }] }];
+  const segs = [{ kind: 'Album Party', title: title || al.artist + ' · ' + al.title, lines: [{ t: sub(text) }] }];
   (async () => {
-    const run = marathonQuiet(); bedOn(); $('kind').textContent = 'album show';
+    const run = marathonQuiet(); bedOn(); $('kind').textContent = 'album party';
     curBreak = { segs, idx: 0, next: null };
     const ok = await runSegments(segs, run);
     if (!ok || run !== runId || !albumShow) return;
-    curBreak = null; bedOff(1.5); busy = false; caption('Album show', '');
+    curBreak = null; bedOff(1.5); busy = false; caption('Album Party', '');
     await sleep(500); if (run === runId && albumShow) advance();
   })();
 }
@@ -1560,13 +1169,13 @@ function albumStep() {
   }
   sh.i = i + 1;
   let s = albumSong(al, i); if (planned && planned.key === s.key) { s = planned; } planned = null;
-  caption('Album show', al.artist + ' · ' + al.title + ' · track ' + (i + 1) + ' of ' + al.tracks.length);
+  caption('Album Party', al.artist + ' · ' + al.title + ' · track ' + (i + 1) + ' of ' + al.tracks.length);
   return advance({ song: s, prev: null, silent: true, noCount: true, quick: true, fadeOldMs: 400, marSong: true });
 }
 function albumPreload() {   // the next track is found and loaded ahead, so tracks follow each other closely
   const sh = albumShow, i = sh.i; if (planned || i >= sh.al.tracks.length || (i % 3 === 0 && !sh.said.has('n' + i))) return;
   const p = planned = albumSong(sh.al, i);
-  resolve(p).then(c => { if (planned !== p || !c.length || !ytReady) return; const n = 1 - ai; try { setVol(pl[n], 0); pl[n].cueVideoById(c[0].id); preload = { key: p.key, idx: n }; } catch {} });
+  resolve(p);
 }
 function albumBack() {   // Previous: the track before this one (its talk is not repeated)
   const sh = albumShow, now = current && current.album === sh.al.id ? current.n : sh.i - 1;
@@ -1576,11 +1185,12 @@ function albumBack() {   // Previous: the track before this one (its talk is not
 async function startAlbum(id) {
   const al = albumById(id); if (!al) return;
   if (!started) return toast('Press play first, then choose an album.');
-  if (!HELPER) return toast('The album show finds its tracks on YouTube through your PC, so it plays on the PC radio.');
-  await readAlbumPlaylists();   // your playlists first: their videos are the exact versions
-  if (!(await canCheckAlbums())) return toast('The album show needs the newest PC helper to check each track. Turn the radio off with its ✕ and open it again, then try again.');
+  const ready = al.tracks.every((t, i) => albumVideo(al, i));
+  if (!ready && !HELPER) return toast('This album plays in the installed app (it checks each track on YouTube through your PC).');
+  if (HELPER) await readAlbumPlaylists();   // your playlists first: their videos are the exact versions
+  if (!ready && !(await canCheckAlbums())) return toast('This album needs the newest app helper to check each track. Close the radio with its ✕ and open it again, then try again.');
   openSheet(null); toast('Checking the ' + al.tracks.length + ' tracks of ' + al.title + '…');
-  const missing = await albumCheck(al, (n, m) => { $('capKind').textContent = 'Album show'; $('capText').textContent = 'Checking the album on YouTube: ' + n + ' of ' + al.tracks.length + (m ? ' (' + m + ' not found)' : ''); });
+  const missing = await albumCheck(al, (n, m) => { $('capKind').textContent = 'Album Party'; $('capText').textContent = 'Getting the album ready: ' + n + ' of ' + al.tracks.length + (m ? ' (' + m + ' not found)' : ''); });
   rlog('album check', { album: al.id, missing });
   if (missing.length === al.tracks.length) return toast('None of the tracks of ' + al.title + ' could be found on YouTube as part of this album. Nothing was played.');
   if (missing.length) toast('Not found as part of this album, so skipped: ' + missing.join(', ') + '. Everything else is the album version.');
@@ -1591,12 +1201,12 @@ async function startAlbum(id) {
   openSheet(null); albumUI(); stopSpeech(); albumStep();
 }
 function stopAlbum() {
-  if (!albumShow) return; albumShow = null; albumUI(); toast('Album show stopped. Back to the radio.');
+  if (!albumShow) return; albumShow = null; albumUI(); toast('Album Party over. Joe is back.');
   if (started) { stopSpeech(); bedOff(1); planned = null; preload = null; advance({ silent: true, noCount: true }); }
 }
 function albumUI() {
   const b = $('marStop'); b.style.display = albumShow || marathon ? '' : 'none';
-  b.innerHTML = albumShow ? '&#9632; stop the album' : '&#9632; stop marathon';
+  b.innerHTML = albumShow ? '&#9632; stop the album' : '&#9632; stop non-stop';
 }
 function renderAlbums() {
   const l = $('libList'); l.innerHTML = ''; const all = allAlbums(), shown = all.filter(a => libMatch(a.artist, a.title));
@@ -1709,12 +1319,15 @@ async function lyrFind(s, dur) {
   lyrCache.set(id, r); if (lyrCache.size > 60) lyrCache.delete(lyrCache.keys().next().value);
   return r;
 }
+// Swear words are masked when lyrics are shown (LRCLIB has the original text): f***, s***…
+const SWEAR = /\b(fuck\w*|shit\w*|bitch\w*|nigg\w*|cunt\w*|dick|dicks|pussy|pussies|cock|cocks|whore\w*|slut\w*|asshole\w*|motherf\w*|mothaf\w*|bastard\w*|goddamn\w*|ass|asses|tits|titties|porn\w*|faggot\w*|fag|fags|retard\w*|wank\w*|hoe|hoes|bullshit)\b/gi;
+const maskWords = t => String(t || '').replace(SWEAR, w => w[0] + '*'.repeat(Math.max(2, w.length - 1)));
 const lyrMsg = t => { const b = $('lyrLines'); b.className = 'lyr-lines'; b.innerHTML = ''; const p = document.createElement('p'); p.className = 'lyr-msg'; p.textContent = t; b.appendChild(p); };
 async function lyrLoad() {
   if (!lyrOn) return;
   const s = current;
   lyrLine = -2; $('lyrNote').textContent = '';
-  if (!s || s.podcast || s.focus || s.sounds) { lyr = null; return lyrMsg(newsOn ? 'the news' : !s ? '' : s.focus ? 'instrumental' : 'no lyrics for this'); }
+  if (!s || s.podcast || s.focus || s.sounds) { lyr = null; return lyrMsg(newsOn ? 'the bulletin' : !s ? '' : s.focus ? 'instrumental' : 'no lyrics for this'); }
   if (lyr && lyr.key === s.key) return lyrPaint(true);
   lyr = { key: s.key, state: 'loading' }; lyrMsg('looking for the lyrics…');
   let dur = 0; try { dur = P().getDuration() || 0; } catch {}
@@ -1725,7 +1338,7 @@ async function lyrLoad() {
   if (r.state === 'error') return lyrMsg('the lyrics site did not answer. Trying again in a moment…');
   if (r.state === 'none') return lyrMsg('no lyrics found for this song');
   if (r.state === 'instrumental') return lyrMsg('instrumental');
-  if (r.state === 'plain') { const b = $('lyrLines'); b.className = 'lyr-lines plain'; b.innerHTML = ''; r.plain.split(/\r?\n/).forEach(l => { const p = document.createElement('p'); p.textContent = l || ' '; b.appendChild(p); }); return; }
+  if (r.state === 'plain') { const b = $('lyrLines'); b.className = 'lyr-lines plain'; b.innerHTML = ''; r.plain.split(/\r?\n/).forEach(l => { const p = document.createElement('p'); p.textContent = maskWords(l) || ' '; b.appendChild(p); }); return; }
   lyrPaint(true);
 }
 const lyrOffset = () => (lib.lyrOff && lyr && lib.lyrOff[lyr.key]) || 0;
@@ -1741,7 +1354,7 @@ function lyrPaint(force) {
   for (let k = i - 2; k <= i + 2; k++) {
     const p = document.createElement('p');
     if (k < 0 || k >= L.length) { p.textContent = k === -1 && i === -1 ? '♪' : ' '; b.appendChild(p); continue; }
-    p.textContent = L[k].x || '♪'; if (k === i) p.className = 'now'; else if (Math.abs(k - i) === 1) p.className = 'near';
+    p.textContent = maskWords(L[k].x) || '♪'; if (k === i) p.className = 'now'; else if (Math.abs(k - i) === 1) p.className = 'near';
     p.onclick = () => lyrSync(k);
     b.appendChild(p);
   }
@@ -1763,10 +1376,10 @@ function setLyrics(on) {
   if (on) lyrLoad();
 }
 $('btnLyrics').onclick = () => setLyrics(!lyrOn);
-setInterval(() => { if (lyrOn && !document.hidden) { if (current && (!lyr || lyr.key !== current.key || (lyr.state === 'error' && Date.now() > lyr.retry))) { if (lyr && lyr.state === 'error') lyr = null; lyrLoad(); } else if (!current && lyr) { lyr = null; lyrMsg(newsOn ? 'the news' : ''); } else lyrPaint(); } }, 200);
+setInterval(() => { if (lyrOn && !document.hidden) { if (current && (!lyr || lyr.key !== current.key || (lyr.state === 'error' && Date.now() > lyr.retry))) { if (lyr && lyr.state === 'error') lyr = null; lyrLoad(); } else if (!current && lyr) { lyr = null; lyrMsg(newsOn ? 'the bulletin' : ''); } else lyrPaint(); } }, 200);
 setTimeout(() => setLyrics(lyrOn), 0);
 
-// ---------- Marathon: chosen parts back to back (commercials, letters, talks, podcasts…), no songs, until you stop ----------
+// ---------- Non-stop: chosen parts back to back (songs, Joe & Luna bits, podcasts), until you stop ----------
 let marathon = null;   // { kinds, pods, src, i }
 // Songs in a marathon: from the sources you ticked (the whole library, favorites, your lists, genre groups), no talk,
 // shuffled with nothing repeated until all have played
@@ -1787,16 +1400,11 @@ function marathonSong() {
   let i = marathon.bag.findIndex(x => (x.a || '').toLowerCase() !== lastA && !restingBroken(x)); if (i < 0) i = 0;
   return marathon.bag.splice(i, 1)[0];
 }
-const MAR_LABEL = { songs: 'songs', ads: 'commercials', letter: 'letters', longletter: 'long letters', talk: 'talks', convo: 'conversations', checkin: 'check-ins', reading: 'readings', podcast: 'podcasts' };
+const MAR_LABEL = { songs: 'songs', trivia: 'trivia shots', genre: 'genre trivia', sidequest: 'side quests', book: 'Book Nook', note: 'notes to Rim', banter: 'Joe & Luna', podcast: 'podcasts' };
 function marathonSegs(kind) {
-  if (kind === 'ads') { if (!adPool.length) return null; const segs = adBreakSegs(); return marathon && marathon.last === 'ads' ? segs.slice(segs.findIndex(x => x.jingle) + 1) : segs; }   // sets back to back: one jingle between them, not two
-  if (kind === 'letter') return [letterSeg(fresh('letter', R.letters), false)];
-  if (kind === 'longletter') return [letterSeg(fresh('longletter', (R.longLetters || []).filter(x => !x.birthday)), true)];
-  if (kind === 'talk') { const t = fresh('talk', R.talks); return [{ kind: 'The Long Hour', title: t.title, lines: [{ t: sub(fresh('talkbridge', R.talkBridges).replace(/\{title\}/g, t.title)) }, ...t.p.map(x => ({ t: sub(x) }))] }]; }
-  if (kind === 'convo') { const c = fresh('convo', R.conversations); return [{ kind: 'Conversations with You', title: c.title, lines: [{ t: sub(c.intro) }, ...c.lines.map(l => ({ t: sub(l.t), w: l.w }))] }]; }
-  if (kind === 'checkin') return [{ kind: 'Check-in', lines: [{ t: sub(fresh('checkin', R.checkins)) }] }];
-  if (kind === 'reading') { const rd = pickReading({ tags: [] }); return rd ? [{ kind: 'Luna · reading', title: rd.title, lines: [{ t: sub(fresh('sonia', R.soniaHandoffs)).replace(/\{title\}/g, rd.title).replace(/\{by\}/g, rd.by) }, { t: rd.t, w: 's' }] }] : null; }
-  return null;
+  const n = songs.length ? rnd(songs) : null;
+  const x = kind === 'trivia' ? triviaSeg(n, null) : kind === 'genre' ? (n && genreSeg(n)) : kind === 'sidequest' ? sideQuestSeg() : kind === 'book' ? bookSeg() : kind === 'note' ? noteSeg() : kind === 'banter' ? banterSeg() : null;
+  return x ? [x] : null;
 }
 async function marathonStep() {
   if (marathon.songsOn && (!marathon.kinds.length || marathon.sl > 0)) {   // a song, played like any other but with no host: `every` of them between the other parts
@@ -1809,10 +1417,10 @@ async function marathonStep() {
   for (let tries = 0; tries < marathon.kinds.length + 1; tries++) {
     const kind = marathon.kinds[marathon.i++ % marathon.kinds.length];
     if (kind === 'podcast') {
-      if (!HELPER || !marathon.pods.length) continue;
+      if (!marathon.pods.length) continue;
       const which = marathon.pods[(marathon.pi = (marathon.pi || 0) + 1) % marathon.pods.length];
-      caption('Marathon', 'Looking for a podcast…');
-      const pod = which === 'regular' ? await findRegular() : await findShow(which);
+      caption('Non-stop', 'Getting a podcast ready…');
+      const pod = which === 'concert' ? findConcert() : findShow(which);
       if (id !== runId || !marathon) return;
       if (!pod) { rlog('marathon: no podcast found', { which }); continue; }
       return marathonPlay({ pod }, id);
@@ -1821,7 +1429,7 @@ async function marathonStep() {
     const segs = marathonSegs(kind); if (!segs) continue;
     return marathonPlay({ kind, segs }, id);
   }
-  busy = false; toast('Nothing in this marathon can play right now.'); stopMarathon();
+  busy = false; toast('Nothing in this Non-stop can play right now.'); stopMarathon();
 }
 // Before a spoken part or an episode: stop what is on and let the song fade out
 function marathonQuiet() {
@@ -1830,32 +1438,32 @@ function marathonQuiet() {
   stopSpeech(); const id = runId; busy = true; curBreak = null; curPod = null; planned = null; preload = null; nextPending = false; nextOverride = null;
   const old = P(); fadeP(old, 0, 2500).then(() => { try { if (pl[ai] === old && id === runId) old.pauseVideo(); } catch {} });
   if (current) { current = null; setNow(null); updateHeart(); }
-  $('kind').textContent = 'marathon';
+  $('kind').textContent = 'non-stop';
   return id;
 }
 // Play one part of the marathon ({ song } | { pod } | { kind, segs }) and remember it, so Previous can go back to it
 async function marathonPlay(e, id) {
   marathon.hist = marathon.hist || []; marathon.hist.push(e); if (marathon.hist.length > 40) marathon.hist.shift();
-  if (e.song) { marathon.last = 'songs'; caption('Marathon', ''); return advance({ song: e.song, prev: e.back ? null : undefined, silent: true, noCount: true, quick: !!e.back, marSong: true }); }
+  if (e.song) { marathon.last = 'songs'; caption('Non-stop', ''); return advance({ song: e.song, prev: e.back ? null : undefined, silent: true, noCount: true, quick: !!e.back, marSong: true }); }
   if (id === undefined) id = marathonQuiet();
   if (e.pod) { marathon.last = 'podcast'; return playPodcast(e.pod, null, {}, id); }   // when the episode ends, the marathon goes on
   marathon.last = e.kind;
   curBreak = { segs: e.segs, idx: 0, next: null };
   const ok = await runSegments(e.segs, id);
   if (!ok) return;
-  curBreak = null; bedOff(1.5); busy = false; caption('Marathon', '');
+  curBreak = null; bedOff(1.5); busy = false; caption('Non-stop', '');
   await sleep(700);
   if (id === runId && marathon) advance();
 }
 // Previous in a marathon: the part before this one (a song, a letter, a talk, an episode…), from its start
 function marathonBack() {
   const h = marathon.hist || [];
-  if (h.length < 2) return toast('Nothing earlier in this marathon yet.');
+  if (h.length < 2) return toast('Nothing earlier yet.');
   h.pop(); const e = h.pop();
   marathonPlay(Object.assign({}, e, { back: true }));
 }
 function startMarathon(kinds, pods, src = [], every = 2) {
-  if (!started) return toast('Press play first, then start the marathon.');
+  if (!started) return toast('Press play first, then start Non-stop.');
   if (!kinds.length) return toast('Tick at least one thing.');
   if (kinds.includes('podcast') && !pods.length) return toast('Tick which podcasts.');
   const pool = kinds.includes('songs') ? marathonPool(src) : [];
@@ -1864,12 +1472,12 @@ function startMarathon(kinds, pods, src = [], every = 2) {
   marathon = { all: kinds, kinds: shuffle(kinds.filter(k => k !== 'songs')), songsOn, every, sl: every, pods: shuffle(pods), src, pool, i: 0, pi: -1 };
   $('marStop').style.display = '';
   rlog('marathon', { kinds, pods, src, songs: pool.length, every: songsOn && kinds.length > 1 ? every : null });
-  toast('Marathon: ' + kinds.map(k => MAR_LABEL[k]).join(', ') + '. Until you stop it.');
+  toast('Non-stop: ' + kinds.map(k => MAR_LABEL[k]).join(', ') + '. Until you stop it.');
   openSheet(null); advance();
 }
 function stopMarathon() {
   if (!marathon) return;
-  marathon = null; $('marStop').style.display = 'none'; toast('Marathon over. Back to the music.');
+  marathon = null; $('marStop').style.display = 'none'; toast('Non-stop over. Back to the radio.');
   if (started) { stopSpeech(); bedOff(1); advance({ silent: true, noCount: true }); }
 }
 async function advance(opts = {}) {
@@ -1890,7 +1498,9 @@ async function advance(opts = {}) {
   current = null; updateHeart();   // the heart is only active while a song is playing
   if (!opts.noCount && !afterPod && !next.focus) songsSinceBreak++;
   const endRunNow = !!(prev && lastRunSong && prev.key === lastRunSong.key);
-  const talk = !opts.silent && !next.focus && (opts.first || afterPod || endRunNow || songsSinceBreak >= breakEvery() || opts.forceTalk || dedications.has(next.key));
+  let jmBday = null;   // Just music on her birthday: Joe says a few words once, between two songs
+  if (S.justMusic && !opts.first && !opts.silent && !next.focus && !opts.replaySegs && isBirthday() && lib.bdayJM !== today()) { lib.bdayJM = today(); saveLib(); jmBday = [lines('Happy birthday, Rim', [sub((R.birthday || {}).justMusic || 'Happy birthday, Rim!')])]; }
+  const talk = !!jmBday || !!opts.replaySegs || (!S.justMusic && !opts.silent && !next.focus && (opts.first || afterPod || endRunNow || songsSinceBreak >= breakEvery() || opts.forceTalk || dedications.has(next.key)));
   console.info('[radio] advance', { next: next.t, talk, count: songsSinceBreak, every: breakEvery() });
   if (talk) songsSinceBreak = 0;
   const old = P();
@@ -1907,7 +1517,8 @@ async function advance(opts = {}) {
   bedOn();
   nextPending = true; // a song you suggest while the host is talking takes the place of this one
   resolve(next);
-  const segs = opts.replaySegs || makeBreak(prev, next, opts.first);   // after the news: the rest of the interrupted break
+  if (jmBday) podcastDue = false;
+  const segs = opts.replaySegs || jmBday || makeBreak(prev, next, opts.first);   // after the bulletin: the rest of the interrupted break
   console.info('[radio] break', lib.b, segs.map(s => s.kind + (s.title ? ' · ' + s.title : '')));
   curBreak = { segs, next, idx: 0 };
   const ok = await runSegments(segs, id);
@@ -1927,7 +1538,7 @@ async function advance(opts = {}) {
   nextPending = false;
   $('vinyl').classList.add('talk');
   $('capKind').textContent = R.host;
-  await say(introFor(next, prev), 'h');
+  if (!jmBday) await say(introFor(next, prev), 'h');
   $('vinyl').classList.remove('talk');
   if (id !== runId) return;
   bedOff(2.5);
@@ -1936,606 +1547,178 @@ async function advance(opts = {}) {
   await fadeP(P(), S.vol, 3000);
 }
 
-// ---------- the news: every 4 hours on the hour (00:00, 04:00, 08:00, 12:00, 16:00, 20:00), in Arabic ----------
-// It interrupts whatever is on (a song, a talk, a commercial, a podcast), reads the headlines and the Marrakech weather,
-// then brings that back from the start: the song or episode from 0:00, a break from the part that was interrupted.
-// The headlines come from the PC helper (/api/news), so the news needs the radio running on the PC.
-let newsOn = false, newsBack = null, newsJingle = null, newsShown = null, lastNewsSlot = '';
-const NEWS_TOPIC_AR = { marrakech: 'من مراكش', moroccoaj: 'أخبار المغرب', morocco: 'آخر الأخبار', world: 'آخر الأخبار', tech: 'في التكنولوجيا والذكاء الاصطناعي', techworld: 'في التكنولوجيا والذكاء الاصطناعي', art: 'في الفن', trend: 'الأكثر تداولا على مواقع التواصل' };   // Moroccan and world headlines are mixed in the sources, so they share one heading
-const NEWS_IN = [
-  'It is {time}. Time for the news. Then we come straight back to what was playing.',
-  'It is {time} on {station}. Let us stop for a moment for the headlines. We will pick up again right after.',
-  'It is {time}, and that means the news. The headlines and the weather, and then back to where we were.',
-  'A short pause for the world outside. It is {time}, and here are the headlines.',
+// ---------- the fun bulletin: twice a day (around 14:00 and 20:00), in English, about 2 minutes ----------
+// Music news (her artists first), game news (Roblox and Dress to Impress first), good and viral stories, the
+// Marrakech weather, and who was born on this day in music. A strict filter leaves out anything about crime, war,
+// death, drugs, adult topics or anything iffy: when in doubt, a headline is skipped. Each source has its own time
+// limit, so a slow one only loses its own headlines. It interrupts a song, then brings it back from the start.
+let newsOn = false, newsBack = null, newsJingle = null, newsShown = null, lastNewsSlot = '', newsLineTok = 0;
+const BULLETIN_HOURS = [14, 20];
+const NEWS_SOURCES = [
+  { id: 'pitchfork', name: 'Pitchfork', topic: 'music', urls: ['https://pitchfork.com/feed/feed-news/rss'] },
+  { id: 'nme', name: 'NME', topic: 'music', urls: ['https://www.nme.com/news/music/feed'] },
+  { id: 'consequence', name: 'Consequence', topic: 'music', urls: ['https://consequence.net/feed/'] },
+  { id: 'guardianmusic', name: 'The Guardian music', topic: 'music', urls: ['https://www.theguardian.com/music/rss'] },
+  { id: 'rollingstone', name: 'Rolling Stone', topic: 'music', urls: ['https://www.rollingstone.com/music/music-news/feed/'] },
+  { id: 'roblox', name: 'Dexerto Roblox', topic: 'games', urls: ['https://www.dexerto.com/feed/category/roblox/'] },
+  { id: 'ign', name: 'IGN', topic: 'games', urls: ['https://feeds.feedburner.com/ign/news'] },
+  { id: 'gamespot', name: 'GameSpot', topic: 'games', urls: ['https://www.gamespot.com/feeds/news/'] },
+  { id: 'eurogamer', name: 'Eurogamer', topic: 'games', urls: ['https://www.eurogamer.net/feed'] },
+  { id: 'goodnews', name: 'Good News Network', topic: 'good', urls: ['https://www.goodnewsnetwork.org/feed/'] },
+  { id: 'upi', name: 'UPI Odd News', topic: 'good', urls: ['https://rss.upi.com/news/odd_news.rss'] },
 ];
-const NEWS_OUT = [
-  'That was the news. And now, back to where we were.',
-  'Those were the headlines. The world will keep turning; we go back to what was playing.',
-  'That is the news for now. Next one in four hours. Back to it.',
-  'Thank you for listening to the news. And now, we pick up where we left off.',
+const NEWS_PLAN = [['music', 3], ['games', 2], ['good', 2]];
+// When in doubt, leave it out.
+const NOT_FOR_RIM = /\b(dead|dies|died|death|deaths|dying|kill\w*|murder\w*|shoot\w*|shot|shots|gun\w*|war|wars|warfare|attack\w*|bomb\w*|terror\w*|crash\w*|injur\w*|hospital\w*|cancer|tumou?r|suicid\w*|overdos\w*|drug\w*|cocaine|heroin|opioid|arrest\w*|charged|charges|sentenc\w*|prison|jail\w*|police|cops?|court|trial|lawsuit\w*|sue|sues|sued|suing|abuse\w*|assault\w*|harass\w*|sex\w*|nude|nudity|naked|porn\w*|explicit|rape\w*|victims?|tragic|tragedy|funeral|mourn\w*|rip|passes away|passed away|obituar\w*|scandal\w*|controvers\w*|racis\w*|slur|hate|hatred|threat\w*|violen\w*|blood\w*|fight\w*|weapon\w*|knife|stab\w*|disaster\w*|earthquake|flood\w*|hurricane|wildfire|ill|illness|sick|disease|virus|pandemic|politic\w*|election\w*|trump|biden|president\w*|government|congress|senate|israel\w*|gaza|palestin\w*|ukrain\w*|russia\w*|military|army|soldier\w*|nazi\w*|cartel|gang\w*|crime\w*|criminal\w*|steal\w*|stole|stolen|theft|thief|fraud|scam\w*|alcohol|beer|wine|vodka|whisk(e)?y|drunk|cannabis|weed|marijuana|vap(e|ing)|smok\w*|cigarette\w*|casino|gambl\w*|betting|lottery|powerball|onlyfans|horror|gore|satan\w*|demon\w*|layoffs?|fired|lays? off|strike|protest\w*|divorce\w*|cheat\w*|affair|split|breakup|pregnan\w*|surgery|rehab|mental health|depress\w*|anxiety|grief|loss|lost (his|her|their) |missing|kidnap\w*|hostage|refugee\w*|deport\w*|immigra\w*|tax\w*|recession|bankrupt\w*|price hike|tariff\w*|age rating|mature|nsfw|18\+|adult|lingerie|bikini|sexy|hot take|beef|diss|feud|slam\w*|blast\w*|rant|meltdown|drown\w*|scream\w*|rescu\w*|paraly\w*|injur\w*|surviv\w*|trapped|emergency|ambulance|terrif\w*|scary|creepy|haunted|ghost\w*|zombie\w*|gambl\w*|loot ?box\w*)\b/i;
+const DULL = /\bcodes?\b|\bpatch notes\b|\bdeals?\b|\bsale\b|\bprice\b|\bpre-?order\w*|\breview\b|\branked\b|\btier list\b/i;   // true but boring on the radio
+const HER_ARTISTS = () => { const s = new Set(); (songs || []).forEach(x => artistParts(x.a).forEach(a => a.length > 3 && s.add(a))); return s; };
+const GAME_FIRST = /\b(roblox|dress to impress|minecraft|stardew|animal crossing|zelda|mario|pokemon|pokémon|sims|fortnite|nintendo)\b/i;
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('no answer')), ms))]);
+const RELAYS = [
+  u => HELPER ? '/api/fetch?url=' + encodeURIComponent(u) : null,
+  u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  u => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
+  u => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u),
+  u => 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(u),
 ];
+const decodeEnt = t => { const d = document.createElement('textarea'); d.innerHTML = String(t || ''); return d.value; };
+function parseFeed(text) {
+  if (/^\s*\{/.test(text)) { const j = JSON.parse(text); if (j.status !== 'ok') throw new Error('relay refused'); return (j.items || []).map(x => ({ title: x.title, link: x.link || '', when: Date.parse((x.pubDate || '').replace(' ', 'T') + 'Z') || 0 })); }
+  if (!/^\s*(<\?xml|<rss|<feed)/i.test(text)) throw new Error('not a feed');
+  const doc = new DOMParser().parseFromString(text, 'text/xml'); if (doc.querySelector('parsererror')) throw new Error('broken feed');
+  return [...doc.querySelectorAll('item, entry')].map(el => {
+    const g = n => { const e = el.getElementsByTagName(n)[0]; return e ? e.textContent.trim() : ''; };
+    const le = el.getElementsByTagName('link')[0];
+    return { title: g('title'), link: (le && (le.getAttribute('href') || le.textContent)) || '', when: Date.parse(g('pubDate') || g('published') || g('updated')) || 0 };
+  }).filter(x => x.title);
+}
+async function readSource(src) {
+  const errs = [];
+  for (const u of src.urls) {
+    const order = RELAYS.map((f, i) => f(u) ? i : -1).filter(i => i >= 0);
+    try {
+      const tryOne = i => withTimeout((async () => { const r = await fetch(RELAYS[i](u)); if (!r.ok) throw new Error('HTTP ' + r.status); const it = parseFeed(await r.text()); if (!it.length) throw new Error('no headlines'); return it; })(), 12000);
+      let it = null;
+      if (order[0] === 0) { try { it = await tryOne(0); } catch {} }   // the PC first; the public relays only if that fails
+      if (!it) it = await Promise.any(order.filter(i => i !== 0).map(tryOne));
+      return { ok: true, items: it.map(x => ({ ...x, title: decodeEnt(x.title).replace(/\s+/g, ' ').trim(), src: src.id, name: src.name, topic: src.topic })) };
+    } catch (e) { errs.push((e.errors && e.errors[0] && e.errors[0].message) || e.message || String(e)); }
+  }
+  return { ok: false, error: errs.join(' · ') || 'no answer', items: [] };
+}
+const headKey = t => String(t).toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 40);
+function servedNews() { try { return JSON.parse(localStorage.getItem('fgi-news-served') || '{}'); } catch { return {}; } }
+function pickNews(results, test) {
+  const now = Date.now(), served = servedNews(), seen = new Set(), mine = HER_ARTISTS();
+  Object.keys(served).forEach(k => { if (now - served[k] > 3 * 864e5) delete served[k]; });
+  const ok = x => { if (x.title.length < 18 || x.title.length > 170 || NOT_FOR_RIM.test(x.title) || DULL.test(x.title)) return false; if (x.when && now - x.when > 4 * 864e5) return false; const k = headKey(x.title); if (seen.has(k) || (!test && served[k])) return false; seen.add(k); return true; };
+  const all = results.flatMap(r => r.items).filter(ok);
+  const herScore = x => { const f = ' ' + fold(x.title) + ' '; let n = 0; mine.forEach(a => { if (f.includes(' ' + a + ' ')) n++; }); return n; };
+  const picked = [];
+  NEWS_PLAN.forEach(([topic, n]) => {
+    let pool = all.filter(x => x.topic === topic);
+    if (topic === 'music') pool.sort((p, q) => herScore(q) - herScore(p) || (q.when || 0) - (p.when || 0));
+    else if (topic === 'games') pool.sort((p, q) => GAME_FIRST.test(q.title) - GAME_FIRST.test(p.title) || (q.when || 0) - (p.when || 0));
+    else pool.sort((p, q) => (q.when || 0) - (p.when || 0));
+    const bySrc = {}; pool.filter(x => { bySrc[x.src] = (bySrc[x.src] || 0) + 1; return bySrc[x.src] <= 2; }).slice(0, n).forEach(x => picked.push(x));   // no more than two from one site
+  });
+  if (!test) { picked.forEach(x => { served[headKey(x.title)] = now; }); try { localStorage.setItem('fgi-news-served', JSON.stringify(served)); } catch {} }
+  return picked;
+}
+const WMO = { 0: 'clear skies', 1: 'mostly clear skies', 2: 'a few clouds', 3: 'cloudy skies', 45: 'fog', 48: 'fog', 51: 'light drizzle', 53: 'drizzle', 55: 'heavy drizzle', 61: 'light rain', 63: 'rain', 65: 'heavy rain', 71: 'light snow', 73: 'snow', 75: 'heavy snow', 80: 'a few showers', 81: 'showers', 82: 'heavy showers', 95: 'thunderstorms', 96: 'thunderstorms', 99: 'thunderstorms' };
+async function weatherNow() {
+  const u = 'https://api.open-meteo.com/v1/forecast?latitude=31.63&longitude=-8.01&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Africa%2FCasablanca&forecast_days=2';
+  const j = await (await withTimeout(fetch(u), 10000)).json();
+  return { now: { temp: Math.round(j.current.temperature_2m), sky: WMO[j.current.weather_code] || '' }, tomorrow: { min: Math.round(j.daily.temperature_2m_min[1]), max: Math.round(j.daily.temperature_2m_max[1]), sky: WMO[j.daily.weather_code[1]] || '' } };
+}
+// Born on this day, in music (Wikipedia): singers, rappers, musicians. Only births, never deaths.
+async function bornToday() {
+  const d = new Date(), mm = String(d.getMonth() + 1).padStart(2, '0'), dd = String(d.getDate()).padStart(2, '0');
+  const j = await (await withTimeout(fetch(`https://en.wikipedia.org/api/rest_v1/feed/onthisday/births/${mm}/${dd}`), 10000)).json();
+  const mine = HER_ARTISTS();
+  const list = (j.births || []).filter(b => b.year > 1930 && /\b(singer|rapper|musician|guitarist|drummer|bassist|songwriter|DJ|producer|keyboardist|composer)\b/i.test(b.text) && !NOT_FOR_RIM.test(b.text) && !/\bd\. \d{4}|\(died|\(\d{4}–\d{4}\)/.test(b.text))
+    .map(b => { const name = b.text.split(',')[0].trim(); return { year: b.year, name, what: (b.text.split(',').slice(1).join(',').trim() || 'musician').replace(/\s*\(.*$/, ''), mine: mine.has(fold(name).trim()) }; });
+  list.sort((p, q) => q.mine - p.mine || q.year - p.year);
+  return list[0] || null;
+}
+async function getNews(manual) {
+  const wx = withTimeout(weatherNow(), 15000).catch(() => null), born = withTimeout(bornToday(), 15000).catch(() => null);
+  const late = { ok: false, error: 'too slow to answer', items: [] };
+  const results = await Promise.all(NEWS_SOURCES.map(s => withTimeout(readSource(s), 30000).catch(() => late)));
+  return { items: pickNews(results, manual), weather: await wx, born: await born, sources: NEWS_SOURCES.map((s, i) => ({ id: s.id, name: s.name, ok: results[i].ok, n: results[i].items.length, error: results[i].error || '' })) };
+}
+const B = () => R.bulletin || {};
+function buildBulletin(n) {
+  const heads = B().heads || { music: 'Music news.', games: 'In games.', good: 'And some good news.' };
+  const out = [], info = [];
+  let last = '';
+  (n.items || []).forEach(x => {
+    const t = x.title.replace(/\s*[|–—-]\s*(NME|Pitchfork|IGN|GameSpot|Eurogamer|Consequence|Rolling Stone|Dexerto)\s*$/i, '').replace(/[“”]/g, '"').replace(/([^.!?"])$/, '$1.');
+    out.push(x.topic !== last ? `${heads[x.topic] || ''} ${t}`.trim() : t); info.push({ link: x.link, tag: x.name }); last = x.topic;
+  });
+  const w = n.weather;
+  if (w && w.now) { out.push(sub((B().weather || 'The weather in Marrakech: {now}, {temp} degrees right now. Tomorrow, {sky}, between {min} and {max}.').replace('{now}', w.now.sky || 'nice weather').replace('{temp}', w.now.temp).replace('{sky}', w.tomorrow.sky || 'more of the same').replace('{min}', w.tomorrow.min).replace('{max}', w.tomorrow.max))); info.push({ tag: 'Open-Meteo' }); }
+  if (n.born) { out.push(sub((B().born || 'Born on this day in {year}: {name}, {what}.').replace('{year}', n.born.year).replace('{name}', n.born.name).replace('{what}', n.born.what))); info.push({ tag: 'Wikipedia' }); }
+  out.info = info; return out;
+}
 function resumeTarget() {
   if (curPod) return { type: 'pod', pod: curPod };
   if (curBreak) return { type: 'break', segs: curBreak.segs, idx: curBreak.idx || 0, next: curBreak.next };
   if (current) return { type: 'song', song: current };
   return null;
 }
-async function newsJingleRun() {
-  $('capKind').textContent = 'News'; $('capText').textContent = '♪';
-  newsJingle = Jingles.play(getCtx(), 'news');
-  await newsJingle.done; newsJingle = null;
-}
-// Where the headlines come from: the radio reads each source itself, its RSS feed when it has one, otherwise the
-// headlines on the page. Pages are fetched by the PC helper (/api/fetch) and, at the same time, through public relays
-// that let a web page read another site, and the first good answer wins. So the news also works on the phone, and with
-// a helper that has not updated yet. The weather comes straight from Open-Meteo, which any page may read.
-// take: how many headlines that source gives its topic; a source that fails leaves its place to the others of the topic.
-// A backup for a site that turns readers away (Hit Radio and Al Arabiya sit behind a bot wall): the same site's
-// recent headlines as Google News lists them, found by the site's address and words of the section.
-const GN = (q, days = 3) => 'https://news.google.com/rss/search?q=' + encodeURIComponent(q + ' when:' + days + 'd') + '&hl=ar&gl=MA&ceid=MA:ar';
-const NEWS_SOURCES = [
-  { id: 'kech24', name: 'Kech24 Marrakech', topic: 'marrakech', take: 4, local: true, urls: ['https://kech24.com/cat/%d9%85%d8%b1%d8%a7%d9%83%d8%b4/feed', 'https://kech24.com/cat/%d9%85%d8%b1%d8%a7%d9%83%d8%b4'] },
-  { id: 'alaan', name: 'Marrakech Alaan', topic: 'marrakech', take: 2, local: true, urls: ['https://www.marrakechalaan.com/article-category/news-marrakech/feed', 'https://www.marrakechalaan.com/article-category/news-marrakech'] },
-  // أخبار المغرب: MAP (the national news agency), royal activities 1, politics 2, economy 2
-  { id: 'maproyal', name: 'MAP royal activities', topic: 'moroccoaj', take: 1, local: true, urls: ['https://www.mapnews.ma/ar/activites_royales', GN('site:mapnews.ma الملك OR جلالة OR ولي العهد')] },
-  { id: 'mappolitics', name: 'MAP politics', topic: 'moroccoaj', take: 2, local: true, urls: ['https://www.mapnews.ma/ar/actualites/politique', GN('site:mapnews.ma الحكومة OR البرلمان OR حزب OR وزير OR مجلس')] },
-  { id: 'mapeconomy', name: 'MAP economy', topic: 'moroccoaj', take: 2, local: true, urls: ['https://www.mapnews.ma/ar/actualites/economie', GN('site:mapnews.ma اقتصاد OR استثمار OR صادرات OR بنك OR التضخم OR السياحة')] },
-  { id: 'hespress', name: 'Hespress 24h', topic: 'morocco', take: 4, local: true, urls: ['https://www.hespress.com/tag/24heures/feed', 'https://www.hespress.com/tag/24heures'] },
-  { id: 'le360', name: 'Le360', topic: 'morocco', take: 1, local: true, urls: ['https://ar.le360.ma/arc/outboundfeeds/rss/?outputType=xml', 'https://ar.le360.ma/'] },
-  { id: 'bbc', name: 'BBC Arabic', topic: 'world', take: 1, urls: ['https://feeds.bbci.co.uk/arabic/rss.xml'] },
-  { id: 'aljazeera', name: 'Al Jazeera', topic: 'world', take: 1, urls: ['https://www.aljazeera.net/aljazeerarss/a7c186be-1baa-4bd4-9d80-a84db769f779/73d0e1b4-532f-45ef-b135-bfdff8b8cab9'] },
-  { id: 'france24', name: 'France 24', topic: 'world', take: 1, urls: ['https://www.france24.com/ar/rss'] },
-  { id: 'aitnews', name: 'AIT News', topic: 'techworld', take: 2, urls: ['https://aitnews.com/feed/', 'https://aitnews.com/'] },
-  { id: 'ajtech', name: 'Al Jazeera tech', topic: 'techworld', take: 1, urls: ['https://www.aljazeera.net/tech/'] },
-  { id: 'bbctech', name: 'BBC Arabic tech', topic: 'techworld', take: 1, only: 'tech', urls: ['https://feeds.bbci.co.uk/arabic/scienceandtech/rss.xml'] },
-  { id: 'cnntech', name: 'CNN Arabic tech', topic: 'techworld', take: 1, urls: ['https://arabic.cnn.com/tech'] },
-  // Hit Radio: only its stories written in Arabic, from the last 10 days (it posts every few days), and only about
-  // art (songs, films, festivals, culture): it also posts politics and sport, which are left out
-  { id: 'hitradio', name: 'Hit Radio', topic: 'art', take: 4, maxAgeDays: 10, local: true, only: 'art', noPolitics: true, urls: ['https://hitradio.ma/news', GN('site:hitradio.ma', 10)] },
-  { id: 'bbcart', name: 'BBC Arabic culture', topic: 'art', take: 4, maxAgeDays: 7, urls: ['https://feeds.bbci.co.uk/arabic/artandculture/rss.xml'] },
-  // trending on social media: news stories about viral videos and online trends, from the sections that cover them…
-  { id: 'arabiyasocial', name: 'Al Arabiya social media', topic: 'trend', take: 2, urls: ['https://www.alarabiya.net/social-media', GN('site:alarabiya.net "مواقع التواصل" OR "منصات التواصل" OR "رواد مواقع التواصل" OR "فيديو متداول" OR تريند OR "ترند"')] },
-  { id: 'bbctopic', name: 'BBC Arabic social media', topic: 'trend', take: 2, urls: ['https://www.bbc.com/arabic/topics/c6vzyk7dg8zt'] },
-  { id: 'bbctrend', name: 'BBC Arabic trending', topic: 'trend', take: 2, urls: ['https://feeds.bbci.co.uk/arabic/trending/rss.xml', 'https://www.bbc.com/arabic/trending'] },
-  { id: 'hessocial', name: 'Hespress social media', topic: 'trend', take: 1, urls: ['https://www.hespress.com/tag/%d9%85%d9%88%d8%a7%d9%82%d8%b9-%d8%a7%d9%84%d8%aa%d9%88%d8%a7%d8%b5%d9%84-%d8%a7%d9%84%d8%a7%d8%ac%d8%aa%d9%85%d8%a7%d8%b9%d9%8a/feed', 'https://www.hespress.com/tag/%d9%85%d9%88%d8%a7%d9%82%d8%b9-%d8%a7%d9%84%d8%aa%d9%88%d8%a7%d8%b5%d9%84-%d8%a7%d9%84%d8%a7%d8%ac%d8%aa%d9%85%d8%a7%d8%b9%d9%8a'] },
-  { id: 'ajsocial', name: 'Al Jazeera social media', topic: 'trend', take: 1, urls: ['https://www.aljazeera.net/tag/%d9%85%d9%88%d8%a7%d9%82%d8%b9-%d8%a7%d9%84%d8%aa%d9%88%d8%a7%d8%b5%d9%84-%d8%a7%d9%84%d8%a7%d8%ac%d8%aa%d9%85%d8%a7%d8%b9%d9%8a/', GN('site:aljazeera.net "مواقع التواصل" OR "منصات التواصل" OR "رواد مواقع التواصل" OR "فيديو متداول" OR تريند OR "ترند"')] },
-  // …and from the full Hespress and Kech24 feeds, only searched for viral stories (these two are in no section of their own)
-  { id: 'hesall', name: 'Hespress (all)', topic: 'pool', take: 0, local: true, urls: ['https://www.hespress.com/feed'] },
-  { id: 'kechall', name: 'Kech24 (all)', topic: 'pool', take: 0, local: true, urls: ['https://kech24.com/feed/'] },
-];
-// in this order; tech and art can also come from any other source, by their words
-const NEWS_PLAN = [['marrakech', 6], ['moroccoaj', 5], ['morocco', 6], ['world', 4], ['tech', 4], ['techworld', 4], ['art', 8], ['trend', 4]];   // art: BBC 4, Hit Radio 4   // tech: Moroccan stories; techworld: international
-const RELAYS = [
-  u => HELPER ? '/api/fetch?url=' + encodeURIComponent(u) : null,
-  u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
-  u => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
-  u => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u),
-  u => /feed|rss/.test(u) ? 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(u) : null,
-];
-const SPORT_RX = /رياض[ةي]|كرة|مباراة|مباريات|المنتخب|الدوري|البطولة|بطولة|لاعب|الوداد|الرجاء|أسود الأطلس|كأس|الركراكي|فيفا|الكاف|الأولمبي|ملعب|هدف|أهداف|ميركاتو|مدرب|نادي|فريق|الجامعة الملكية المغربية لكرة|\/sports?\b|\/sport\/|\bsport|football|\bvs\.?\s|\bfc\b|\bmatch\b|ligue|liga\b|premier league|champions league|botola|\braja\b|wydad|\bnba\b|\bufc\b/i;
-const TECH_RX = /ذكاء الاصطناعي|ذكاء اصطناعي|تكنولوجي|التقني|تقنية|التحول الرقمي|الرقمنة|إنترنت|هواتف ذكية|هاتف ذكي|الهاتف الذكي|آبل|أبل|غوغل|جوجل|مايكروسوفت|ميتا|تطبيقات|روبوت|شات ?جي ?بي ?تي|سيبراني|البرمجيات|حاسوب|رقائق|أشباه الموصلات|وكالة الفضاء|الفضاء الخارجي|ناسا|سبيس ?إكس|\/tech(nology)?\/|\/science\/|technolog/i;   // whole words where a shorter one would also match ordinary news
-const ART_RX = /موسيق|أغني|أغان|غناء|مطرب|فنان|لفنون|لفن(?![؀-ۿ])|سينما|سينمائي|فيلم|أفلام|مهرجان|معرض فني|معرض تشكيلي|تشكيلي|لمسرح(?! الجريمة)|مسرحي|ثقاف|رواية|روائي|لشعر(?![؀-ۿ])|شاعر|قصيدة|ألبوم|حفل غنائي|حفلا غنائيا|\/culture\/|\/arts?\/|\/art-?and-?culture/i;
-// trending on social media: viral videos, trends and online debates
-const SOCIAL_RX = /مواقع التواصل|منصات التواصل|وسائل التواصل|شبكات التواصل|الفضاء الأزرق|السوشيال ميديا|تيك ?توك|فيسبوك|فايسبوك|إنستغرام|انستغرام|يوتيوب|تويتر|منصة إكس|ترند|تريند|هاشتاغ|فيديو متداول|فيديو يوثق|فيديو يظهر|فيديو صادم|فيديو مثير|مقطع فيديو|مقطع متداول|شريط فيديو|يجتاح|انتشار واسع|ينتشر بسرعة|ينتشر كالنار|يثير جدلا|يثير الجدل|جدل واسع|موجة سخرية|موجة تفاعل|تفاعل واسع|رواد مواقع|رواد التواصل|رواد الإنترنت|رواد المنصات|مدونون|نشطاء|(?<![؀-ۿ])(?:ال|لل|و|ب)?مؤثر(?:ة|ين|ون)?(?![؀-ۿ])|بلوغر|يوتيوبر|تيكتوكر|صانع محتوى|صانعة محتوى|صناع المحتوى|\/trending/i;
-const POLITICS_RX = /جلالة الملك|الملك محمد|ولي العهد|الأمير|الانتخابات|انتخابات|التشريعية|البرلمان|مجلس النواب|مجلس المستشارين|الحكومة|رئيس الحكومة|وزير|وزارة|حزب|الأحزاب|سياسي|سياسة|يعين|تعيين|دبلوماسي|سفير/;
-const cleanHead = t => String(t || '').replace(/\s+/g, ' ').trim().replace(/^(فيديو|شاهد|بالفيديو)\s*[,،:]\s*/, '').replace(/\s*[,،]\s*المدة\s*[\d,.:]+\s*$/, '').replace(/\s*[-|–—]\s*(BBC News عربي|بي بي سي.*|فرانس ?24.*|France ?24.*|الجزيرة.*|هسبريس.*|Hespress.*|كش ?24.*|Le360.*|لو360.*|مراكش ال[آا]ن.*|و\.م\.ع.*)$/i, '').replace(/^\s*(مراكش ال[آا]ن|كش ?24|هسبريس)\s*([:|\-–—،,/»«]+|\.\.+)\s*/, '').replace(/^(عاجل|بالفيديو|فيديو|صور|بالصور)\s*[:|-]\s*/, '')
-  .replace(/(\s*[-|–—]+\s*(MAP|SNRT ?news|و\.م\.ع\.?)?)+\s*$/i, '').trim();   // "… | MAP -": the dash was read aloud as "شرطة"
-const CRIME_RX = /قتل|جريم|توقيف|اعتقال|حادث|حادثة|وفاة|مصرع|لقي حتفه|انتحار|سرقة|اعتداء|مخدرات|المخدرة|الدرك|السجن|محاولة قتل|طعن|اغتصاب|احتيال|نصب|اختطاف|غرق|حريق|الأمن يوقف|يوقف|يفكك|عصابة|جثة|جثمان|تنهي حياة/;
-const WEATHER_RX = /طقس|الأحوال الجوية|أحوال الجو|حالة الجو|نشرة إنذارية|النشرة الجوية/;
-const dURI = u => { try { return decodeURI(u); } catch { return u; } };
-const OPINION_RX = /\/(opinions?|blogs?|columns?|chroniques?|programmes?|programs?|emissions?|برامج|ريبورتاج|رأي|آراء|مقالات)\/|آراء|مقالات رأي|كتاب وآراء|أعمدة|^رأي\b/i;   // tested on the link and the categories
-const JUNK_RX = /الرئيسية|^\s*(الأخبار|أخبار|آخر الأخبار|أخر الأخبار|أقسام|فيديو|صور)\s*$/;   // "الرئيسية : CNN الاقتصادية": a page's breadcrumb or a section name, not news
-const headKey = t => t.replace(/[^\p{L}\p{N}]+/gu, '').slice(0, 40);
-const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('no answer')), ms))]);
-// A feed (RSS, Atom, or rss2json), or else a news page: its headlines are the links whose text reads like one
-// (mostly Arabic, a real sentence, pointing to an article on the same site), in the order the page shows them.
-// "المواعيد القادمة" on a page: the block under that heading, each item read as a title and its date
-const AR_MONTHS = 'يناير|فبراير|مارس|أبريل|ابريل|ماي|مايو|يونيو|يوليوز|يوليو|غشت|أغسطس|اغسطس|شتنبر|سبتمبر|أكتوبر|اكتوبر|نونبر|نوفمبر|دجنبر|ديسمبر';
-const AR_MONTH_N = ['يناير', 'فبراير', 'مارس', 'أبريل', 'ماي', 'يونيو', 'يوليوز', 'غشت', 'شتنبر', 'أكتوبر', 'نونبر', 'دجنبر'];
-const DATE_RX = new RegExp(`((?:من\\s*)?\\d{1,2}(?:\\s*(?:${AR_MONTHS}))?(?:\\s*\\d{4})?\\s*(?:إلى|الى|-|و)\\s*\\d{1,2}\\s*(?:${AR_MONTHS})(?:\\s*\\d{4})?|(?:من\\s*)?\\d{1,2}\\s*(?:${AR_MONTHS})(?:\\s*\\d{4})?|\\d{1,2}[/.\\-]\\d{1,2}(?:[/.\\-]\\d{2,4})?)`);
-const sayDate = d => d.replace(/^(\d{1,2})[/.\-](\d{1,2})(?:[/.\-](\d{2,4}))?$/, (m, dd, mm, yy) => `${+dd} ${AR_MONTH_N[+mm - 1] || mm}${yy ? ' ' + (yy.length === 2 ? '20' + yy : yy) : ''}`);
-function parseEvents(text, pageUrl) {
-  const doc = new DOMParser().parseFromString(text, 'text/html');
-  const head = [...doc.querySelectorAll('h1,h2,h3,h4,h5,h6,span,div,p,strong')].find(el => /المواعيد القادمة/.test(el.textContent) && el.textContent.trim().length < 40);
-  if (!head) throw new Error('no "المواعيد القادمة" on the page');
-  let box = head.parentElement;
-  for (let k = 0; k < 4 && box && !box.querySelector('a, li, article'); k++) box = box.parentElement;
-  if (!box) throw new Error('no events under "المواعيد القادمة"');
-  const items = [...box.querySelectorAll('li, article, a, [class*="item"], [class*="card"]')].filter(el => !el.contains(head) && el !== head);
-  const out = [], seen = new Set();
-  items.forEach(el => {
-    const all = (el.textContent || '').replace(/\s+/g, ' ').trim(); if (!all || all.length > 300) return;
-    const dm = all.match(DATE_RX), date = dm ? sayDate(dm[1].trim()).replace(/(^|\D)0(\d)/g, '$1$2') : '';   // "04 دجنبر" is said "4 دجنبر"
-    const titleEl = el.querySelector('h1,h2,h3,h4,h5,[class*="title"]') || el;
-    let t = (titleEl.textContent || '').replace(/\s+/g, ' ').trim(); if (dm) t = t.replace(dm[1], '').replace(/\s+/g, ' ').trim();
-    t = t.replace(/^[\s:،\-–—|]+|[\s:،\-–—|]+$/g, '');
-    if (t.length < 8 || (t.match(/[؀-ۿ]/g) || []).length < t.length * 0.5 || seen.has(t)) return;
-    seen.add(t); out.push({ title: t, date, event: true, link: pageUrl + '#e' + out.length, cats: '', when: 0 });
-  });
-  if (!out.length) throw new Error('no events under "المواعيد القادمة"');
-  return out;
-}
-// What on a news page is NOT the section's own news: menus, the page footer, side boxes, and the breaking-news ticker
-// (on SNRT it mixes every topic, sport included). If the page has a "آخر الأخبار" heading, only that block is read.
-const NOISE_LABELS = /^(الأخبار العاجلة|أخبار عاجلة|ملف الشهر|ملفات|الأخبار الزائفة|الأكثر قراءة|الأكثر مشاهدة|اقرأ أيضا|مواضيع ذات صلة)$/;   // not "عاجل": that is also a badge on real articles
-const FR_MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-const AR_MONTH_ALL = [['يناير'], ['فبراير'], ['مارس'], ['أبريل', 'ابريل'], ['ماي', 'مايو'], ['يونيو'], ['يوليوز', 'يوليو'], ['غشت', 'أغسطس', 'اغسطس'], ['شتنبر', 'سبتمبر'], ['أكتوبر', 'اكتوبر'], ['نونبر', 'نوفمبر'], ['دجنبر', 'ديسمبر']];
-function cardDate(t) {   // the date written on a news card, or 0
-  const y2 = y => !y ? new Date().getFullYear() : y.length === 2 ? 2000 + +y : +y;
-  let m = t.match(/(\d{1,2})\s+(janvier|f[ée]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[ée]cembre)\.?\s*(\d{2,4})?/i);
-  if (m) { const mi = FR_MONTHS.findIndex(x => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '') === m[2].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')); if (mi >= 0) return new Date(y2(m[3]), mi, +m[1], 12).getTime(); }
-  m = t.match(new RegExp(`(\\d{1,2})\\s*(${AR_MONTH_ALL.flat().join('|')})\\s*(\\d{4})?`));
-  if (m) { const mi = AR_MONTH_ALL.findIndex(v => v.includes(m[2])); return new Date(y2(m[3]), mi, +m[1], 12).getTime(); }
-  m = t.match(/(\d{1,2})[/.](\d{1,2})[/.](\d{2,4})/);
-  if (m) return new Date(y2(m[3]), +m[2] - 1, +m[1], 12).getTime();
-  return 0;
-}
-function newsScope(doc) {
-  doc.querySelectorAll('nav, footer, aside, body > header, [class*="ticker"], [id*="ticker"], [class*="breaking"], [class*="urgent"], [class*="marquee"], [class*="menu"]').forEach(el => el.remove());
-  const LATEST = /^(آخر|أخر|اخر) الأخبار$/;
-  [...doc.querySelectorAll('h1,h2,h3,h4,h5,span,div,p,strong,a')].filter(el => NOISE_LABELS.test((el.textContent || '').trim())).forEach(el => {
-    const box = el.parentElement;   // the box under a label like "ملف الشهر", unless it also holds the latest news
-    if (box && box !== doc.body && box.isConnected && ![...box.querySelectorAll('h1,h2,h3,h4,h5,span,div,p,strong')].some(x => LATEST.test((x.textContent || '').trim()))) box.remove();
-  });
-  const latest = [...doc.querySelectorAll('h1,h2,h3,h4,h5,span,div,p,strong')].find(el => /^(آخر|أخر|اخر) الأخبار$/.test((el.textContent || '').trim()));
-  if (!latest) return doc;
-  let box = latest.parentElement;
-  for (let k = 0; k < 5 && box && box.querySelectorAll('a[href]').length < 3; k++) box = box.parentElement;
-  return box || doc;
-}
-function parseNews(text, pageUrl, feedOnly) {
-  if (/^\s*\{/.test(text)) {   // rss2json
-    const j = JSON.parse(text); if (j.status !== 'ok') throw new Error(j.message || 'relay refused');
-    return (j.items || []).map(x => ({ title: x.title, link: x.link || '', cats: (x.categories || []).join(' '), when: Date.parse((x.pubDate || '').replace(' ', 'T') + 'Z') || 0 }));
-  }
-  if (/^\s*(<\?xml|<rss|<feed)/i.test(text)) {
-    const doc = new DOMParser().parseFromString(text, 'text/xml');
-    if (doc.querySelector('parsererror')) throw new Error('broken feed');
-    return [...doc.querySelectorAll('item, entry')].map(el => {
-      const g = n => { const e = el.getElementsByTagName(n)[0]; return e ? e.textContent.trim() : ''; };
-      const linkEl = el.getElementsByTagName('link')[0];
-      return { title: g('title'), link: (linkEl && (linkEl.getAttribute('href') || linkEl.textContent)) || '', cats: [...el.getElementsByTagName('category')].map(c => c.textContent || c.getAttribute('term') || '').join(' '), when: Date.parse(g('pubDate') || g('published') || g('updated') || g('dc:date')) || 0 };
-    }).filter(x => x.title);
-  }
-  if (feedOnly) throw new Error('no feed at this address');   // never read headlines off an error page
-  if (!/<html|<body|<a\s/i.test(text)) throw new Error('not a page');
-  const doc = new DOMParser().parseFromString(text, 'text/html'), host = new URL(pageUrl).hostname.replace(/^www\./, ''), seen = new Set(), out = [];
-  const scope = newsScope(doc);
-  scope.querySelectorAll('h1 a, h2 a, h3 a, h4 a, a h2, a h3, a h4, [class*="title"] a, a[class*="title"], a [class*="title"], article a, a[href*="/article/"], a[href*="/news/"]').forEach(el => {
-    const aEl = el.tagName === 'A' ? el : el.closest('a'); if (!aEl) return;
-    const inner = el.tagName === 'A' && el.querySelector('h1,h2,h3,h4,h5,[class*="title"]');   // a link around a whole card: its heading is the title
-    const shown = ((inner || el).textContent || '').replace(/\s+/g, ' ').trim();
-    // a card that shortens its title ("…") often keeps the whole one in the link's tooltip, label or picture description
-    const longer = [aEl.getAttribute('title'), aEl.getAttribute('aria-label'), (aEl.querySelector('img') || {}).alt].map(x => (x || '').replace(/\s+/g, ' ').trim())
-      .filter(x => x.length > shown.replace(/(\.\.\.|…)\s*$/, '').length && /[\u0600-\u06FF]/.test(x) && x.startsWith(shown.replace(/(\.\.\.|…)\s*$/, '').trim().slice(0, 12)));
-    const t = (longer[0] || shown || (aEl.getAttribute('title') || '').trim() || ((aEl.querySelector('img') || {}).alt || '').trim())
-      .replace(/\d{1,2}\s+(janvier|f[ée]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[ée]cembre)\.?\s*\d{0,4}/gi, '').replace(/\d{1,2}:\d{2}\s*-\s*\d{1,2}\/\d{1,2}\/\d{2,4}/g, '').replace(/\s+/g, ' ').trim();
-    let href = ''; try { href = new URL(aEl.getAttribute('href') || '', pageUrl).href; } catch { return; }
-    const arabic = (t.match(/[؀-ۿ]/g) || []).length;
-    if (t.length < 25 || t.length > 220 || arabic < t.replace(/\s/g, '').length * 0.6 || t.split(' ').length < 4) return;
-    if (!href.includes(host) || /\/(tag|cat|category|article-category|author|page)\//.test(href) || seen.has(href) || seen.has(t)) return;
-    // the card around the link usually carries its date
-    let card = aEl, when = 0; for (let k = 0; k < 5 && card && !when; k++) { when = cardDate((card.textContent || '').replace(/\s+/g, ' ')); card = card.parentElement; }
-    if (when > Date.now() + 2 * 864e5) when = 0;   // a date in the future is an event date, not a publication date
-    seen.add(href); seen.add(t); out.push({ title: t, link: href, cats: '', when });
-  });
-  if (!out.length) {   // a page built by scripts: its titles are often kept in the page's data
-    const rx = /"(?:title|headline)"\s*:\s*"((?:[^"\\]|\\.){25,220})"/g; let m;
-    while ((m = rx.exec(text)) && out.length < 30) {
-      let t = m[1]; try { t = JSON.parse('"' + t + '"'); } catch {}
-      t = t.replace(/\s+/g, ' ').trim();
-      if ((t.match(/[\u0600-\u06FF]/g) || []).length < t.replace(/\s/g, '').length * 0.6 || t.split(' ').length < 4 || seen.has(t)) continue;
-      seen.add(t); out.push({ title: t, link: pageUrl + '#d' + out.length, cats: '', when: 0 });
-    }
-  }
-  return out;
-}
-// The relay that worked for a source last time is asked first, alone; only if it fails are the others asked, together.
-// That keeps the number of requests small, which matters on a phone (a browser sends only a few at a time per site).
-const relayMemo = () => { try { return JSON.parse(localStorage.getItem('pbd-relay2') || '{}'); } catch { return {}; } };
-// A headline cut short ("…"): the article's own page has it whole (its heading, or the title it shares with).
-// Only the first few are looked up; one that stays cut is left out rather than read half-finished.
-const CUT = /(\.\.\.|…)\s*$/;
-async function tryRelayFor(url, ri) {
-  const order = [ri, ...RELAYS.keys()].filter((x, i, arr) => arr.indexOf(x) === i && RELAYS[x](url));
-  for (const k of order) { try { const r = await withTimeout(fetch(RELAYS[k](url)), 10000); if (r.ok) return await r.text(); } catch {} }
-  return '';
-}
-async function uncut(items, get) {
-  const cut = items.filter(x => CUT.test(x.title) && /^https?:/.test(x.link)).slice(0, 8);
-  await Promise.all(cut.map(async x => {
-    try {
-      const doc = new DOMParser().parseFromString(await get(x.link), 'text/html');
-      const og = (doc.querySelector('meta[property="og:title"], meta[name="twitter:title"]') || {}).content || '', h1 = (doc.querySelector('h1') || {}).textContent || '';
-      const start = x.title.replace(CUT, '').trim().slice(0, 12);
-      const full = [og, h1].map(t => (t || '').replace(/\s+/g, ' ').replace(/\s*[|\-–—]\s*(Hit ?Radio|هيت راديو).*$/i, '').trim()).find(t => t.length > x.title.length - 3 && t.startsWith(start) && !CUT.test(t));
-      if (full) x.title = full;
-    } catch {}
-  }));
-  return items.filter(x => !CUT.test(x.title));
-}
-async function readSourceHere(src) {
-  const errs = [];
-  const memo = relayMemo();
-  for (const u of src.urls) {
-    const tryRelay = (ri, ms) => withTimeout((async () => {
-      const url = RELAYS[ri](u);
-      const r = await fetch(url);
-      if (url.startsWith('/api/fetch') && r.status === 404) helperNewsMissing = true;   // a helper that has not updated yet
-      if (!r.ok) throw new Error(url.startsWith('/api/fetch') ? r.status === 404 ? 'your PC helper is an older version: close the radio completely and start it again' : 'your PC: ' + ((await r.text()).slice(0, 60) || 'HTTP ' + r.status) : 'HTTP ' + r.status);
-      const body = await r.text(), it = src.events ? parseEvents(body, u) : parseNews(body, u, /\/feed$|rss|outboundfeeds/.test(u));
-      if (!it.length) throw new Error('no headlines');
-      return { it, ri };
-    })(), ms);
-    const all = RELAYS.map((f, i) => f(u) ? i : -1).filter(i => i >= 0), pref = memo[u];
-    try {
-      let got = null;
-      if (!mobileWeb()) {   // PC: through the PC itself first; the public relays only if that fails (all at once choked a weak wifi)
-        if (all.includes(0)) { try { got = await tryRelay(0, 12000); } catch {} }
-        if (!got) got = await Promise.any(all.filter(i => i !== 0).map(i => tryRelay(i, 12000)));
-      }
-      else {   // a phone: the relay that worked last time first, alone, then the others
-        if (all.includes(pref)) { try { got = await tryRelay(pref, 9000); } catch {} }
-        if (!got) got = await Promise.any(all.filter(i => i !== pref).map(i => tryRelay(i, 15000)));
-      }
-      if (mobileWeb() && got.ri !== pref) { const m = relayMemo(); m[u] = got.ri; try { localStorage.setItem('pbd-relay2', JSON.stringify(m)); } catch {} }
-      if (/news\.google\./.test(u)) got.it = got.it.map(x => ({ ...x, title: x.title.replace(/\s+[-–|]\s+[^-–|]{2,40}$/, '').trim() }));   // "headline - SNRTnews"
-      const it = await uncut(got.it, url => tryRelayFor(url, got.ri));
-      return { ok: true, items: it.map(x => ({ ...x, page: u, src: src.id, name: src.name, topic: src.topic })) };
-    } catch (e) { errs.push((/news\.google\./.test(u) ? 'backup via Google News: ' : '') + ((e.errors && e.errors[0] && e.errors[0].message) || e.message || String(e))); }
-  }
-  return { ok: false, error: errs.join(' · ') || 'no answer', items: [] };
-}
-async function inBatches(list, size, fn) {   // fn over list, at most `size` at a time, results in order
-  const out = new Array(list.length); let next = 0;
-  await Promise.all(Array.from({ length: Math.min(size, list.length) }, async () => { while (next < list.length) { const i = next++; out[i] = await fn(list[i]); } }));
-  return out;
-}
-function servedNews() { try { return JSON.parse(localStorage.getItem('pbd-news-served') || '{}'); } catch { return {}; } }
-// Every section is filled to its number. In this order: new headlines from its own sources, in their shares
-// (Kech24 4, Marrakech Alaan 2…); then new headlines from elsewhere that fit it (tech, art and trending by their
-// words; Marrakech when the headline names the city; the Moroccan and latest sections from any general news);
-// only then, if nothing new is left, the most important headlines already read (breaking and top stories first);
-// and last, older stories. No sport, ever.
-const srcRank = x => { const i = NEWS_SOURCES.findIndex(o => o.id === x.src); return i < 0 ? 99 : i; };
-const artRank = x => x.event ? 2 : x.src === 'hitradio' ? 1 : 0;
-function pickNews(results, test) {
-  const now = Date.now(), served = servedNews();
-  Object.keys(served).forEach(k => { if (now - served[k] > 12 * 3600e3) delete served[k]; });
-  const seen = new Set(), isNew = x => test || !served[headKey(x.title)];
-  const maxAge = Object.fromEntries(NEWS_SOURCES.map(s => [s.id, (s.maxAgeDays || 1.5) * 864e5]));
-  const recent = x => !x.when || now - x.when < (maxAge[x.src] || 36 * 3600e3);
-  const lists = {};
-  results.forEach((r, i) => {
-    lists[NEWS_SOURCES[i].id] = r.items.map(x => ({ ...x, title: cleanHead(x.title), breaking: /^\s*عاجل/.test(x.title) || /عاجل/.test(x.cats) }))
-      .filter(x => { if (x.title.length <= 12 || SPORT_RX.test(x.title + ' ' + x.cats + ' ' + x.link) || WEATHER_RX.test(x.title) || JUNK_RX.test(x.title) || OPINION_RX.test(dURI(x.link || '') + ' ' + x.cats)) return false; const k = headKey(x.title); if (seen.has(k)) return false; seen.add(k); return true; })
-      .filter(x => !NEWS_SOURCES[i].maxAgeDays || (x.when && Date.now() - x.when < NEWS_SOURCES[i].maxAgeDays * 864e5))   // "recent" means a date we could read
-      .filter(x => NEWS_SOURCES[i].only !== 'art' || ART_RX.test(x.title + ' ' + x.cats + ' ' + x.link))   // a mixed source: only its stories on the topic
-      .filter(x => NEWS_SOURCES[i].only !== 'tech' || TECH_RX.test(x.title + ' ' + x.cats))
-      .filter(x => !NEWS_SOURCES[i].noPolitics || !POLITICS_RX.test(x.title))
-      .filter(x => NEWS_SOURCES[i].topic !== 'trend' || !/news\.google\./.test(x.link || '') || SOCIAL_RX.test(x.title))   // a search result must really be about social media
-      .sort((p, q) => q.breaking - p.breaking);   // breaking first, then the order the source gives (its top stories)
-  });
-  const all = id => lists[id] || [], text = x => x.title + ' ' + x.cats + ' ' + x.link;
-  const GENERAL = NEWS_SOURCES.filter(s => ['moroccoaj', 'morocco', 'world'].includes(s.topic) && !/^map/.test(s.id)).map(s => s.id);   // MAP is only for أخبار المغرب
-  const MOROCCAN = NEWS_SOURCES.filter(s => s.local && !s.events && !['kech24', 'alaan', 'kechall'].includes(s.id)).map(s => s.id);   // أخبار المغرب is filled only from Moroccan sources
-  const MARRAKECH_ONLY = ['kech24', 'alaan', 'kechall'];   // Kech24 and Marrakech Alaan feed only the Marrakech section
-  const used = new Set(), picked = [];
-  NEWS_PLAN.forEach(([topic, n]) => {
-    const start = picked.length, room = () => picked.length - start < n;
-    let capOn = topic === 'marrakech';   // the Marrakech section: at most 2 crime or accident stories while other news is left
-    const take = x => {
-      if (!room() || used.has(x)) return;
-      if (topic !== 'art' && /\/(culture|cultures|ثقافة|arts?|art-?and-?culture)\//i.test(dURI(x.link || ''))) return;   // a culture article is read only in الفن
-      if (capOn && CRIME_RX.test(x.title) && picked.slice(start).filter(p => CRIME_RX.test(p.title)).length >= 2) return;
-      used.add(x); picked.push({ ...x, topic });
-    };
-    const own = NEWS_SOURCES.filter(s => s.topic === topic);
-    const rx = { tech: TECH_RX, techworld: TECH_RX, art: ART_RX, trend: SOCIAL_RX }[topic];
-    // headlines from elsewhere that fit this section
-    const elsewhere = () => rx ? NEWS_SOURCES.filter(s => (topic !== 'tech' || s.local) && !s.events && !MARRAKECH_ONLY.includes(s.id)).flatMap(s => all(s.id)).filter(x => rx.test(text(x)))
-      : topic === 'marrakech' ? Object.values(lists).flat().filter(x => !x.event && /مراكش/.test(x.title))
-      : topic === 'moroccoaj' ? MOROCCAN.flatMap(all)
-      : GENERAL.flatMap(all);
-    const tiers = [x => isNew(x) && recent(x), x => recent(x), () => true];   // new; then already read; then older
-    if (topic === 'moroccoaj') own.forEach(s => {   // fixed shares (royal 1, politics 2, economy 2): each from its own page, even an older headline, before anything else
-      const mine = () => picked.slice(start).filter(x => x.src === s.id).length;
-      tiers.forEach(tier => all(s.id).filter(tier).forEach(x => { if (mine() < s.take) take(x); }));
-    });
-    const fill = () => tiers.forEach((tier, ti) => {
-      if (ti === 0) own.forEach(s => all(s.id).filter(tier).slice(0, s.take).forEach(take));   // each source's share
-      own.forEach(s => all(s.id).filter(tier).slice(0, s.events ? s.take : undefined).forEach(take));   // never more upcoming events than asked
-      elsewhere().filter(tier).forEach(take);
-    });
-    fill();
-    if (capOn && room()) { capOn = false; fill(); }   // not enough other news: more crime rather than an empty place
-  });
-  if (!test) { picked.forEach(x => { served[headKey(x.title)] = now; }); try { localStorage.setItem('pbd-news-served', JSON.stringify(served)); } catch {} }
-  return picked.map(x => ({ title: x.title, link: x.link, page: x.page, topic: x.topic, source: x.name, src: x.src, breaking: x.breaking, event: x.event, date: x.date }))
-    .sort((p, q) => (p.topic !== q.topic ? 0 : p.topic === 'moroccoaj' ? srcRank(p) - srcRank(q) : artRank(p) - artRank(q)));   // art: BBC, then Hit Radio; أخبار المغرب: royal, politics, economy
-}
-const WMO_AR = { 0: 'سماء صافية', 1: 'سماء صافية في الغالب', 2: 'سماء غائمة جزئيا', 3: 'سماء غائمة', 45: 'ضباب', 48: 'ضباب', 51: 'رذاذ خفيف', 53: 'رذاذ', 55: 'رذاذ كثيف', 56: 'رذاذ متجمد', 57: 'رذاذ متجمد', 61: 'أمطار خفيفة', 63: 'أمطار', 65: 'أمطار غزيرة', 66: 'أمطار متجمدة', 67: 'أمطار متجمدة', 71: 'ثلوج خفيفة', 73: 'ثلوج', 75: 'ثلوج كثيفة', 77: 'ثلوج', 80: 'زخات مطرية خفيفة', 81: 'زخات مطرية', 82: 'زخات مطرية قوية', 85: 'زخات ثلجية', 86: 'زخات ثلجية', 95: 'عواصف رعدية', 96: 'عواصف رعدية مع برد', 99: 'عواصف رعدية مع برد' };
-// Marrakech: now, the rest of today (the hours still to come), and tomorrow
-async function weatherNow() {
-  const u = 'https://api.open-meteo.com/v1/forecast?latitude=31.63&longitude=-8.01&current=temperature_2m,weather_code&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Africa%2FCasablanca&forecast_days=2';
-  const j = await (await withTimeout(fetch(u), mobileWeb() ? 15000 : 10000)).json();
-  const c = j.current, d = j.daily, h = j.hourly, today = c.time.slice(0, 10), hourNow = +c.time.slice(11, 13);
-  const later = h.time.map((t, i) => ({ t, temp: h.temperature_2m[i], code: h.weather_code[i] })).filter(x => x.t.slice(0, 10) === today && +x.t.slice(11, 13) > hourNow);
-  const rest = later.length >= 2 ? { min: Math.round(Math.min(...later.map(x => x.temp))), max: Math.round(Math.max(...later.map(x => x.temp))), sky: WMO_AR[Math.max(...later.map(x => x.code))] || '', night: hourNow >= 18 } : null;
-  return { now: { temp: Math.round(c.temperature_2m), sky: WMO_AR[c.weather_code] || '' }, rest, tomorrow: { min: Math.round(d.temperature_2m_min[1]), max: Math.round(d.temperature_2m_max[1]), sky: WMO_AR[d.weather_code[1]] || '' } };
-}
-let helperNewsMissing = false;
-async function getNews(manual) {
-  const cap = mobileWeb() ? 70000 : 38000;   // the weather and the extras, like the sites: late means left out, not the whole bulletin
-  const wx = withTimeout(weatherNow(), cap).catch(() => null), extra = withTimeout(newsExtras(), cap).catch(() => []);
-  helperNewsMissing = false;
-  // each site has its own time limit, so one slow site only loses its own headlines, never the whole bulletin
-  const late = { ok: false, error: 'too slow to answer', items: [] };
-  const results = await inBatches(NEWS_SOURCES, mobileWeb() ? 6 : NEWS_SOURCES.length, src => mobileWeb() ? readSourceHere(src) : withTimeout(readSourceHere(src), 30000).catch(() => late));
-  const items = pickNews(results, manual);
-  const alerts = vigilance(results), hol = nextHoliday(results);
-  return { items, weather: await wx, extras: alerts.concat(await extra, hol ? [hol] : []), via: HELPER && !helperNewsMissing ? 'your PC and the web' : 'the web', sources: NEWS_SOURCES.map((s, i) => ({ id: s.id, name: s.name, ok: results[i].ok, n: results[i].items.length, error: results[i].error || '' })) };
-}
-
-// ---------- after the weather: warnings, the dirham, the next prayer, a public holiday ----------
-const MA = { lat: 31.63, lon: -8.01 };
-async function getJSON(url, ms = 9000) {   // straight from the browser first, then through the PC helper or a public relay
-  try { const r = await withTimeout(fetch(url), ms); if (r.ok) return await r.json(); } catch {}
-  for (const k of [0, 1, 2]) { const via = RELAYS[k](url); if (!via) continue; try { const r = await withTimeout(fetch(via), ms); if (r.ok) return JSON.parse(await r.text()); } catch {} }
-  throw new Error('no answer');
-}
-const plural = (n, one, two, few, many) => n === 1 ? one : n === 2 ? two : n >= 3 && n <= 10 ? `${n} ${few}` : `${n} ${many}`;
-const dirhams = v => { const d = Math.floor(v), c = Math.round((v - d) * 100); return plural(d, 'درهم واحد', 'درهمان', 'دراهم', 'درهما') + (c ? ' و' + plural(c, 'سنتيم واحد', 'سنتيمان', 'سنتيمات', 'سنتيما') : ''); };
-const clockAr = (h, m) => m ? `الساعة ${h} و${m} دقيقة` : `الساعة ${h} تماما`;
-async function newsExtras() {
-  const out = [], add = (line, tag, link, pause) => out.push({ line, tag, link: link || '', pause: pause || 0 });
-  const [fx, pr, wx, air, eq] = await Promise.allSettled([
-    getJSON('https://open.er-api.com/v6/latest/USD'),
-    (() => { const d = new Date(); return getJSON(`https://api.aladhan.com/v1/timings/${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}?latitude=${MA.lat}&longitude=${MA.lon}&method=21`); })(),
-    getJSON(`https://api.open-meteo.com/v1/forecast?latitude=${MA.lat}&longitude=${MA.lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,uv_index_max,precipitation_sum,wind_gusts_10m_max&timezone=Africa%2FCasablanca&forecast_days=2`),
-    getJSON(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${MA.lat}&longitude=${MA.lon}&current=european_aqi,dust&timezone=Africa%2FCasablanca`),
-    getJSON(`https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=${new Date(Date.now() - 864e5).toISOString().slice(0, 19)}&minmagnitude=4.5&latitude=31.6&longitude=-7.5&maxradiuskm=700`),
-  ]);
-  // warnings, only when there is one
-  if (wx.status === 'fulfilled') {
-    const d = wx.value.daily, when = i => i ? 'غدا' : 'اليوم';
-    for (const i of [0, 1]) {
-      const code = d.weather_code[i], tmax = d.temperature_2m_max[i], tmin = d.temperature_2m_min[i], rain = d.precipitation_sum[i], gust = d.wind_gusts_10m_max[i], uv = d.uv_index_max[i];
-      if (tmax >= 40) add(`تنبيه: موجة حر ${when(i)} في مراكش، والحرارة قد تصل إلى ${Math.round(tmax)} درجة. تجنبوا الشمس وقت الذروة، وأكثروا من شرب الماء.`, 'تنبيه · Open-Meteo');
-      if (tmin <= 2) add(`تنبيه: برد شديد ${when(i)}، والحرارة قد تنخفض إلى ${Math.round(tmin)} درجة.`, 'تنبيه · Open-Meteo');
-      if (code >= 95) add(`تنبيه: عواصف رعدية مرتقبة ${when(i)} في مراكش ونواحيها.`, 'تنبيه · Open-Meteo');
-      else if (rain >= 20) add(`تنبيه: أمطار قوية مرتقبة ${when(i)}، بحوالي ${Math.round(rain)} مليمتر. احذروا السيول في الطرقات والأودية.`, 'تنبيه · Open-Meteo');
-      if (code >= 71 && code <= 77) add(`تنبيه: تساقطات ثلجية مرتقبة ${when(i)} في المرتفعات القريبة من مراكش.`, 'تنبيه · Open-Meteo');
-      if (gust >= 60) add(`تنبيه: رياح قوية ${when(i)}، قد تصل سرعتها إلى ${Math.round(gust)} كيلومترا في الساعة.`, 'تنبيه · Open-Meteo');
-      if (i === 0 && uv >= 8) add(`تنبيه: مؤشر الأشعة فوق البنفسجية مرتفع جدا اليوم، فاحموا أنفسكم من الشمس بين الحادية عشرة صباحا والرابعة بعد الزوال.`, 'تنبيه · Open-Meteo');
-    }
-  }
-  if (air.status === 'fulfilled' && air.value.current) {
-    const a = air.value.current;
-    if (a.dust >= 150) add('تنبيه: غبار كثيف في جو مراكش. ينصح بالتقليل من الخروج، خاصة لمن يعانون من الحساسية أو الربو.', 'تنبيه · Open-Meteo');
-    else if (a.european_aqi >= 80) add('تنبيه: جودة الهواء سيئة اليوم في مراكش. ينصح بالتقليل من المجهود في الخارج.', 'تنبيه · Open-Meteo');
-  }
-  if (eq.status === 'fulfilled') (eq.value.features || []).slice(0, 1).forEach(f => {
-    const [lon, lat] = f.geometry.coordinates, km = Math.round(6371 * Math.acos(Math.min(1, Math.sin(lat * Math.PI / 180) * Math.sin(MA.lat * Math.PI / 180) + Math.cos(lat * Math.PI / 180) * Math.cos(MA.lat * Math.PI / 180) * Math.cos((lon - MA.lon) * Math.PI / 180))));
-    add(`تنبيه: سجلت هزة أرضية بقوة ${f.properties.mag.toFixed(1).replace('.', ' فاصلة ')} درجات على سلم ريشتر، على بعد حوالي ${km} كيلومترا من مراكش.`, 'تنبيه · USGS', f.properties.url);
-  });
-  // the dirham
-  if (fx.status === 'fulfilled' && fx.value.rates && fx.value.rates.MAD) {
-    const mad = fx.value.rates.MAD, eur = mad / fx.value.rates.EUR;
-    add(`وفي سوق العملات، الدولار الأمريكي بحوالي ${dirhams(mad)}، واليورو بحوالي ${dirhams(eur)}.`, 'العملات · ExchangeRate-API', '', 700);   // a short breath before the prayer time
-  }
-  // the next prayer
-  if (pr.status === 'fulfilled' && pr.value.data) {
-    const t = pr.value.data.timings, now = new Date(), mins = now.getHours() * 60 + now.getMinutes();
-    const list = [['Fajr', 'الفجر'], ['Dhuhr', 'الظهر'], ['Asr', 'العصر'], ['Maghrib', 'المغرب'], ['Isha', 'العشاء']].map(([k, ar]) => { const [h, m] = t[k].slice(0, 5).split(':').map(Number); return { ar, h, m, at: h * 60 + m }; });
-    const next = list.find(p => p.at > mins + 2);
-    add(next ? `أذان ${next.ar} في مراكش على ${clockAr(next.h, next.m)}.` : `أذان الفجر غدا في مراكش على ${clockAr(list[0].h, list[0].m)} تقريبا.`, 'الصلاة · Aladhan');
-  }
-  return out;
-}
-// Morocco's paid public holidays (private sector). The fixed ones are announced a week ahead. The religious ones
-// follow the moon, so they are only announced once the Ministry of Habous has confirmed them: the radio waits for
-// that announcement in the Moroccan news, keeps it for two weeks, and reads it until the holiday has passed.
-const FIXED_HOLIDAYS = { '01-01': 'رأس السنة الميلادية', '01-11': 'ذكرى تقديم وثيقة الاستقلال', '01-14': 'رأس السنة الأمازيغية', '05-01': 'عيد الشغل', '07-30': 'عيد العرش', '08-14': 'ذكرى استرجاع إقليم وادي الذهب', '08-20': 'ذكرى ثورة الملك والشعب', '08-21': 'عيد الشباب', '10-31': 'عيد الوحدة', '11-06': 'ذكرى المسيرة الخضراء', '11-18': 'عيد الاستقلال' };
-const HOLY = [['عيد الفطر', /عيد الفطر/, '10-1'], ['عيد الأضحى', /عيد الأضحى/, '12-10'], ['عيد المولد النبوي', /المولد النبوي|عيد المولد/, '3-12'], ['رأس السنة الهجرية', /رأس السنة الهجرية|فاتح (شهر )?محرم|السنة الهجرية الجديدة/, '1-1']];
-const HOLY_SURE = /الأوقاف|ثبوت|ثبت|رؤية الهلال|تعلن|أعلنت|يعلن|بلاغ|سيكون|يصادف|يوم (الأحد|الاثنين|الثلاثاء|الأربعاء|الخميس|الجمعة|السبت)/;
-const HOLY_GUESS = /مرتقب|متوقع|توقعات|فلكي|فلكيا|الحسابات|تقديرات|محتمل|قد يكون/;   // an astronomer's forecast is not a confirmation
-const AR_DAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-function hijriOf(d) {   // Morocco usually starts the month one day after Umm al-Qura: only used to know when a holiday is near or past
-  try { const p = Object.fromEntries(new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', { day: 'numeric', month: 'numeric' }).formatToParts(new Date(d.getTime() - 864e5)).map(x => [x.type, x.value])); return +p.month + '-' + +p.day; } catch { return ''; }
-}
-function nextHoliday(results) {
-  const today = new Date(); today.setHours(12, 0, 0, 0);
-  const day = k => new Date(today.getTime() + k * 864e5);
-  let saved = {}; try { saved = JSON.parse(localStorage.getItem('pbd-holy') || '{}'); } catch {}
-  Object.keys(saved).forEach(k => { if (Date.now() - saved[k].at > 14 * 864e5) delete saved[k]; });
-  (results || []).forEach((r, i) => r.ok && NEWS_SOURCES[i].local && r.items.forEach(x => {   // the Ministry's announcement, as the Moroccan sites report it
-    const t = cleanHead(x.title), h = HOLY.find(([, rx]) => rx.test(t));
-    if (!h || !HOLY_SURE.test(t) || HOLY_GUESS.test(t) || /السعودية|مصر|الجزائر|تونس|الإمارات|قطر|الكويت|تركيا|إيران|العراق|الأردن|فلسطين|ليبيا|موريتانيا|سوريا|لبنان|اليمن|عمان|البحرين|السودان/.test(t) || (x.when && Date.now() - x.when > 3 * 864e5) || saved[h[0]]) return;
-    saved[h[0]] = { text: t, link: x.link || '', at: Date.now() };
-  }));
-  try { localStorage.setItem('pbd-holy', JSON.stringify(saved)); } catch {}
-  for (let k = 0; k <= 7; k++) {   // the fixed ones: a week ahead
-    const d = day(k), name = FIXED_HOLIDAYS[String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')]; if (!name) continue;
-    const when = k === 0 ? 'اليوم' : k === 1 ? 'غدا' : `يوم ${AR_DAYS[d.getDay()]} ${d.getDate()} ${AR_MONTH_N[d.getMonth()]}`;
-    return { line: k === 0 ? `واليوم ${name}، وهو يوم عطلة مؤدى عنه.` : `ونذكر بأن ${when} هو ${name}، يوم عطلة مؤدى عنه.`, tag: 'العطل · Morocco', link: '' };
-  }
-  for (const [name, , hd] of HOLY) {   // the religious ones: only when confirmed, and while the holiday is still ahead (or today)
-    const c = saved[name]; if (!c) continue;
-    let ahead = false; for (let k = -1; k <= 12 && !ahead; k++) if (hijriOf(day(k)) === hd) ahead = true;
-    if (ahead) return { line: `وبخصوص العطل: ${c.text.replace(/[.،]\s*$/, '')}. وهو يوم عطلة مؤدى عنه.`, tag: 'العطل · ' + 'الإعلان الرسمي', link: c.link };
-  }
-  return null;
-}
-// Official weather alerts (نشرة إنذارية) from the news sites: read with the warnings, not as headlines
-function vigilance(results) {
-  const seen = new Set(), out = [];
-  results.forEach(r => r.ok && r.items.forEach(x => {
-    const t = cleanHead(x.title); if (!/نشرة إنذارية|نشرة انذارية/.test(t) || (x.when && Date.now() - x.when > 864e5) || seen.has(headKey(t))) return;
-    seen.add(headKey(t)); if (out.length < 1) out.push({ line: 'تنبيه: ' + t.replace(/([^؟!.])$/, '$1.'), tag: 'تنبيه · ' + (NEWS_SOURCES.find(s => s.id === x.src) || {}).name, link: x.link || '' });
-  }));
-  return out;
-}
-const wxLine = (w, sky) => w.min === w.max ? `${sky || 'جو معتدل'}، وحرارة في حدود ${w.max} درجة.` : `${sky || 'جو معتدل'}، والحرارة بين ${w.min} و${w.max} درجة.`;
-// Said as words, not letters: كلغ is a kilogram, كلم a kilometre; Marrakech is voweled so it sounds Murrākush
-const AR_UNIT = { 'كلغ': 'كيلوغرام', 'كغ': 'كيلوغرام', 'كلم': 'كيلومتر', 'ملم': 'مليمتر', 'سنتم': 'سنتيمتر' };
-// Places said the way people say them: voweled, and with a real "g" where the Arabic spelling has ك, ج or غ for it
-// (Gueliz, Targa, Ben Guerir, Gabon). {G} is گ (or the letter you picked earlier, when the setting existed).
-const PLACES = [
-  // Marrakech and around
-  [['جليز', 'كليز', 'غليز', 'كيليز', 'جيليز'], '{G}ِيلِيز'], [['تاركة', 'تارگة', 'تارجة', 'تاركا'], 'تارْ{G}َة'],
-  [['ابن جرير', 'بن جرير', 'بنجرير', 'ابن كرير', 'بنكرير', 'بن كرير'], 'بِنْ {G}ْرِيرْ'], [['المحاميد'], 'المْحامِيد'],
-  [['تامنصورت'], 'تامَنْصُورْت'], [['الحوز'], 'الحَوْز'], [['أوريكة', 'اوريكة', 'أوريكا', 'اوريكا'], 'أُورِيكَة'], [['أمزميز'], 'أَمِزْمِيز'],
-  [['تحناوت'], 'تَحْناوْت'], [['شيشاوة'], 'شِيشاوَة'], [['الويدان'], 'الوِيدان'], [['آيت أورير', 'ايت اورير', 'أيت أورير'], 'آيْت أُورِير'],
-  [['قلعة السراغنة'], 'قَلْعَة السْراغْنَة'], [['الصويرة'], 'الصْوِيرَة'], [['آسفي', 'أسفي', 'اسفي'], 'آسْفِي'],
-  // Morocco
-  [['أكادير', 'اكادير', 'أگادير'], 'أَ{G}ادِير'], [['أكدال', 'اكدال'], 'أَ{G}ْدال'], [['الكويرة'], 'الْ{G}ْوِيرَة'],
-  [['كلميم'], '{G}ُلْمِيم'], [['كلميمة'], '{G}ُولْمِيمَة'], [['جرسيف', 'كرسيف'], '{G}َرْسِيف'], [['زاكورة', 'زاگورة'], 'زا{G}ُورَة'],
-  [['أكوراي'], 'أَ{G}ُوراي'], [['تامكروت'], 'تامْ{G}ْرُوت'], [['أمكون'], 'أَمْ{G}ُون'], [['الكارة'], 'الْ{G}ارَة'],
-  [['الرباط'], 'الرِّباط'], [['مكناس'], 'مِكْناس'], [['تطوان'], 'تِطْوان'], [['طنجة'], 'طَنْجَة'], [['الحسيمة'], 'الحُسَيْمَة'],
-  [['الناظور'], 'النّاظُور'], [['وجدة'], 'وَجْدَة'], [['الداخلة'], 'الدّاخْلَة'], [['القنيطرة'], 'القُنَيْطْرَة'], [['خريبكة'], 'خْرِيبْكَة'],
-  [['سطات'], 'سْطّات'], [['برشيد'], 'بَرْشِيد'], [['ورزازات'], 'وَرْزازات'], [['الرشيدية'], 'الرَّشِيدِيَّة'], [['إفران', 'افران'], 'إِفْران'],
-  [['بني ملال'], 'بْنِي مَلّال'], [['أزيلال', 'ازيلال'], 'أَزِيلال'], [['تارودانت'], 'تارُودانْت'], [['تزنيت', 'تيزنيت'], 'تِيزْنِيت'],
-  [['الدار البيضاء'], 'الدّار البَيْضاء'], [['المحمدية'], 'المُحَمَّدِيَّة'], [['تمارة'], 'تَمارَة'], [['الصخيرات'], 'الصْخِيرات'],
-  [['الفنيدق'], 'الفْنِيدَق'], [['شفشاون'], 'شَفْشاوَن'], [['العرائش'], 'العَرائِش'], [['القصر الكبير'], 'القْصَر الكْبِير'],
-  [['ميدلت'], 'مِيدَلْت'], [['تنغير'], 'تِنْغِير'], [['سلا'], 'سَلا'],
-  // the world
-  [['الغابون', 'الجابون'], 'ال{G}ابُون'], [['غانا'], '{G}انا'], [['غينيا', 'جينيا'], '{G}ِينْيا'], [['غواتيمالا', 'جواتيمالا'], '{G}ْواتِيمالا'],
-  [['الكونغو', 'الكونجو'], 'الكُونْ{G}ُو'], [['أوغندا', 'اوغندا', 'أوجندا'], 'أُو{G}َنْدا'], [['بلغاريا'], 'بُلْ{G}ارْيا'],
-  [['البرتغال'], 'البُرْتُ{G}ال'], [['السنغال'], 'السِّنِ{G}ال'], [['غرينلاند'], '{G}ْرِينْلانْد'], [['أنغولا', 'انغولا'], 'أَنْ{G}ُولا'],
-  [['أوروغواي', 'الأوروغواي'], 'أُورُو{G}ْواي'], [['باراغواي'], 'بارا{G}ْواي'], [['بوغوتا'], 'بُو{G}ُوتا'], [['سنغافورة'], 'سِنْ{G}افُورَة'],
-  [['بنغلاديش'], 'بَنْ{G}ْلادِيش'], [['هونغ كونغ', 'هونج كونج'], 'هُونْ{G} كُونْ{G}'], [['شيكاغو', 'شيكاجو'], 'شِيكا{G}ُو'],
-  [['سان دييغو', 'سان دييجو'], 'سان دِيِي{G}ُو'], [['لاس فيغاس'], 'لاس فِي{G}اس'], [['كوبنهاغن'], 'كُوبِنْها{G}ِن'],
-  [['هامبورغ'], 'هامْبُورْ{G}'], [['لوكسمبورغ'], 'لُوكْسِمْبُورْ{G}'], [['ستراسبورغ'], 'سْتْراسْبُورْ{G}'], [['سان بطرسبورغ'], 'سان بِطْرِسْبُورْ{G}'],
-  [['غوغل', 'جوجل', 'قوقل'], '{G}ُو{G}ِل'],
-];
-const PLACE_RX = (() => {
-  const alts = PLACES.flatMap(([names, say]) => names.map(n => [n, say]));
-  const map = new Map(alts); alts.forEach(([n, say]) => { if (n.startsWith('ال') && say.startsWith('ال')) map.set('ل' + n.slice(2), 'ل' + say.slice(2)); });   // للغابون
-  const keys = [...map.keys()].sort((a, b) => b.length - a.length).map(k => k.replace(/ /g, '\\s+'));
-  return { map, rx: new RegExp(`(^|[^\\u0600-\\u06FF])((?:و|ف)?(?:بال|ال|لل|ب|ل|ك)?)(${keys.join('|')})(?=$|[^\\u0600-\\u06FF])`, 'g') };   // "وبالغابون", "وللغابون"
-})();
-const gLetter = () => ({ 'گ': 'گ', 'ڭ': 'ڭ', 'ك': 'ك', 'غ': 'غ', 'ج': 'ج' })[S.gSound] || 'گ';
-const placesSaid = l => l.replace(PLACE_RX.rx, (m, pre, pfx, name) => {
-  let say = PLACE_RX.map.get(name.replace(/\s+/g, ' ')); if (!say) return m;
-  if (pfx && /ال$/.test(pfx) && say.startsWith('ال')) say = say.slice(2);   // "بالغابون": the article is already in the prefix
-  return pre + (pfx || '') + say.replace(/\{G\}/g, gLetter());
-});
-const spokenArabic = l => placesSaid(l.replace(/مراكش/g, 'مُرّاكُش'))
-  .replace(/(^|[^\u0600-\u06FF])(بال|لل|ال|ب|ل|و)?(كلغ|كغ|كلم|ملم|سنتم)(?=$|[^\u0600-\u06FF])/g, (m, pre, pfx, u) => pre + (pfx || '') + AR_UNIT[u])
-  .replace(/(\d)\s*[%٪]/g, '$1 في المائة').replace(/(\d)\s*°/g, '$1 درجة');
-const NEWS_SECTION_TAG = { marrakech: 'مراكش', moroccoaj: 'أخبار المغرب', morocco: 'آخر الأخبار', world: 'آخر الأخبار', tech: 'التكنولوجيا والذكاء الاصطناعي', techworld: 'التكنولوجيا والذكاء الاصطناعي', art: 'الفن', trend: 'الأكثر تداولا على مواقع التواصل' };
-function newsTag(x) {   // "أخبار المغرب · Hespress", the site's name without the page it came from
-  const site = (x.name || (NEWS_SOURCES.find(o => o.id === x.src) || {}).name || x.src || '').replace(/\s+(Marrakech|royal activities|politics|economy|24h|world|tech|culture|social media|trending|upcoming events|\(all\))$/i, '');
-  return [NEWS_SECTION_TAG[x.topic] || '', site + (/news\.google\./.test(x.link || '') ? ' (via Google News)' : '')].filter(Boolean).join(' · ');
-}
-function arabicBulletin(n) {
-  const h = new Date().getHours(), lines = [h === 0 ? 'أهلا بكم في نشرة أخبار منتصف الليل.' : `أهلا بكم في نشرة الأخبار. الساعة ${h}.`];
-  let label = '';   // a heading is said once, when it changes
-  const info = [{}];   // for Settings > News > Last bulletin: where each line came from
-  const tags = [''];   // shown in cyan under each headline: its section · its source
-  (n.items || []).forEach(x => {
-    const title = x.topic === 'marrakech' ? x.title.replace(/^\s*(مراكش( ال[آا]ن)?|كش ?24)\s*([:|\-–—،,/»«]+|\.\.+)\s*/, '') : x.title;   // "مراكش: …" right after the Marrakech heading
-    const head = x.event ? `ومن المواعيد الثقافية القادمة: ${x.title.replace(/\s*(\.{2,}|…)\s*/g, '، ')}${x.date ? '، ' + x.date : ''}.` : (x.breaking ? 'عاجل: ' : '') + title.replace(/^\s*عاجل\s*[:،,.\-–—|]*\s*/, '').replace(/\s*(\.{2,}|…)\s*$/, '').replace(/\s*(\.{2,}|…)\s*/g, '، ').replace(/\?$/, '؟').replace(/([^؟!.])$/, '$1.'), l = NEWS_TOPIC_AR[x.topic] || '';   // a question stays a question   // "المغرب والجزائر.. اتصالات": a pause, not the end
-    lines.push(l && l !== label ? `${l}: ${head}` : head);
-    tags.push(newsTag(x)); info.push({ title: x.title, link: x.link || '', page: x.page || '' });
-    label = l;
-  });
-  const w = n.weather;
-  if (w && w.now && Number.isFinite(w.now.temp)) {
-    lines.push(`وإلى حالة الطقس في مراكش. حاليا ${w.now.sky || 'جو معتدل'}، ودرجة الحرارة ${w.now.temp} درجة.`);
-    if (w.rest) lines.push((w.rest.night ? 'وفي ما تبقى من الليلة، ' : 'وفي ما تبقى من اليوم، ') + wxLine(w.rest, w.rest.sky));
-    if (w.tomorrow && Number.isFinite(w.tomorrow.max)) lines.push('وغدا، ' + wxLine(w.tomorrow, w.tomorrow.sky));
-  }
-  while (tags.length < lines.length) tags.push('الطقس · Open-Meteo');   // the weather lines
-  while (info.length < tags.length) info.push({});
-  (n.extras || []).forEach(e => { lines.push(e.line); tags.push(e.tag); info.push({ title: '', link: e.link, page: '', pause: e.pause || 0 }); });   // warnings, the dirham, the next prayer, a holiday
-  lines.push('كانت هذه أبرز العناوين. شكرا لمتابعتكم.');
-  const out = lines.map(spokenArabic); out.tags = tags; out.info = info;
-  return out;   // voweled, so the voice says Murrākush, not Marākish
-}
+let newsEarly = null, lastNewsSources = null, newsLink = '';
 async function runNews(manual) {
   if (newsOn) return;
-  if (!started) { if (manual) toast('Press play first, then try the news.'); return; }
+  if (!started) { if (manual) toast('Press play first, then try the bulletin.'); return; }
   newsBack = resumeTarget();
   newsShown = { kind: $('kind').textContent, title: $('title').textContent, artist: $('artist').textContent, chips: $('chips').innerHTML };
   if (globalPaused) clearPause();
   stopSpeech(); newsOn = true;
   const id = runId;
   busy = true; clearTimeout(startWatch); planned = null; preload = null;
-  pl.forEach(p => { if (!p) return; fadeP(p, 0, 1200).then(() => { try { if (newsOn) p.pauseVideo(); } catch {} }); });
+  fadeP(P(), 0, 1200).then(() => { try { if (newsOn) P().pauseVideo(); } catch {} });
   bedOff(0.8);
-  $('kind').textContent = 'news'; $('title').textContent = 'The News'; $('artist').textContent = 'الأخبار · ' + clock(); $('chips').innerHTML = '';
+  $('kind').textContent = 'the bulletin'; $('title').textContent = 'The Feel Good Bulletin'; $('artist').textContent = clock(); $('chips').innerHTML = '';
   $('vinyl').classList.add('talk'); setLive(true);
-  rlog('news', { manual, back: newsBack && newsBack.type, arabicVoice: arWho() });
   const early = !manual && newsEarly && Date.now() - newsEarly.at < 15 * 60e3 ? newsEarly.p : null; newsEarly = null;
-  const fetched = withTimeout(early || getNews(manual), mobileWeb() ? 75000 : 45000).catch(() => null);
-  await sleep(1300);
-  if (id !== runId) return;
-  $('capKind').textContent = R.host;
-  await say(sub(fresh('newsin', NEWS_IN)), 'h');
-  let ready = false; fetched.then(() => { ready = true; });
-  if (mobileWeb()) await sleep(1500);
-  if (!ready && id === runId && mobileWeb()) { bedOn(); await say(fresh('newswait', ['The headlines are coming in. One moment.', 'One moment, the news is on its way.', 'The wires are still coming in. Bear with me.']), 'h'); }   // a slow connection: no silence
+  const fetched = withTimeout(early || getNews(manual), 45000).catch(() => null);
+  await sleep(1000); if (id !== runId) return;
+  $('capKind').textContent = 'Joe';
+  await say(sub(fresh('newsin', B().intro || ['It is {time}: time for the Feel Good Bulletin.'])), 'h');
   const n = await fetched;
-  if (mobileWeb()) bedOff(0.8);
   if (id !== runId) return;
-  if (n) { lastNewsSources = n.sources || null; lastNewsVia = n.via || ''; paintNewsNote(); }
-  rlog('news fetched', { via: n && n.via, items: n && (n.items || []).length, weather: !!(n && n.weather), sources: n && n.sources && n.sources.map(s => s.id + (s.ok ? ':ok' : ':' + s.error)).join(' ') });
-  if (!n || (!(n.items || []).length && !(n.weather && n.weather.now))) {
-    await say('The news sources are not answering right now, so no headlines this time. Back to where we were.', 'h');
-    if (id === runId) finishNews();
-    return;
-  }
-  await newsJingleRun();
+  if (n) { lastNewsSources = n.sources || null; paintNewsNote(); }
+  rlog('bulletin', { items: n && n.items.length, weather: !!(n && n.weather), sources: n && n.sources.map(s => s.id + (s.ok ? ':ok' : ':x')).join(' ') });
+  if (!n || (!n.items.length && !n.weather)) { await say(fresh('newsnone', B().none || ['The news wires are taking a nap, so no bulletin this time. Back to the music.']), 'h'); if (id === runId) finishNews(); return; }
+  newsJingle = Jingles.play(getCtx(), 'bulletin'); await newsJingle.done; newsJingle = null;
   if (id !== runId) return;
-  $('capKind').textContent = 'الأخبار';
-  const lines = arabicBulletin(n);
-  try { localStorage.setItem('pbd-news-last', JSON.stringify({ at: Date.now(), lines: lines.map((t, i) => ({ said: t, tag: lines.tags[i] || '', ...(lines.info[i] || {}) })) })); } catch {}
-  newsArrows(true);
-  let jumped = false;
-  for (let li = 0; li < lines.length; ) {
-    newsAt = li; newsJump = 0; const tok = ++newsLineTok;
-    $('capText').textContent = lines[li]; newsLink = ((lines.info || [])[li] || {}).link || ''; $('capSrc').textContent = ((lines.tags || [])[li] || '') + (newsLink ? ' · ↗ tap to open' : ''); $('cap').classList.toggle('linkable', !!newsLink);   // shown at once, also right after an arrow
-    if (jumped) { jumped = false; await sleep(250); try { speechSynthesis.cancel(); speechSynthesis.resume(); } catch {} await sleep(100); if (id !== runId) break; if (newsJump) { li = Math.max(0, Math.min(lines.length, li + newsJump)); jumped = true; continue; } }   // let the voice settle after the cancel (an arrow pressed meanwhile moves on again)
-    await Promise.race([mobileWeb() ? sayArabic(lines[li]) : sayNewsComputer(lines[li]), new Promise(r => { newsSkipTo = r; })]);
-    if (id !== runId) { newsArrows(false); return; }
-    if (newsJump) { li = Math.max(0, Math.min(lines.length, li + newsJump)); jumped = true; continue; }   // an arrow: that headline right away, then on from there
+  $('capKind').textContent = 'The Feel Good Bulletin';
+  const ls = buildBulletin(n);
+  try { localStorage.setItem('fgi-news-last', JSON.stringify({ at: Date.now(), lines: ls.map((t, i) => ({ said: t, ...(ls.info[i] || {}) })) })); } catch {}
+  for (let i = 0; i < ls.length; i++) {
+    const tok = ++newsLineTok; newsLink = (ls.info[i] || {}).link || '';
+    $('capSrc').textContent = (ls.info[i] || {}).tag || ''; $('cap').classList.toggle('linkable', !!newsLink);
+    await say(ls[i], 'n');
+    if (id !== runId) return;
     if (tok !== newsLineTok) continue;
-    li++; await sleep(350 + (((lines.info || [])[li - 1] || {}).pause || 0));
+    await sleep(350);
   }
-  newsArrows(false);
-  await newsJingleRun();
+  $('capSrc').textContent = ''; newsLink = ''; $('cap').classList.remove('linkable');
   if (id !== runId) return;
-  $('capKind').textContent = R.host;
-  await say(sub(fresh('newsout', NEWS_OUT)), 'h');
+  $('capKind').textContent = 'Joe';
+  await say(sub(fresh('newsout', B().outro || ['That was the bulletin. Back to the music.'])), 'h');
   if (id === runId) finishNews();
 }
-// ‹ and › in the caption box, only while the headlines are read: the previous headline, or the next one
-let newsAt = 0, newsJump = 0, newsLineTok = 0, newsSkipTo = null;
-function newsArrows(on) { ['newsPrev', 'newsNext'].forEach(i => { const b = $(i); if (b) b.style.display = on ? '' : 'none'; }); $('cap').classList.toggle('arrows', !!on); if (!on) { $('capSrc').textContent = ''; newsLink = ''; $('cap').classList.remove('linkable'); } }
-let newsLink = '';
-$('cap').addEventListener('click', async e => {   // during the news: the article being read, in your browser
+$('cap').addEventListener('click', async e => {   // during the bulletin: the story being read, in the browser
   if (!newsOn || !newsLink || e.target.closest('button')) return;
   const url = newsLink;
   if (helperOpens) { try { const r = await fetch('/api/open?url=' + encodeURIComponent(url)); if (r.ok) return toast('Opened in your browser.'); } catch {} }
   window.open(url, '_blank', 'noopener');
 });
-function newsStep(d) {
-  if (!newsOn) return;
-  newsJump = d; newsLineTok++;
-  try { speechSynthesis.cancel(); } catch {} try { if (curAudio) curAudio.pause(); } catch {}
-  if (newsSkipTo) { const r = newsSkipTo; newsSkipTo = null; r(); }
-}
-$('newsPrev').onclick = e => { e.stopPropagation(); newsStep(-1); };
-$('newsNext').onclick = e => { e.stopPropagation(); newsStep(1); };
-function endNews() {   // Next during the news
-  if (!newsOn) return;
-  stopSpeech(); if (newsJingle) { try { newsJingle.stop(); } catch {} newsJingle = null; }
-  finishNews();
-}
+function endNews() { if (!newsOn) return; stopSpeech(); if (newsJingle) { try { newsJingle.stop(); } catch {} newsJingle = null; } finishNews(); }
 function finishNews() {
-  newsArrows(false);
+  $('capSrc').textContent = ''; newsLink = ''; $('cap').classList.remove('linkable');
   const back = newsBack; newsOn = false; newsBack = null; busy = false;
   $('vinyl').classList.remove('talk'); caption(R.host, '');
   if (newsShown) { $('kind').textContent = newsShown.kind; $('title').textContent = newsShown.title; $('artist').textContent = newsShown.artist; $('chips').innerHTML = newsShown.chips; newsShown = null; }
@@ -2544,62 +1727,94 @@ function finishNews() {
   if (back.type === 'pod') { busy = true; stopSpeech(); return playPodcast(back.pod, null, { scheduled: true }, runId); }
   return advance({ song: back.song, prev: null, silent: true, noCount: true, quick: true });
 }
-// on the hour, every 4 hours; skipped while you have paused the radio. The headlines are gathered 3 minutes before,
-// while the music plays, so a slow connection does not keep you waiting (and has time to bring every section).
-let newsEarly = null;   // { slot, at, p }
-setInterval(() => {
-  if (!started || S.news === 'off' || newsOn) return;
+// Not in Just music, not in Homework mode, not during an Album Party; skipped while the radio is paused.
+const bulletinAllowed = () => started && S.news !== 'off' && !S.justMusic && !focusMode && !albumShow && !newsOn;
+setInterval(() => {   // gathered 3 minutes before, while the music plays
+  if (!bulletinAllowed()) return;
   const e = new Date(Date.now() + 3 * 60e3);
-  if (e.getMinutes() === 0 && !(e.getHours() % 4)) {
+  if (e.getMinutes() === 0 && BULLETIN_HOURS.includes(e.getHours())) {
     const slot = e.toDateString() + ' ' + e.getHours();
-    if (!newsEarly || newsEarly.slot !== slot) { newsEarly = { slot, at: Date.now(), p: getNews(false).catch(() => null) }; rlog('news gathered early', { slot }); }
+    if (!newsEarly || newsEarly.slot !== slot) newsEarly = { slot, at: Date.now(), p: getNews(false).catch(() => null) };
   }
 }, 5000);
-setInterval(() => {
-  if (!started || S.news === 'off' || newsOn || globalPaused) return;
-  const d = new Date(); if (d.getMinutes() !== 0 || d.getHours() % 4) return;
+setInterval(() => {   // at the hour, or at the end of the song that is playing then (up to 10 minutes late), never mid-talk
+  if (!bulletinAllowed() || globalPaused) return;
+  const d = new Date(); if (!BULLETIN_HOURS.includes(d.getHours()) || d.getMinutes() > 10) return;
   const slot = d.toDateString() + ' ' + d.getHours(); if (slot === lastNewsSlot) return;
+  if (busy || speaking) return;
   lastNewsSlot = slot; runNews(false);
 }, 5000);
-let lastNewsSources = null, lastNewsVia = '';
 function paintNewsNote() {
   const n = $('newsNote'); if (!n) return;
-  const old = HELPER && helperNewsMissing ? 'Your PC helper is an older version: close the radio completely and open it again (twice) to update it. Meanwhile the headlines come through the web. ' : '';
-  if (!lastNewsSources) { n.textContent = old + 'every 4 hours on the hour, in Arabic'; return; }
-  n.textContent = old + (lastNewsVia ? `last news via ${lastNewsVia}: ` : '') + lastNewsSources.map(x => `${x.name} ${x.ok ? '✓' : '✗ ' + x.error}`).join(' · ');
+  if (!lastNewsSources) { n.textContent = 'around 14:00 and 20:00, about 2 minutes'; return; }
+  n.textContent = 'last bulletin: ' + lastNewsSources.map(x => `${x.name} ${x.ok ? '✓' : '✗'}`).join(' · ');
+}
+// ---------- searching YouTube: through the PC helper, or (the website) through public relays ----------
+// On the website there is no helper, so the page reads YouTube's results page through the same public relays the
+// bulletin uses. A pasted YouTube link always works: its title comes from YouTube's oEmbed, which any page may read.
+const ytIdOf = s => { const m = String(s).match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([\w-]{11})/) || String(s).trim().match(/^([\w-]{11})$/); return m ? m[1] : ''; };
+const secsOf = t => { if (!t) return 0; return String(t).split(':').reduce((n, x) => n * 60 + (+x || 0), 0); };
+async function oembed(id) {
+  try { const r = await withTimeout(fetch('https://www.youtube.com/oembed?format=json&url=' + encodeURIComponent('https://www.youtube.com/watch?v=' + id)), 9000); if (!r.ok) return null; const j = await r.json(); return { id, title: j.title || '', channel: j.author_name || '', seconds: 0 }; } catch { return null; }
+}
+function parseResults(html) {
+  const i = html.indexOf('ytInitialData'); if (i < 0) return [];
+  const start = html.indexOf('{', i); let depth = 0, end = start;
+  for (let k = start; k < html.length; k++) { const c = html[k]; if (c === '{') depth++; else if (c === '}') { depth--; if (!depth) { end = k + 1; break; } } else if (c === '"') { k++; while (k < html.length && html[k] !== '"') { if (html[k] === '\\') k++; k++; } } }
+  let data; try { data = JSON.parse(html.slice(start, end)); } catch { return []; }
+  const out = [], walk = o => { if (Array.isArray(o)) return o.forEach(walk); if (o && typeof o === 'object') { if (o.videoRenderer) { const v = o.videoRenderer, tx = x => x ? (x.simpleText || (x.runs || []).map(r => r.text).join('')) : ''; out.push({ id: v.videoId, title: tx(v.title), channel: tx(v.ownerText || v.longBylineText), seconds: secsOf(tx(v.lengthText)) }); } else Object.values(o).forEach(walk); } };
+  walk(data); return out.filter(v => v.id);
+}
+async function ytSearch(q, a = '', t = '') {
+  const id = ytIdOf(q);
+  if (id) { const v = await oembed(id); return v ? [v] : []; }
+  if (HELPER) {
+    try { const r = await fetch('/api/search?q=' + encodeURIComponent(q) + (a ? '&a=' + encodeURIComponent(a) + '&t=' + encodeURIComponent(t) : '')); const j = await r.json(); if (Array.isArray(j)) return j; } catch {}
+    return [];
+  }
+  const url = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q) + '&sp=EgIQAQ%253D%253D';
+  const relays = RELAYS.slice(1, 4).map(f => f(url));
+  try {
+    const html = await Promise.any(relays.map(u => withTimeout(fetch(u).then(r => r.ok ? r.text() : Promise.reject(new Error('HTTP ' + r.status))), 15000).then(h => { if (!/ytInitialData/.test(h)) throw new Error('not YouTube'); return h; })));
+    const list = parseResults(html), ft = fold(t || q);
+    return list.filter(v => !/#shorts/i.test(v.title)).sort((x, y) => (fold(y.title).includes(ft) - fold(x.title).includes(ft))).slice(0, 8);
+  } catch { return []; }
 }
 
 // ---------- genre runs: the next 20 to 40 songs come from one genre, then back to the normal mix ----------
 const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-function startRun(id) {
+function startRun(id, opts = {}) {
   let favList = null, pack = (R.runs || []).find(p => p.id === id);
   if (id === 'fav') {   // a run made of your favorites
     favList = (lib.fav || []).map(favToSong).filter(s => !lib.removed.includes(s.key));   // a song you removed stays out, even if it was a favorite
-    if (!favList.length) return toast('No favorites yet. Press the heart on a song you love.');
-    pack = { id: 'fav', label: 'Your favorites', short: 'Favorites', genres: [], langs: [], songs: [], tags: [], genre: '' };
+    if (!favList.length) return toast('No liked songs yet. Press the ♥ on a song you love.');
+    pack = { id: 'fav', label: 'your Liked Songs', short: 'Liked Songs', genres: [], langs: [], songs: [], tags: [], genre: '' };
   }
   const L = id.startsWith('list:') && (lib.lists || []).find(x => 'list:' + x.key === id);
   if (L) {   // one of your saved lists: all of it, shuffled
     favList = listSongs(L);
-    if (!favList.length) return toast('That list has no songs left in the library.');
-    pack = { id, label: 'your list, ' + L.name, short: L.name, genres: [], langs: [], songs: [], tags: [], genre: '' };
+    if (!favList.length) return toast('That playlist is empty.');
+    pack = { id, label: 'your playlist, ' + L.name, short: L.name, genres: [], langs: [], songs: [], tags: [], genre: '' };
   }
   if (!pack) return;
   const size = Math.random() < 0.15 ? 40 : 20 + Math.floor(Math.random() * 11);
   const rs = recentSets();
   const fits = songs.filter(s => (pack.genres || []).includes(s.genre));
   const fresher = fits.filter(s => !rs.recentKeys.has(s.key));          // songs not heard lately come first
-  const list = favList ? shuffle(favList) : [...shuffle(fresher), ...shuffle(fits.filter(s => rs.recentKeys.has(s.key)))];
+  const list = favList ? (opts.order ? (id === 'fav' ? favList.slice().reverse() : favList.slice()) : shuffle(favList)) : [...shuffle(fresher), ...shuffle(fits.filter(s => rs.recentKeys.has(s.key)))];
   if (!list.length) return toast('No songs of that genre in the library yet.');
-  batch = { id, label: pack.label, short: pack.short, left: L ? list.length : Math.min(size, list.length), list };
+  batch = { id, label: pack.label, short: pack.short, left: favList ? list.length : Math.min(size, list.length), list, order: !!opts.order };
   planned = null; preload = null; startAnnounce = pack.label; songsSinceBreak = 99; lastRunSong = null;
-  toast(L ? `Your list "${L.name}": ${batch.left} songs, shuffled. It starts after this song.` : `Genre run: ${pack.short}, about ${batch.left} songs. It starts after this song.`);
+  toast(favList ? `${pack.short}: ${batch.left} songs${opts.order ? '' : ', shuffled'}. Starting now.` : `Genre Mix: ${pack.short}, about ${batch.left} songs. It starts after this song.`);
+  if (favList && started && !newsOn) { songsSinceBreak = 0; startAnnounce = null; stopSpeech(); advance({ quick: true, silent: true, noCount: true }); }
   updateRunUI();
 }
-function stopRun() { batch = null; startAnnounce = null; planned = null; preload = null; toast('Back to the normal mix.'); updateRunUI(); }
+function stopRun() { batch = null; startAnnounce = null; planned = null; preload = null; toast('Back to the radio mix.'); updateRunUI(); }
 function nextFromRun() {
   const lastA = current && current.a ? current.a.toLowerCase() : '';
-  const s = batch.list.find(x => !played.includes(x.key) && !(current && x.key === current.key) && (x.a || '').toLowerCase() !== lastA) || batch.list.find(x => !played.includes(x.key) && !(current && x.key === current.key));
+  const fresh1 = x => !(batch.done || []).includes(x.key) && !(current && x.key === current.key);
+  const s = batch.order ? batch.list.find(fresh1) : (batch.list.find(x => fresh1(x) && (x.a || '').toLowerCase() !== lastA) || batch.list.find(fresh1));
+  if (s) (batch.done = batch.done || []).push(s.key);
   if (!s) { batch = null; updateRunUI(); return null; }
   batch.left--;
   if (batch.left <= 0) { lastRunSong = { key: s.key, label: batch.label }; batch = null; }
@@ -2609,15 +1824,12 @@ function nextFromRun() {
 function updateRunUI() {
   $('btnRun').classList.toggle('on', !!batch);
   $('runInfo').style.display = batch ? '' : 'none';
-  if (batch) $('runInfo').textContent = `${batch.short} run · ${batch.left} songs left`;
+  if (batch) $('runInfo').textContent = `${batch.short} · ${batch.left} songs left`;
 }
 function openRun() {
   const l = $('runList'); l.innerHTML = '';
   const add = (label, sub, active, fn) => { const d = document.createElement('div'); d.className = 'item' + (active ? ' now' : ''); d.innerHTML = '<div class="meta"><b></b><span></span></div>'; d.querySelector('b').textContent = label; d.querySelector('span').textContent = sub; d.onclick = () => { openSheet(null); fn(); }; l.appendChild(d); };
-  add('Off: normal mix', 'The usual wandering mix of everything', !batch, () => { if (batch) stopRun(); else toast('Already on the normal mix.'); });
-  const nFav = (lib.fav || []).length;
-  add('♥ Your favorites', nFav ? `${nFav} songs you hearted` : 'Press the heart on a song to add it here', batch && batch.id === 'fav', () => startRun('fav'));
-  (lib.lists || []).forEach(L => add('▶ ' + L.name, `your list · ${listSongs(L).length} songs, all of them`, batch && batch.id === 'list:' + L.key, () => startRun('list:' + L.key)));
+  add('Off: the radio mix', 'Everything, mixed by feeling', !batch, () => { if (batch) stopRun(); else toast('Already on the radio mix.'); });
   (R.runs || []).forEach(p => { const n = songs.filter(s => p.genres.includes(s.genre)).length; add(p.label, `${n} songs`, batch && batch.id === p.id, () => startRun(p.id)); });
   openSheet('shRun');
 }
@@ -2655,9 +1867,9 @@ async function togglePlay() {
 }
 function next() {
   if (!started) return;
-  if (newsOn) return endNews(true);   // Next during the news: stop it and go back to what was playing
+  if (newsOn) return endNews();   // Next during the bulletin: stop it and go back to what was playing
   if (globalPaused) resumeAll();
-  if (breakSkip) { const b = breakSkip; breakSkip = null; b(); return; }   // during a commercial break: skip the current jingle, ad or spoken line
+  if (breakSkip && !curBreak) { const b = breakSkip; breakSkip = null; b(); return; }
   try { // learn where a silent tail begins: if you skip near the end, trim there from now on
     if (current && !current.podcast && !current.focus && !current.album && playing && !busy) { const d = P().getDuration(), c = P().getCurrentTime(); if (d > 60 && d - c < 90 && d - c > 3) { lib.trim[current.key] = Math.max(0, c - 1); saveLib(); toast('Got it. I will end this song right here from now on.'); } }
   } catch {}
@@ -2667,6 +1879,7 @@ function prev() { if (started && globalPaused) resumeAll(); if (started && marat
 async function tuneIn() {
   if (!songs.length) { $('tuneSub').textContent = 'one moment, loading your library…'; await bootDone; }   // play pressed while the library (or a slow sign-in) is still loading
   started = true; $('tune').style.display = 'none'; unlockAudio();
+  setTimeout(() => startTour(false), 1500);
   if (!voices.length) loadVoices();
   try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch {}
   setPlayIcon(true);
@@ -2723,7 +1936,7 @@ $('btnUpdate').onclick = async () => {
 };
 
 // ---------- panels ----------
-const sheets = ['shAdd', 'shLib', 'shSet', 'shRun', 'shAds', 'shVer', 'shReport', 'shLabel', 'shMarathon', 'shGenre'];
+const sheets = ['shAdd', 'shLib', 'shSet', 'shRun', 'shVer', 'shReport', 'shMarathon', 'shGenre', 'shAddTo', 'shPlEdit'];
 $('btnReport').onclick = () => {
   const head = [`device: ${/Android|iPhone|iPad/i.test(navigator.userAgent) ? (navigator.userAgent.match(/Android[^;)]*|iPhone|iPad/) || [''])[0] : 'computer'} · ${(navigator.userAgent.match(/(EdgA|Edg|Brave|SamsungBrowser|Firefox|Chrome)\/[\d.]+/) || ['browser'])[0]}`,
     `helper on this device: ${HELPER ? 'yes' : 'no'} · cloud: ${window.Cloud && Cloud.user ? 'signed in' : 'not signed in'} · now: ${current ? current.a + ' - ' + current.t : 'nothing'}`, ''];
@@ -2733,13 +1946,11 @@ $('btnReport').onclick = () => {
 function openSheet(id) { sheets.forEach(s => $(s).classList.toggle('open', s === id)); }
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => openSheet(null));
 
-$('addThemes').innerHTML = THEMES.map(t => `<label><input type="checkbox" value="${t}"><span>${t}</span></label>`).join('');
 async function doSearch() {
   const q = $('addq').value.trim(); if (!q) return;
-  if (!HELPER) { $('addRes').innerHTML = `<p style="color:var(--mute)">${NEEDS_PC}</p>`; return; }
   $('addRes').innerHTML = '<p style="color:var(--mute)">Searching…</p>';
   try {
-    const r = await (await fetch('/api/search?q=' + encodeURIComponent(q))).json();
+    const r = await ytSearch(q);
     if (!r.length) throw 0;
     $('addRes').innerHTML = '';
     r.slice(0, 6).forEach(v => {
@@ -2749,26 +1960,26 @@ async function doSearch() {
       d.querySelector('button').onclick = () => addSong(v, q);
       $('addRes').appendChild(d);
     });
-  } catch { $('addRes').innerHTML = '<p style="color:var(--mute)">Nothing found, or the search failed. Try different words.</p>'; }
+  } catch { $('addRes').innerHTML = `<p style="color:var(--mute)">Nothing found, or the search did not answer. Try other words${HELPER ? '' : ', or paste the song\'s YouTube link'}.</p>`; }
 }
 async function addSong(v, q) {
   if (suggestStation()) return addFocus(v);
   // a suggested song is added to your library and plays next. Nothing else is pulled in with it.
-  const ts = [...document.querySelectorAll('#addThemes input:checked')].map(i => i.value);
+  const ts = [];
   const ded = ($('addDed').value || '').trim().slice(0, 200); $('addDed').value = '';
   const { a, t } = splitTitle(v);
-  const draft = { a, t, q, tags: ts.length ? ts : (current && current.tags && current.tags.length ? current.tags.slice() : ['absurd']), genre: '', user: true, cands: [v], added: Date.now() };
+  const draft = { a, t, q, tags: ts.length ? ts : (current && current.tags && current.tags.length ? current.tags.slice() : ['fun']), genre: (current && current.genre) || '', user: true, cands: [v], added: Date.now() };
   draft.key = key(draft);
   let s = songs.find(x => (x.cands || []).some(c => c.id === v.id)) || songs.find(x => x.key === draft.key);
   const isNew = !s;
   if (isNew) { lib.user.push(draft); lib.cache[draft.key] = draft.cands; buildSongs(); saveLib(); s = songs.find(x => x.key === draft.key); }
   if (ded) dedications.set(s.key, ded); else dedications.delete(s.key);
   queueNext(s);
-  openSheet(null); $('addq').value = ''; document.querySelectorAll('#addThemes input').forEach(i => i.checked = false);
-  toast(isNew ? '"' + s.t + '" was added to your library and plays next.' : '"' + s.t + '" plays next.');
+  openSheet(null); $('addq').value = '';
+  toast(isNew ? '"' + s.t + '" is in Your Library now, and plays next.' : '"' + s.t + '" plays next.');
 }
 // In Focus mode (a station), Suggest adds the track to that station instead of the library, and plays it next
-const suggestStation = () => focusMode && focusMode !== 'sounds' && HELPER ? focusStation(focusMode) : null;
+const suggestStation = () => focusMode && focusMode !== 'sounds' ? focusStation(focusMode) : null;
 function addFocus(v) {
   const st = suggestStation(), { a, t } = splitTitle(v);
   const s = Object.assign(focusSong(a, t, st.id), { pin: [v] });
@@ -2780,11 +1991,11 @@ function addFocus(v) {
 }
 function paintSuggest() {   // the Suggest sheet, for the radio or for the Focus station that is playing
   const st = suggestStation();
-  $('addTabs').style.display = st ? 'none' : ''; $('addDed').parentNode.style.display = st ? 'none' : ''; $('addThemes').style.display = st ? 'none' : '';
+  $('addTabs').style.display = st ? 'none' : ''; $('addDed').parentNode.style.display = st ? 'none' : '';
   if (st && addTab === 'list') $('addTabs').querySelector('[data-v="one"]').click();
-  $('shAdd').querySelector('.hd h2').textContent = st ? 'Suggest for ' + st.label : 'Suggest';
-  $('addq').placeholder = st ? 'Artist - track title (instrumental)' : 'Artist - song title';
-  $('addRes').innerHTML = '<p style="color:var(--mute);font-size:13px;line-height:1.5">' + (st ? 'Type an instrumental track and pick the right result. It joins the ' + st.label + ' station (not your library) and plays next.' : 'Type what you want to hear and pick the right result. I will add just that song to the library and play it next. Optionally, tick the themes it belongs to.') + '</p>';
+  $('shAdd').querySelector('.hd h2').textContent = st ? 'Add a track to ' + st.label : 'Add a song';
+  $('addq').placeholder = st ? 'Artist - track (instrumental)' : 'Artist - song, or a YouTube link';
+  $('addRes').innerHTML = '<p style="color:var(--mute);font-size:13px;line-height:1.5">' + (st ? 'Type an instrumental track and pick the right one. It joins ' + st.label + ' and plays next.' : 'Type a song (or paste its YouTube link) and pick the right one. It goes into Your Library and plays next.') + '</p>';
 }
 function queueNext(song) {
   if (nextPending && !nextOverride) { nextOverride = song; return; } // the host is mid-break: swap it in before the next song starts
@@ -2850,7 +2061,7 @@ async function findLine(line) {
   const ex = findKnown(a, t); if (ex) return listEntry(ex.a, ex.t, ex.cands, line);
   const ask = async q => {
     await slot();
-    const r = await fetch('/api/search?q=' + q); const j = r.ok ? await r.json() : null;
+    const j = HELPER ? await fetch('/api/search?q=' + q).then(r => r.ok ? r.json() : null).catch(() => null) : await ytSearch(decodeURIComponent(q.split('&')[0]));
     if (!Array.isArray(j)) { pace.gap = 2000; throw new Error('refused'); }
     if (pace.gap > 300) pace.gap = Math.max(300, Math.round(pace.gap * 0.8));   // answering again: speed back up
     return j;
@@ -2892,10 +2103,10 @@ $('listRetry').onclick = async () => {
 };
 $('listGo').onclick = async () => {
   if (listBusy) { listBusy = false; return; }   // the button reads "Stop" while searching
-  if (!HELPER) { $('listStatus').textContent = NEEDS_PC; return; }
   const raw = $('listIn').value.trim(); if (!raw) return;
+  if (!HELPER && /[?&]list=|^(PL|OL|UU|FL|RD)[\w-]{10,}$/.test(raw)) { $('listStatus').textContent = 'Reading a YouTube playlist link works in the installed app. Here, paste the songs instead, one "Artist - Title" per line.'; return; }
   listItems = []; renderListRes(); listBusy = true; $('listGo').textContent = 'Stop';
-  $('listGenre').innerHTML = genreOptions('none, I will label them later');
+  $('listGenre').innerHTML = genreOptions('let the radio decide');
   try {
     const pl = raw.match(/[?&]list=([\w-]+)/) || (/^(PL|OL|UU|FL|RD)[\w-]{10,}$/.test(raw) ? [raw, raw] : null);
     if (pl) {
@@ -2908,7 +2119,7 @@ $('listGo').onclick = async () => {
       $('listStatus').textContent = `"${j.title}": ${listItems.length} songs. Untick any you don't want, or press "other" for another version.`;
     } else {
       const lines = raw.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
-      if (!$('listName').value.trim()) $('listName').value = 'My list, ' + new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      if (!$('listName').value.trim()) $('listName').value = 'My playlist, ' + new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
       const slots = [];
       await searchLines(lines, (i, it) => { slots[i] = it; listItems = slots.filter(Boolean); }, 'Searching:');
       const found = listItems.filter(x => !x.missing).length, refused = listItems.filter(x => x.failed).length;
@@ -2936,39 +2147,18 @@ $('listAdd').onclick = () => {
     lib.lists = lib.lists || [];
     L = lib.lists.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (L) { L.keys = [...new Set([...L.keys, ...keys])]; L.ts = now; if (genre) L.genre = genre; }
-    else lib.lists.push(L = { key: 'l' + now.toString(36), name, keys, genre, created: now, ts: now });
+    else lib.lists.push(L = { key: 'l' + now.toString(36), name, keys, genre, created: now, ts: now, color: rnd(COVER_COLORS), sticker: window.Stickers ? rnd(Stickers.names) : 'cassette' });
   }
   saveLib(); if (window.Cloud && Cloud.user) Cloud.push(lib, true);
   const playNext = $('listPlayNext').checked;
   if (playNext) { planned = null; preload = null; keys.forEach(k => { const s = songs.find(x => x.key === k); if (s) upNext.push(s); }); }
   rlog('list added', { songs: keys.length, new: added, list: name, genre, playNext });
   const left = keys.filter(k => { const s = songs.find(x => x.key === k); return s && !s.genre; }).length;
-  toast(`${L ? `List "${L.name}" saved, ${keys.length} songs (${added} new)` : `${added} song${added === 1 ? '' : 's'} added to your library`}${playNext ? ', playing next' : ''}.${left ? ` ${left} still need a genre.` : ''}`);
+  toast(`${L ? `Playlist "${L.name}" saved, ${keys.length} songs (${added} new)` : `${added} song${added === 1 ? '' : 's'} added to Your Library`}${playNext ? ', playing next' : ''}.`);
   listItems = []; renderListRes(); $('listIn').value = ''; $('listName').value = ''; openSheet(null);
 };
 
-// ---------- labels for any song: genre, lyric themes, mood, energy (kept in lib.labels, synced through the cloud) ----------
-const MOODS = ['calm', 'warm', 'dreamy', 'melancholic', 'dark', 'tense', 'playful'];
-let labelKey = null, labelEnergy = 2;
-function openLabels(s) {
-  labelKey = s.key; $('labelSong').textContent = `${s.a} - ${s.t}`;
-  $('labelGenre').innerHTML = genreOptions('choose a genre');
-  $('labelGenre').value = s.genre || '';
-  $('labelThemes').innerHTML = THEMES.map(t => `<label><input type="checkbox" value="${t}"${(s.tags || []).includes(t) ? ' checked' : ''}><span>${t}</span></label>`).join('');
-  $('labelMood').innerHTML = MOODS.map(m => `<option>${m}</option>`).join(''); $('labelMood').value = MOODS.includes(s.mood) ? s.mood : 'calm';
-  labelEnergy = s.energy || 2; paintEnergy();
-  openSheet('shLabel');
-}
-function paintEnergy() { document.querySelectorAll('#labelEnergy button').forEach(b => b.classList.toggle('on', +b.dataset.v === labelEnergy)); }
-document.querySelectorAll('#labelEnergy button').forEach(b => b.onclick = () => { labelEnergy = +b.dataset.v; paintEnergy(); });
-$('labelSave').onclick = () => {
-  const genre = $('labelGenre').value; if (!genre) return toast('Choose a genre first.');
-  const tags = [...document.querySelectorAll('#labelThemes input:checked')].map(i => i.value), mood = $('labelMood').value;
-  lib.labels = lib.labels || {}; lib.labels[labelKey] = { genre, tags, mood, energy: labelEnergy, ts: Date.now() };
-  const u = lib.user.find(x => x.key === labelKey); if (u) { u.genre = genre; u.tags = tags; u.mood = mood; u.energy = labelEnergy; }
-  buildSongs(); saveLib(); toast('Labels saved.');
-  openSheet('shLib'); renderLib();
-};
+
 
 // ---------- favorites ----------
 let libTab = 'all';
@@ -2977,223 +2167,304 @@ const fold = x => (x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toL
 const libMatch = (...fields) => { const ws = fold($('libQ').value).split(' ').filter(Boolean); if (!ws.length) return true; const h = ' ' + fields.map(fold).join(' ') + ' '; return ws.every(w => h.includes(w)); };
 const noMatch = () => `<p style="color:var(--mute);font-size:13px">Nothing here matches "${$('libQ').value.replace(/[<&"]/g, '')}".</p>`;
 const favIdx = k => (lib.fav || []).findIndex(f => f.key === k);
-// ---------- Download: the song or video playing, as MP3, through an online converter ----------
-// ezconv.org takes the link in its address and starts by itself; yttmp3.com.co and tubemixlab.com do not, so the
-// link is copied for you to paste. The first site that answers is the one opened.
-const CONVERTERS = [
-  { name: 'ezconv.org', home: 'https://ezconv.org/', link: u => 'https://ezconv.org/?url=' + encodeURIComponent(u) },
-  { name: 'yttmp3.com.co', home: 'https://yttmp3.com.co/' },
-  { name: 'tubemixlab.com', home: 'https://tubemixlab.com/' },
-];
-async function downloadCurrent() {
-  const s = current; if (!s) return;
-  const v = s.cands && (s.cands[candIdx] || s.cands[0]); let id = v && v.id;
-  try { const d = P().getVideoData(); if (d && d.video_id) id = d.video_id; } catch {}
-  if (!id) return toast('No video to download right now.');
-  const url = 'https://www.youtube.com/watch?v=' + id;
-  if (!helperOpens) {   // the phone or the web: open at once (a browser blocks windows opened after a wait)
-    window.open(CONVERTERS[0].link(url), '_blank', 'noopener'); try { navigator.clipboard.writeText(url); } catch {}
-    return toast(`Opening ezconv.org with "${s.t}". Choose MP3 and the quality there.`);
-  }
-  let site = CONVERTERS[0];
-  if (HELPER) {   // the first one that opens fine right now
-    for (const c of CONVERTERS) { try { const r = await (await fetch('/api/reach?url=' + encodeURIComponent(c.home))).json(); if (r && r.ok) { site = c; break; } } catch {} }
-  }
-  try { await navigator.clipboard.writeText(url); } catch {}
-  const go = site.link ? site.link(url) : site.home;
-  try { const r = await fetch('/api/open?url=' + encodeURIComponent(go)); if (!r.ok) throw 0; } catch { window.open(go, '_blank', 'noopener'); }   // in your usual browser
-  rlog('download', { song: s.key, id, site: site.name });
-  toast(site.link ? `Opening ${site.name} with "${s.t}". Choose MP3 and the quality there.` : `Opening ${site.name}. The link of "${s.t}" is copied: paste it there.`);
-}
-$('btnDownload').onclick = downloadCurrent;
+
 function updateHeart() {
-  $('btnDownload').disabled = !current;
-  const r = $('btnRemoveSong'); if (r) { r.style.display = current && !current.podcast && !current.sounds && !current.album ? '' : 'none'; r.classList.remove('sure'); r.innerHTML = '&#10005; remove this song'; }
+  const r = $('btnRemoveSong'); if (r) { r.style.display = current && !current.podcast && !current.sounds && !current.album ? '' : 'none'; r.classList.remove('sure'); r.innerHTML = '&#10005; never play this again'; }
   const b = $('btnHeart'); if (!b) return;
   const on = !!current && favIdx(current.key) >= 0;
   b.classList.toggle('on', on); b.disabled = !current || !!current.podcast || !!current.focus || !!current.album;
-  b.title = on ? 'Remove from favorites' : 'Add to favorites'; b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  b.title = on ? 'Remove from Liked Songs' : 'Add to Liked Songs'; b.setAttribute('aria-pressed', on ? 'true' : 'false');
 }
 function toggleFav() {
   if (!current || current.podcast) return;
   lib.fav = lib.fav || []; const i = favIdx(current.key);
-  if (i >= 0) { lib.fav.splice(i, 1); markDeleted('fav', current.key); toast('Removed from your favorites.'); }
+  if (i >= 0) { lib.fav.splice(i, 1); markDeleted('fav', current.key); toast('Removed from Liked Songs.'); }
   else {
     const c = current.cands && (current.cands[candIdx] || current.cands[0]);   // remember the exact version that is playing
     lib.fav.push({ key: current.key, a: current.a, t: current.t, id: c ? c.id : null, tags: (current.tags || []).slice(), genre: current.genre || '', ts: Date.now() });
-    toast(`"${current.t}" is now in your favorites.`);
+    toast(`"${current.t}" is in your Liked Songs.`);
   }
   saveLib(); updateHeart(); if ($('shLib').classList.contains('open')) renderLib();
 }
+const artistParts = a => String(a || "").split(/\s*(?:,|&|\+|\/|\bfeat\b\.?|\bft\b\.?|\s[x×]\s|\band\b|\bwith\b|\bvs\b\.?)\s*/i).map(x => fold(x).trim()).filter(x => x.length > 1);
 function favToSong(f) {
   const ex = songs.find(s => s.key === f.key);
-  const cands = f.id ? [{ id: f.id, title: f.t, channel: f.a, seconds: 0 }] : (ex && ex.cands);
-  return Object.assign({}, ex || { a: f.a, t: f.t, q: f.a + ' ' + f.t, tags: f.tags && f.tags.length ? f.tags : ['absurd'], genre: f.genre || '' }, { key: f.key, cands });
+  const cands = f.id ? [{ id: f.id, title: f.t, channel: f.a, seconds: 0 }].concat(((ex && ex.cands) || []).filter(c => c.id !== f.id)) : (ex && ex.cands);
+  return Object.assign({}, ex || { a: f.a, t: f.t, q: f.a + ' ' + f.t, tags: f.tags && f.tags.length ? f.tags : ['fun'], genre: f.genre || '' }, { key: f.key, cands });
 }
+const songSecs = s => ((s && s.cands && s.cands[0] && s.cands[0].seconds) || 0);
+const howLong = list => { const m = Math.round(list.reduce((n, s) => n + (songSecs(s) || 210), 0) / 60); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`; };
+// a button that needs a second tap (nothing is lost by a slip of the finger)
+function twoTap(b, sureText, fn) {
+  let sure = 0; const label = b.innerHTML;
+  b.onclick = e => { e.stopPropagation(); if (Date.now() > sure) { sure = Date.now() + 4000; b.classList.add('sure'); b.textContent = sureText; setTimeout(() => { if (Date.now() > sure) { b.classList.remove('sure'); b.innerHTML = label; } }, 4100); return; } sure = 0; fn(); };
+}
+const row = (title, sub, btns, onMeta, now) => {
+  const d = document.createElement('div'); d.className = 'item' + (now ? ' now' : '');
+  d.innerHTML = `<div class="meta"><b></b><span></span></div>` + btns.map(([icon, tip]) => `<button class="mini-btn" title="${tip}" aria-label="${tip}">${icon}</button>`).join('');
+  d.querySelector('b').textContent = title; d.querySelector('span').textContent = sub;
+  if (onMeta) d.querySelector('.meta').onclick = onMeta;
+  return d;
+};
 function renderFav() {
   const l = $('libList'); l.innerHTML = ''; const f = lib.fav || [];
-  $('libCount').textContent = `· ${f.length} favorites`;
-  if (!f.length) { l.innerHTML = '<p style="color:var(--mute);font-size:13px;line-height:1.5">No favorites yet. Press the heart next to the song title while a song plays, and it will be kept here.</p>'; return; }
-  const run = document.createElement('div'); run.innerHTML = '<button class="btn" style="width:100%;margin-bottom:4px">Play my favorites</button>';
-  run.querySelector('button').onclick = () => { openSheet(null); startRun('fav'); };
-  l.appendChild(run);
+  $('libCount').textContent = `· ${f.length} liked`;
+  if (!f.length) { l.innerHTML = '<p class="empty">No liked songs yet. Press the ♥ next to the song title while a song plays, and it lands here.</p>'; return; }
+  const top = document.createElement('div'); top.className = 'pl-actions'; top.innerHTML = '<button class="btn">&#9654; Play</button><button class="btn ghost">&#8644; Shuffle</button>';
+  const [pb, sb] = top.querySelectorAll('button'); pb.onclick = () => { openSheet(null); startRun('fav', { order: true }); }; sb.onclick = () => { openSheet(null); startRun('fav'); };
+  l.appendChild(top);
   const fm = f.filter(x => libMatch(x.a, x.t)); if (!fm.length) l.insertAdjacentHTML('beforeend', noMatch());
   fm.slice().reverse().forEach(x => {
-    const d = document.createElement('div'); d.className = 'item' + (current && current.key === x.key ? ' now' : '');
-    d.innerHTML = `<div class="meta"><b></b><span></span></div><button class="mini-btn" title="Play next">&#9654;</button><button class="mini-btn" title="Remove from favorites">&#10005;</button>`;
-    d.querySelector('b').textContent = x.t; d.querySelector('span').textContent = x.a;
+    const playNow = () => { openSheet(null); planned = null; preload = null; advance({ song: favToSong(x), quick: true }); };
+    const d = row(x.t, x.a, [['&#9654;', 'Play next'], ['&#10005;', 'Remove from Liked Songs']], playNow, current && current.key === x.key);
     const [pn, rm] = d.querySelectorAll('.mini-btn');
-    const playNext = () => { queueNext(favToSong(x)); toast(`"${x.t}" plays next.`); };
-    d.querySelector('.meta').onclick = playNext; pn.onclick = playNext;
+    pn.onclick = () => { queueNext(favToSong(x)); toast(`"${x.t}" plays next.`); };
     rm.onclick = () => { lib.fav = lib.fav.filter(y => y.key !== x.key); markDeleted('fav', x.key); saveLib(); updateHeart(); renderLib(); };
     l.appendChild(d);
   });
 }
+// ---------- Playlists (like Spotify): your own names, a cover (a colour and a sticker), add, remove, play ----------
+const COVER_COLORS = ['#ff3ea5', '#00e5ff', '#7cff3a', '#ffe600', '#9b6bff', '#ff8a3d'];
+function coverHTML(L, size = 44) {
+  const c = L.color || COVER_COLORS[(L.key || '').length % COVER_COLORS.length], st = window.Stickers && Stickers.svg(L.sticker || 'cassette', size * 0.7);
+  return `<span class="cover" style="width:${size}px;height:${size}px;background:${c}">${st || ''}</span>`;
+}
+function newPlaylist(name, keys = []) {
+  const now = Date.now(); lib.lists = lib.lists || [];
+  const L = { key: 'l' + now.toString(36), name: name.slice(0, 60), keys, genre: '', created: now, ts: now, color: rnd(COVER_COLORS), sticker: window.Stickers ? rnd(Stickers.names) : 'cassette' };
+  lib.lists.push(L); saveLib(); return L;
+}
+function addToPlaylist(L, s) {
+  if (!s) return;
+  if (!songs.some(x => x.key === s.key)) {   // not in the library yet (a podcast never is): it joins your songs
+    if (s.podcast || s.focus || s.album) return toast('Only songs go into playlists.');
+    lib.user.push({ a: s.a, t: s.t, q: s.a + ' ' + s.t, tags: s.tags || [], genre: s.genre || '', user: true, cands: s.cands, added: Date.now(), key: s.key }); buildSongs();
+  }
+  if (L.keys.includes(s.key)) return toast(`"${s.t}" is already in ${L.name}.`);
+  L.keys.push(s.key); L.ts = Date.now(); saveLib(); toast(`Added to ${L.name}.`);
+}
+// the "+ playlist" button on the player: the song that is playing, into one of your playlists (or a new one)
+function openAddTo() {
+  const s = current; if (!s || s.podcast || s.focus || s.album || s.sounds) return toast('Play a song first, then add it to a playlist.');
+  const box = $('addToList'); box.innerHTML = '';
+  $('addToSong').textContent = `${s.t} · ${s.a}`;
+  const make = document.createElement('div'); make.className = 'field';
+  make.innerHTML = '<input id="newPlName" type="text" maxlength="60" placeholder="New playlist name"><button class="btn">Create</button>';
+  make.querySelector('button').onclick = () => { const n = make.querySelector('input').value.trim(); if (!n) return toast('Give the playlist a name first.'); const L = newPlaylist(n); addToPlaylist(L, s); openSheet(null); };
+  box.appendChild(make);
+  (lib.lists || []).slice().reverse().forEach(L => {
+    const d = document.createElement('div'); d.className = 'item pl-row'; const has = L.keys.includes(s.key);
+    d.innerHTML = coverHTML(L, 40) + '<div class="meta"><b></b><span></span></div>';
+    d.querySelector('b').textContent = L.name; d.querySelector('span').textContent = has ? 'already in it' : `${listSongs(L).length} songs`;
+    d.onclick = () => { addToPlaylist(L, s); openSheet(null); };
+    box.appendChild(d);
+  });
+  openSheet('shAddTo');
+}
 function renderLists() {
   const l = $('libList'); l.innerHTML = ''; const ls = lib.lists || [];
-  $('libCount').textContent = `· ${ls.length} list${ls.length === 1 ? '' : 's'}`;
-  if (!ls.length) { l.innerHTML = '<p style="color:var(--mute);font-size:13px;line-height:1.5">No saved lists yet. In Suggest &gt; A list, paste a playlist link or a few songs and give the list a name.</p>'; return; }
-  const lm = ls.filter(L => libMatch(L.name) || listSongs(L).some(s => libMatch(s.a, s.t))); if (!lm.length) l.innerHTML = noMatch();
+  $('libCount').textContent = `· ${ls.length} playlist${ls.length === 1 ? '' : 's'}`;
+  const make = document.createElement('div'); make.className = 'field';
+  make.innerHTML = '<input id="mkPlName" type="text" maxlength="60" placeholder="Name a new playlist"><button class="btn">+ New playlist</button>';
+  make.querySelector('button').onclick = () => { const n = make.querySelector('input').value.trim(); if (!n) return toast('Type a name for the playlist first.'); const L = newPlaylist(n); libTab = 'list:' + L.key; renderLib(); toast(`"${L.name}" is ready. Add songs with "+ Add songs", or with "+ playlist" while a song plays.`); };
+  l.appendChild(make);
+  if (!ls.length) { l.insertAdjacentHTML('beforeend', '<p class="empty">No playlists yet. Name one above, or use Add a song &gt; Import a playlist.</p>'); return; }
+  const lm = ls.filter(L => libMatch(L.name) || listSongs(L).some(s => libMatch(s.a, s.t))); if (!lm.length) l.insertAdjacentHTML('beforeend', noMatch());
   lm.slice().reverse().forEach(L => {
-    const n = listSongs(L).length, d = document.createElement('div'); d.className = 'item' + (batch && batch.id === 'list:' + L.key ? ' now' : '');
-    d.innerHTML = `<div class="meta"><b></b><span></span></div><button class="mini-btn" title="Play this list (shuffled)">&#9654;</button><button class="mini-btn" title="Delete the list (its songs stay in the library)">&#10005;</button>`;
-    d.querySelector('b').textContent = L.name; d.querySelector('span').textContent = `${n} songs${L.genre ? ' · ' + (((R.genreMap || {})[L.genre] || {}).name || '') : ''}`;
-    const [pn, rm] = d.querySelectorAll('.mini-btn');
+    const list = listSongs(L), d = document.createElement('div'); d.className = 'item pl-row' + (batch && batch.id === 'list:' + L.key ? ' now' : '');
+    d.innerHTML = coverHTML(L) + '<div class="meta"><b></b><span></span></div><button class="mini-btn" title="Play" aria-label="Play">&#9654;</button>';
+    d.querySelector('b').textContent = L.name; d.querySelector('span').textContent = `${list.length} songs · ${howLong(list)}`;
     d.querySelector('.meta').onclick = () => { libTab = 'list:' + L.key; renderLib(); };
-    pn.onclick = () => { openSheet(null); startRun('list:' + L.key); };
-    rm.onclick = () => { if (!confirm(`Delete the list "${L.name}"? Its songs stay in your library.`)) return; lib.lists = lib.lists.filter(x => x !== L); markDeleted('lists', L.key); saveLib(); renderLib(); };
+    d.querySelector('.mini-btn').onclick = () => { if (!list.length) return toast('That playlist is empty. Add songs to it first.'); openSheet(null); startRun('list:' + L.key, { order: true }); };
     l.appendChild(d);
   });
 }
-// ---------- Needs labels > Suggest: labels from your other songs by the same artist, saved only when you confirm ----------
-// For each song without a genre: the genre most of that artist's labelled songs have, their usual mood, their middle
-// energy and their most common themes. Artists change, so every suggestion shows what it is based on and can be edited.
-let labelDraft = null;   // key -> { genre, mood, energy, tags, n, on }
-const artistParts = a => String(a || '').split(/\s*(?:,|&|\+|\/|\bfeat\b\.?|\bft\b\.?|\s[x×]\s|\band\b|\bwith\b|\bvs\b\.?)\s*/i).map(x => fold(x).trim()).filter(x => x.length > 1);
-function suggestLabels(list) {
-  const byArtist = new Map();
-  songs.forEach(s => { if (!s.genre) return; artistParts(s.a).forEach(a => { if (!byArtist.has(a)) byArtist.set(a, []); byArtist.get(a).push(s); }); });
-  const top = (arr, n) => { const c = {}; arr.forEach(x => { if (x) c[x] = (c[x] || 0) + 1; }); return Object.entries(c).sort((x, y) => y[1] - x[1]).slice(0, n).map(x => x[0]); };
-  const out = new Map();
-  list.forEach(s => {
-    const parts = artistParts(s.a), main = parts[0];
-    let ref = (main && byArtist.get(main)) || [];
-    if (!ref.length) ref = [...new Set(parts.slice(1).flatMap(a => byArtist.get(a) || []))];   // a featured artist, if the main one is unknown
-    ref = ref.filter(x => x.key !== s.key);
-    if (!ref.length) return;
-    const en = ref.map(x => x.energy).filter(Boolean).sort((a, b) => a - b);
-    out.set(s.key, { genre: top(ref.map(x => x.genre), 1)[0], mood: top(ref.map(x => x.mood), 1)[0] || '', energy: en.length ? en[Math.floor(en.length / 2)] : 0, tags: top(ref.flatMap(x => x.tags || []), 3), n: ref.length, by: ref[0].a, on: true });
-  });
-  return out;
-}
-function renderDraft(l, list) {
-  const withS = list.filter(s => labelDraft.has(s.key)), ticked = withS.filter(s => labelDraft.get(s.key).on).length;
-  const h = document.createElement('div'); h.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-bottom:4px';
-  h.innerHTML = `<p style="color:var(--mute);font-size:12.5px;line-height:1.5;margin:0">${withS.length} of ${list.length} songs have a suggestion from the same artist. Nothing is saved yet: untick or change any, then save.</p><div class="field" style="flex-wrap:wrap"><button class="btn">Save ${ticked} ticked</button><button class="btn ghost">Tick all / none</button><button class="btn ghost">Cancel</button></div>`;
-  const [save, all, cancel] = h.querySelectorAll('button');
-  save.onclick = () => {
-    const now = Date.now(); let n = 0; lib.labels = lib.labels || {};
-    withS.forEach(s => { const d = labelDraft.get(s.key); if (!d.on || !d.genre) return; lib.labels[s.key] = { genre: d.genre, tags: d.tags, mood: d.mood, energy: d.energy || 2, ts: now }; const u = lib.user.find(x => x.key === s.key); if (u) Object.assign(u, { genre: d.genre, tags: d.tags, mood: d.mood, energy: d.energy || 2 }); n++; });
-    labelDraft = null; buildSongs(); saveLib(); toast(`${n} song${n === 1 ? '' : 's'} labelled.`); renderLib();
-  };
-  all.onclick = () => { const any = withS.some(s => !labelDraft.get(s.key).on); withS.forEach(s => { labelDraft.get(s.key).on = any; }); renderLib(); };
-  cancel.onclick = () => { labelDraft = null; renderLib(); };
+let plAdding = false;
+function renderPlaylist(L) {
+  const l = $('libList'); l.innerHTML = ''; const list = listSongs(L);
+  $('libCount').textContent = `· ${list.length} songs`;
+  const h = document.createElement('div'); h.className = 'pl-head';
+  h.innerHTML = `<button class="mini-btn" title="Back to your playlists">&larr; Playlists</button><div class="pl-title">${coverHTML(L, 64)}<div><b></b><span class="pl-sub"></span></div></div>
+    <div class="pl-actions"><button class="btn">&#9654; Play</button><button class="btn ghost">&#8644; Shuffle</button><button class="btn ghost">+ Add songs</button><button class="btn ghost">&#9998; Edit</button><button class="btn ghost">&#10005; Delete</button></div>`;
+  h.querySelector('.pl-title b').textContent = L.name; h.querySelector('.pl-sub').textContent = `${list.length} songs · ${howLong(list)}`;
+  const [back, play, shuf, add, edit, del] = h.querySelectorAll('button');
+  back.onclick = () => { plAdding = false; libTab = 'lists'; renderLib(); };
+  play.onclick = () => { if (!list.length) return toast('Add some songs first.'); openSheet(null); startRun('list:' + L.key, { order: true }); };
+  shuf.onclick = () => { if (!list.length) return toast('Add some songs first.'); openSheet(null); startRun('list:' + L.key); };
+  add.onclick = () => { plAdding = !plAdding; renderLib(); };
+  edit.onclick = () => openPlEdit(L);
+  twoTap(del, 'tap again to delete', () => { lib.lists = lib.lists.filter(x => x !== L); markDeleted('lists', L.key); saveLib(); libTab = 'lists'; renderLib(); toast(`"${L.name}" was deleted. Its songs stay in Your Library.`); });
   l.appendChild(h);
-  const opts = genreOptions('choose a genre');
-  withS.forEach(s => {
-    const d = labelDraft.get(s.key), row = document.createElement('div'); row.className = 'item'; row.style.flexWrap = 'wrap';
-    row.innerHTML = `<input type="checkbox" style="margin:0 4px 0 0;flex:none"><div class="meta" style="cursor:default"><b></b><span></span></div><select style="flex:none;max-width:150px">${opts}</select>`;
-    const cb = row.querySelector('input'); cb.checked = d.on; cb.onchange = () => { d.on = cb.checked; save.textContent = `Save ${withS.filter(x => labelDraft.get(x.key).on).length} ticked`; };
-    row.querySelector('b').textContent = `${s.a} - ${s.t}`;
-    row.querySelector('span').textContent = `from ${d.n} song${d.n === 1 ? '' : 's'} by ${d.by}${d.mood ? ' · ' + d.mood : ''}${d.energy ? ' · energy ' + d.energy : ''}${d.tags.length ? ' · ' + d.tags.join(', ') : ''}`;
-    const sel = row.querySelector('select'); sel.value = d.genre; sel.onchange = () => { d.genre = sel.value; };
-    l.appendChild(row);
+  if (plAdding) {   // + Add songs: every song of the library, the search box narrows it
+    const p = document.createElement('p'); p.className = 'empty'; p.textContent = 'Tap + to add a song. Use the search box above to find one.'; l.appendChild(p);
+    songs.filter(s => !L.keys.includes(s.key) && libMatch(s.a, s.t)).slice(0, 80).forEach(s => {
+      const d = row(s.t, s.a, [['+', 'Add to this playlist']], null);
+      d.querySelector('.mini-btn').onclick = () => { addToPlaylist(L, s); renderLib(); };
+      l.appendChild(d);
+    });
+    return;
+  }
+  if (!list.length) { l.insertAdjacentHTML('beforeend', '<p class="empty">Empty for now. Press "+ Add songs", or "+ playlist" on the player while a song you like is on.</p>'); return; }
+  list.filter(s => libMatch(s.a, s.t)).forEach(s => {
+    const d = row(s.t, s.a, [['&#9654;', 'Play next'], ['&#10005;', 'Take it out of this playlist']], () => { openSheet(null); planned = null; preload = null; advance({ song: s, quick: true }); }, current && current.key === s.key);
+    const [pn, rm] = d.querySelectorAll('.mini-btn');
+    pn.onclick = () => { queueNext(s); toast(`"${s.t}" plays next.`); };
+    rm.onclick = () => { L.keys = L.keys.filter(k => k !== s.key); L.ts = Date.now(); saveLib(); renderLib(); };
+    l.appendChild(d);
   });
-  const none = list.filter(s => !labelDraft.has(s.key));
-  if (none.length) { const p = document.createElement('p'); p.style.cssText = 'color:var(--mute);font-size:12.5px;line-height:1.5;margin:6px 0 0'; p.textContent = none.length === 1 ? '1 has no other song by the same artist in your library, so no suggestion: label it with the pencil.' : `${none.length} have no other song by the same artist in your library, so no suggestion: label them with the pencil.`; l.appendChild(p); }
 }
+// ✎ a playlist: its name and its cover
+let plEdit = null;
+function openPlEdit(L) {
+  plEdit = { L, color: L.color || COVER_COLORS[0], sticker: L.sticker || 'cassette' };
+  $('plName').value = L.name;
+  const cs = $('plColors'); cs.innerHTML = ''; COVER_COLORS.forEach(c => { const b = document.createElement('button'); b.className = 'swatch'; b.style.background = c; b.setAttribute('aria-label', 'Colour ' + c); b.onclick = () => { plEdit.color = c; paintPlEdit(); }; b.dataset.c = c; cs.appendChild(b); });
+  const ss = $('plStickers'); ss.innerHTML = ''; (window.Stickers ? Stickers.names : []).forEach(n => { const b = document.createElement('button'); b.className = 'stk'; b.innerHTML = Stickers.svg(n, 34); b.dataset.s = n; b.setAttribute('aria-label', n); b.onclick = () => { plEdit.sticker = n; paintPlEdit(); }; ss.appendChild(b); });
+  paintPlEdit(); openSheet('shPlEdit');
+}
+function paintPlEdit() {
+  $('plPreview').innerHTML = coverHTML({ key: plEdit.L.key, color: plEdit.color, sticker: plEdit.sticker }, 72);
+  document.querySelectorAll('#plColors .swatch').forEach(b => b.classList.toggle('on', b.dataset.c === plEdit.color));
+  document.querySelectorAll('#plStickers .stk').forEach(b => b.classList.toggle('on', b.dataset.s === plEdit.sticker));
+}
+$('plSave').onclick = () => {
+  const L = plEdit && plEdit.L; if (!L) return;
+  const n = $('plName').value.trim(); if (!n) return toast('A playlist needs a name.');
+  Object.assign(L, { name: n.slice(0, 60), color: plEdit.color, sticker: plEdit.sticker, ts: Date.now() }); saveLib();
+  libTab = 'list:' + L.key; openSheet('shLib'); renderLib(); toast('Saved.');
+};
 function renderLib() {
   document.querySelectorAll('#libTabs button').forEach(b => b.classList.toggle('on', b.dataset.v === libTab || (b.dataset.v === 'lists' && libTab.startsWith('list:'))));
   if (libTab === 'fav') return renderFav();
   if (libTab === 'lists') return renderLists();
   if (libTab === 'albums') return renderAlbums();
   const L = libTab.startsWith('list:') && (lib.lists || []).find(x => 'list:' + x.key === libTab);
-  if (libTab.startsWith('list:') && !L) { libTab = 'lists'; return renderLists(); }   // deleted on another device
-  const all = L ? listSongs(L) : libTab === 'unlabeled' ? songs.filter(needsLabels) : songs, shown = all.filter(s => libMatch(s.a, s.t));
-  $('libCount').textContent = (L ? `· ${all.length} songs` : libTab === 'unlabeled' ? `· ${all.length} need labels` : `· ${songs.length} songs`) + (shown.length < all.length ? `, ${shown.length} shown` : '');
+  if (libTab.startsWith('list:')) return L ? renderPlaylist(L) : (libTab = 'lists', renderLists());   // deleted on another device
+  const all = songs, shown = all.filter(s => libMatch(s.a, s.t));
+  $('libCount').textContent = `· ${songs.length} songs` + (shown.length < all.length ? `, ${shown.length} shown` : '');
   const l = $('libList'); l.innerHTML = '';
-  if (libTab === 'unlabeled' && !all.length) l.innerHTML = '<p style="color:var(--mute);font-size:13px">Every song has a genre. Songs you add from a list appear here until you label them.</p>';
-  if (L) {   // one list: back, play, and a genre for all its songs that have none
-    const unl = all.filter(needsLabels).length, h = document.createElement('div');
-    h.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-bottom:4px';
-    h.innerHTML = `<div class="field" style="align-items:center"><button class="mini-btn" title="Back to your lists">&larr; Lists</button><b style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></b><button class="btn">Play this list</button></div>` +
-      (unl ? `<div class="set" style="padding:4px 0;border:0"><span style="font-size:13px">${unl} without a genre: give them</span><select>${genreOptions('choose a genre')}</select></div>` : '');
-    h.querySelector('b').textContent = L.name;
-    h.querySelector('.mini-btn').onclick = () => { libTab = 'lists'; renderLib(); };
-    h.querySelector('.btn').onclick = () => { openSheet(null); startRun('list:' + L.key); };
-    const sel = h.querySelector('select');
-    if (sel) sel.onchange = () => { if (!sel.value) return; const n = labelGenre(L.keys, sel.value); L.genre = sel.value; L.ts = Date.now(); buildSongs(); saveLib(); toast(`${n} song${n === 1 ? '' : 's'} labelled ${((R.genreMap || {})[sel.value] || {}).name}.`); renderLib(); };
-    l.appendChild(h);
-  }
-  if (libTab !== 'unlabeled') labelDraft = null;
-  if (libTab === 'unlabeled' && labelDraft) return renderDraft(l, shown);
-  if (libTab === 'unlabeled' && shown.length) {
-    const b = document.createElement('div'); b.innerHTML = '<button class="btn" style="width:100%;margin-bottom:4px">Suggest labels from the same artist</button>';
-    b.querySelector('button').onclick = () => { labelDraft = suggestLabels(shown); if (!labelDraft.size) { labelDraft = null; toast('None of these artists has another labelled song in your library yet.'); return; } renderLib(); };
-    l.appendChild(b);
-  }
   if (all.length && !shown.length) l.insertAdjacentHTML('beforeend', noMatch());
-  shown.forEach(s => {
-    const d = document.createElement('div'); d.className = 'item' + (current && current.key === s.key ? ' now' : '');
-    d.innerHTML = `<div class="meta"><b></b><span></span></div><button class="mini-btn" title="Edit labels: genre, themes, mood, energy">✎</button><button class="mini-btn" title="${L ? 'Take it out of this list (it stays in the library)' : 'Remove'}">✕</button>`;
-    d.querySelector('b').textContent = s.t; d.querySelector('span').textContent = `${s.a} · ${(R.genreMap && R.genreMap[s.genre] || {}).name || 'needs labels'}${s.user ? ' · yours' : ''}`;
-    d.querySelector('.meta').onclick = () => { openSheet(null); planned = null; preload = null; advance({ song: s, quick: true }); };
-    const [ed, rm] = d.querySelectorAll('.mini-btn');
-    ed.onclick = () => openLabels(s);
-    if (L) rm.onclick = () => { L.keys = L.keys.filter(k => k !== s.key); L.ts = Date.now(); saveLib(); renderLib(); };
-    else rm.onclick = () => { lib.removed.push(s.key); lib.removedTs = lib.removedTs || {}; lib.removedTs[s.key] = Date.now(); if (lib.user.some(x => x.key === s.key)) markDeleted('user', s.key); lib.user = lib.user.filter(x => x.key !== s.key); buildSongs(); saveLib(); renderLib(); };
+  shown.slice(0, 400).forEach(s => {
+    const d = row(s.t, `${s.a} · ${(R.genreMap && R.genreMap[s.genre] || {}).name || 'your song'}${s.user ? ' · added by you' : ''}`, [['+', 'Add to a playlist'], ['&#10005;', 'Never play this again']], () => { openSheet(null); planned = null; preload = null; advance({ song: s, quick: true }); }, current && current.key === s.key);
+    const [ad, rm] = d.querySelectorAll('.mini-btn');
+    ad.onclick = () => { const was = current; current = s; openAddTo(); current = was; };
+    twoTap(rm, 'tap again', () => { lib.removed.push(s.key); lib.removedTs = lib.removedTs || {}; lib.removedTs[s.key] = Date.now(); if (lib.user.some(x => x.key === s.key)) markDeleted('user', s.key); lib.user = lib.user.filter(x => x.key !== s.key); buildSongs(); saveLib(); renderLib(); toast(`"${s.t}" will not play again. Settings > My stuff > Bring back removed songs undoes it.`); });
     l.appendChild(d);
   });
+  if (shown.length > 400) l.insertAdjacentHTML('beforeend', `<p class="empty">${shown.length - 400} more: type in the search box to find them.</p>`);
 }
 $('btnRun').onclick = openRun;
 $('btnHeart').onclick = toggleFav;
-$('btnAds').onclick = openAds; $('adGo').onclick = adGo; $('adq').onkeydown = e => { if (e.key === 'Enter') adGo(); };
-document.querySelectorAll('#adTabs button').forEach(b => b.onclick = () => { adTab = b.dataset.v; renderAds(); });
-document.querySelectorAll('#libTabs button').forEach(b => b.onclick = () => { libTab = b.dataset.v; renderLib(); });
+$('btnAddTo').onclick = openAddTo;
+document.querySelectorAll('#libTabs button').forEach(b => b.onclick = () => { libTab = b.dataset.v; plAdding = false; renderLib(); });
 $('btnLib').onclick = () => { renderLib(); openSheet('shLib'); };
 let libQT; $('libQ').oninput = () => { clearTimeout(libQT); libQT = setTimeout(renderLib, 120); };
 $('libQ').onkeydown = e => { if (e.key === 'Escape' && $('libQ').value) { e.stopPropagation(); $('libQ').value = ''; renderLib(); } };
 
-function seg(id, k, cast = v => v) { const el = $(id); const paint = () => el.querySelectorAll('button').forEach(b => b.classList.toggle('on', String(S[k]) === b.dataset.v)); el.querySelectorAll('button').forEach(b => b.onclick = () => { S[k] = cast(b.dataset.v); paint(); saveLib(); if (k === 'sleep') setSleep(); }); paint(); }
-function setSleep() { sleepAt = S.sleep ? Date.now() + S.sleep * 60000 : 0; if (S.sleep) toast(`Sleep timer set: ${S.sleep} minutes.`); }
-$('btnSet').onclick = () => { openSheet('shSet'); seg('segTalk', 'talk'); seg('segSleep', 'sleep', Number); seg('segTrim', 'trim', Number); seg('segFade', 'fade', Number); seg('segNews', 'news'); paintNewsNote(); $('rate').value = S.rate; loadVoices(); };
+function seg(id, k, cast = v => v) { const el = $(id); if (!el) return; const paint = () => el.querySelectorAll('button').forEach(b => b.classList.toggle('on', String(S[k]) === b.dataset.v)); el.querySelectorAll('button').forEach(b => b.onclick = () => { S[k] = cast(b.dataset.v); paint(); saveLib(); if (k === 'sleep') setSleep(); }); paint(); }
+function setSleep() { sleepAt = S.sleep ? Date.now() + S.sleep * 60000 : 0; if (S.sleep) toast(`Sleep timer: the music stops in ${S.sleep} minutes.`); }
+$('btnSet').onclick = () => { openSheet('shSet'); seg('segTalk', 'talk'); seg('segSleep', 'sleep', Number); seg('segFade', 'fade', Number); seg('segNews', 'news'); paintNewsNote(); $('rate').value = S.rate || 100; loadVoices(); };
 $('voiceSel').onchange = e => { S.voice = e.target.value; saveLib(); };
 $('lunaSel').onchange = e => { S.lunaVoice = e.target.value; saveLib(); };
-$('newsVoiceSel').onchange = e => { S.newsVoice = e.target.value; saveLib(); };
-$('btnLunaTest').onclick = () => { unlockAudio(); stopSpeech(); say('Hope is the thing with feathers, that perches in the soul, and sings the tune without the words, and never stops at all.', 's'); };
-$('btnNewsVoiceTest').onclick = () => {
-  unlockAudio(); if (newsOn) return toast('Try it after the news.'); stopSpeech();
-  const line = spokenArabic('أهلا بكم في نشرة الأخبار. من مراكش: انطلاق أشغال تهيئة حديقة كبيرة في حي جليز.');
-  mobileWeb() ? sayArabic(line) : sayNewsComputer(line);
-};
+$('bulletinSel').onchange = e => { S.bulletinVoice = e.target.value; saveLib(); };
 $('rate').oninput = e => { S.rate = +e.target.value; saveLib(); };
+$('btnTest').onclick = () => { unlockAudio(); stopSpeech(); say(sub(fresh('testjoe', R.testLines && R.testLines.joe || ['Hey Rim, this is Joe. This is how I sound.']))); };
+$('btnLunaTest').onclick = () => { unlockAudio(); stopSpeech(); say(sub(fresh('testluna', R.testLines && R.testLines.luna || ['Hi Rim, Luna here.'])), 's'); };
+$('btnBulletinTest').onclick = () => { unlockAudio(); stopSpeech(); say(sub(fresh('testnews', R.testLines && R.testLines.bulletin || ['This is the Feel Good Bulletin voice.'])), 'n'); };
 $('btnNews').onclick = () => { unlockAudio(); openSheet(null); runNews(true); };
-const ago = t => { const h = Math.round((Date.now() - t) / 36e5); return h < 1 ? 'just now' : h < 48 ? h + ' h ago' : Math.round(h / 24) + ' days ago'; };
 $('btnNewsCheck').onclick = async () => {
   $('reportText').textContent = 'Asking every source… this can take up to a minute.'; openSheet('shReport');
-  const res = await inBatches(NEWS_SOURCES, mobileWeb() ? 6 : NEWS_SOURCES.length, readSourceHere);
-  $('reportText').textContent = `News sources, checked ${new Date().toLocaleString('en-GB')}\n\n` + NEWS_SOURCES.map((s, i) => {
-    const r = res[i]; if (!r.ok) return `✗ ${s.name}: ${r.error}\n   ${decodeURI(s.urls[s.urls.length - 1])}`;
-    return `✓ ${s.name}: ${r.items.length} found\n` + r.items.slice(0, 4).map(x => `   · ${x.title}${x.date ? ' (' + x.date + ')' : x.when ? ' (' + ago(x.when) + ')' : ''}`).join('\n');
+  const res = await Promise.all(NEWS_SOURCES.map(readSource));
+  $('reportText').textContent = `Bulletin sources, checked ${new Date().toLocaleString('en-GB')}\n\n` + NEWS_SOURCES.map((s, i) => {
+    const r = res[i]; if (!r.ok) return `✗ ${s.name}: ${r.error}`;
+    const fine = r.items.filter(x => !NOT_FOR_RIM.test(x.title));
+    return `✓ ${s.name}: ${r.items.length} found, ${fine.length} pass the filter\n` + fine.slice(0, 3).map(x => `   · ${x.title}`).join('\n');
   }).join('\n\n');
 };
-$('btnNewsLast').onclick = () => {   // everything the last bulletin read, with where each headline came from
-  let last = null; try { last = JSON.parse(localStorage.getItem('pbd-news-last') || 'null'); } catch {}
-  $('reportText').textContent = !last ? 'No bulletin has been read on this device yet. Play the news, then come back here.'
-    : `Last bulletin, read ${new Date(last.at).toLocaleString('en-GB')}\n\n` + last.lines.map((l, i) => [`${i + 1}. ${l.said}`, l.tag && `   ${l.tag}`, l.link && `   link: ${dURI(l.link)}`, l.page && `   from page: ${dURI(l.page)}`].filter(Boolean).join('\n')).join('\n\n');
+$('btnNewsLast').onclick = () => {
+  let last = null; try { last = JSON.parse(localStorage.getItem('fgi-news-last') || 'null'); } catch {}
+  $('reportText').textContent = !last ? 'No bulletin has been read on this device yet.' : `Last bulletin, ${new Date(last.at).toLocaleString('en-GB')}\n\n` + last.lines.map((l, i) => [`${i + 1}. ${l.said}`, l.tag && `   ${l.tag}`, l.link && `   ${l.link}`].filter(Boolean).join('\n')).join('\n\n');
   openSheet('shReport');
 };
 $('reportCopy').onclick = async () => { const t = $('reportText').textContent; try { await navigator.clipboard.writeText(t); toast('Copied.'); } catch { const a = document.createElement('textarea'); a.value = t; document.body.appendChild(a); a.select(); try { document.execCommand('copy'); toast('Copied.'); } catch {} a.remove(); } };
+
+// A podcast or a concert, now (the 64-song cycle is not changed)
+async function podNow(kind) {
+  if (!started) return toast('Press play first, then choose.');
+  if (newsOn) return toast('Right after the bulletin.');
+  const pod = kind === 'concert' ? findConcert() : findShow(kind);
+  if (!pod) return toast('Nothing to play there right now.');
+  openSheet(null);
+  if (globalPaused) clearPause();
+  stopSpeech(); const id = runId; busy = true; clearTimeout(startWatch); planned = null; preload = null;
+  rlog('podcast now', { kind });
+  await playPodcast(pod, current, {}, id);
+}
+document.querySelectorAll('#podNow button, #concertNow button').forEach(b => b.onclick = () => podNow(b.dataset.v));
+
+// ---------- Just music: like Spotify without ads. Joe and Luna stay quiet, no shows, no bulletin, nothing interrupts ----------
+// Switching it off brings Joe back where the cycle stopped. Her birthday is the one exception: Joe says a few words once.
+function paintJust() { const b = $('btnJust'); if (!b) return; b.classList.toggle('on', !!S.justMusic); b.setAttribute('aria-pressed', S.justMusic ? 'true' : 'false'); $('justLabel').textContent = S.justMusic ? 'Just music: on' : 'Just music'; document.body.classList.toggle('just', !!S.justMusic); }
+$('btnJust').onclick = () => {
+  S.justMusic = !S.justMusic; saveLib(); paintJust();
+  toast(S.justMusic ? 'Just music: no talking, no shows, nothing in between. Tap again to bring Joe back.' : 'Joe is back on the air.');
+  if (S.justMusic && started && (speaking || (curBreak && !current))) { stopSpeech(); bedOff(1); advance({ silent: true, noCount: true, quick: true }); }
+};
+
+// ---------- Homework mode: a study timer (25 minutes of work, 5 of break), with a soft chime. No talking. ----------
+let study = null;   // { phase: 'work'|'break', until, round }
+function paintStudy() {
+  const b = $('btnStudy'); if (!b) return;
+  b.classList.toggle('on', !!study);
+  b.textContent = study ? (study.phase === 'work' ? 'Study round ' + study.round + ': ' : 'Break: ') + fmt(Math.max(0, (study.until - Date.now()) / 1000)) + ' · stop' : '⏱ Study timer: 25 min work, 5 min break';
+  const t = $('studyTag'); if (t) { t.style.display = study ? '' : 'none'; if (study) t.textContent = (study.phase === 'work' ? '⏱ study ' : '☕ break ') + fmt(Math.max(0, (study.until - Date.now()) / 1000)); }
+}
+$('btnStudy').onclick = e => { e.stopPropagation(); study ? stopStudy() : startStudy(); };
+function startStudy() { study = { phase: 'work', until: Date.now() + 25 * 60e3, round: 1 }; paintStudy(); toast('Study timer on: 25 minutes, then a 5-minute break. You got this.'); }
+function stopStudy() { study = null; paintStudy(); toast('Study timer off.'); }
+setInterval(() => {
+  if (!study) return;
+  if (Date.now() >= study.until) {
+    try { Jingles.play(getCtx(), 'chime'); } catch {}
+    if (study.phase === 'work') { study = { phase: 'break', until: Date.now() + 5 * 60e3, round: study.round }; toast(fresh('studybreak', R.studyLines && R.studyLines.break || ['Break time. Stretch, get some water.'])); }
+    else { study = { phase: 'work', until: Date.now() + 25 * 60e3, round: study.round + 1 }; toast(fresh('studyback', R.studyLines && R.studyLines.back || ['Back to it. Round {n}.']).replace('{n}', study.round)); }
+  }
+  paintStudy();
+}, 1000);
+
+// ---------- the welcome tour: the first time, Joe points at a few buttons in plain words ----------
+function startTour(force) {
+  let seen = false; try { seen = localStorage.getItem('fgi-tour') === '1'; } catch {}
+  if (seen && !force) return;
+  const steps = (R.tour || []).filter(s => document.querySelector(s.el)); if (!steps.length) return;
+  let i = 0; const box = $('tour');
+  const show = () => {
+    document.querySelectorAll('.tour-spot').forEach(x => x.classList.remove('tour-spot'));
+    if (i >= steps.length) { box.hidden = true; try { localStorage.setItem('fgi-tour', '1'); } catch {} return; }
+    const s = steps[i], el = document.querySelector(s.el); el.classList.add('tour-spot');
+    $('tourText').textContent = sub(s.t); $('tourStep').textContent = `${i + 1} of ${steps.length}`; $('tourNext').textContent = i === steps.length - 1 ? 'Got it' : 'Next';
+    box.hidden = false;
+    const r = el.getBoundingClientRect(), below = r.top < window.innerHeight / 2;
+    box.style.top = below ? Math.min(window.innerHeight - 170, r.bottom + 12) + 'px' : 'auto';
+    box.style.bottom = below ? 'auto' : Math.max(12, window.innerHeight - r.top + 12) + 'px';
+  };
+  $('tourNext').onclick = () => { i++; show(); };
+  $('tourSkip').onclick = () => { i = steps.length; show(); };
+  show();
+}
+$('btnTour').onclick = () => { openSheet(null); startTour(true); };
+
+// ---------- her birthday: a banner all day ----------
+function paintBirthday() {
+  const b = $('bday'); if (!b) return;
+  const on = isBirthday(); b.hidden = !on;
+  if (on) $('bdayText').textContent = sub((R.birthday && R.birthday.banner) || 'Happy birthday, Rim!');
+}
+setInterval(paintBirthday, 60000);
+
+// ---------- Get the Windows app (the installed version), and the system check ----------
+$('btnGetApp').onclick = () => window.open(R.appDownload || 'https://github.com/Yisyphus/feel-good-inc-fm/releases/latest', '_blank', 'noopener');
+$('btnCheckPc').onclick = () => window.open('check.html', '_blank', 'noopener');
 $('btnFocus').onclick = e => { e.stopPropagation(); $('focusMenu').classList.toggle('open'); paintFocus(); };
 $('focusMenu').onclick = e => {
   const ed = e.target.closest('[data-edit]'), b = e.target.closest('button'); if (!b) return;
@@ -3207,7 +2478,7 @@ $('focusMenu').onclick = e => {
 // Kept with your data and synced (lib.focusCustom, its tracks in lib.focusAdd); never in the library. Suggest adds to it later.
 let gEdit = null, gTracks = [];
 function openGenre(id) {
-  if (!HELPER) return toast(NEEDS_PC);
+  if (!HELPER) return toast('Making your own station works in the installed app (it searches YouTube through your PC).');
   const st = id && focusStation(id); gEdit = st ? id : null;
   gTracks = st ? (lib.focusAdd || []).filter(x => x.st === id).map(x => ({ a: x.a, t: x.t, k: x.k, v: x.v, key: x.key })) : [];
   $('genreName').value = st ? st.label : ''; $('genreQ').value = ''; $('genreRes').innerHTML = '';
@@ -3274,21 +2545,8 @@ $('genreGo').onclick = genreSearch; $('genreQ').onkeydown = e => { if (e.key ===
 $('genreName').oninput = paintGenre; $('genreSave').onclick = genreSave; $('genreDel').onclick = genreDelete;
 document.addEventListener('click', e => { if (!e.target.closest('#focusMenu, #btnFocus')) $('focusMenu').classList.remove('open'); });
 paintFocus();
-// The podcast button: an episode now, of the kind you choose (the 64-song cycle is not changed)
-async function podNow(kind) {
-  if (!started) return toast('Press play first, then choose a podcast.');
-  if (!HELPER) return toast('Podcasts are found on YouTube through your PC, so they play on the PC radio.');
-  if (newsOn) return toast('Right after the news.');
-  openSheet(null); toast('Looking for an episode…');
-  const pod = kind === 'regular' ? await findRegular() : kind === 'concert' ? await findConcert() : await findShow(kind);
-  if (!pod) return toast(/^(concert|kexp|tinydesk)$/.test(kind) ? 'No concert found right now. Try again in a moment.' : 'No episode found right now. Try again in a moment.');
-  if (globalPaused) clearPause();
-  stopSpeech(); const id = runId; busy = true; clearTimeout(startWatch); planned = null; preload = null;
-  rlog('podcast now', { kind });
-  await playPodcast(pod, current, {}, id);
-}
-document.querySelectorAll('#podNow button, #concertNow button').forEach(b => b.onclick = () => podNow(b.dataset.v));
-// The marathon sheet: four groups (songs, voices, podcasts, commercials). A group's box ticks or clears all of it
+
+// The Non-stop sheet: three groups (songs, Joe & Luna bits, podcasts). A group's box ticks or clears all of it
 // (Songs starts from the whole library); ticking anything inside ticks the group.
 const chip = (v, label) => { const l = document.createElement('label'); l.innerHTML = '<input type="checkbox"><span></span>'; l.firstChild.value = v; l.lastChild.textContent = label; return l; };
 function marGroups() { return [...document.querySelectorAll('#marBox .mar-g')].map(g => ({ g, head: g.querySelector('.mar-h input'), kids: [...g.querySelectorAll('.mar-c input')] })); }
@@ -3313,9 +2571,9 @@ $('marBox').addEventListener('change', e => {
 let marEvery = 2;
 document.querySelectorAll('#marEvery button').forEach(b => b.onclick = () => { marEvery = +b.dataset.v; document.querySelectorAll('#marEvery button').forEach(x => x.classList.toggle('on', x === b)); });
 $('btnMarathon').onclick = () => {
-  const sel = S.marathon || { kinds: ['letter', 'talk'], pods: ['regular', 'dahih', 'hadara', 'huwa', 'abdellatif'] };
+  const sel = S.marathon || { kinds: ['songs'], src: ['lib'], pods: Object.keys(R.podShows || {}) };
   const src = $('marSrc'); src.innerHTML = '';
-  src.appendChild(chip('lib', `Whole library · ${songs.length}`)); src.appendChild(chip('fav', `Favorites · ${(lib.fav || []).length}`));
+  src.appendChild(chip('lib', `Your Library · ${songs.length}`)); src.appendChild(chip('fav', `Liked Songs · ${(lib.fav || []).length}`));
   (lib.lists || []).forEach(L => src.appendChild(chip('list:' + L.key, `${L.name} · ${listSongs(L).length}`)));
   const gen = $('marGenres'); gen.innerHTML = '';
   (R.runs || []).forEach(r => gen.appendChild(chip('run:' + r.id, `${r.short} · ${songs.filter(x => r.genres.includes(x.genre)).length}`)));
@@ -3329,23 +2587,22 @@ $('btnMarathon').onclick = () => {
   $('marBox').querySelector('.mar-more').open = on.some(v => v.startsWith('run:'));
   marEvery = sel.every || 2; document.querySelectorAll('#marEvery button').forEach(b => b.classList.toggle('on', +b.dataset.v === marEvery));
   marPaint();
-  $('marNote').textContent = marathon ? 'A marathon is playing now: ' + marathon.all.map(k => MAR_LABEL[k]).join(', ') + '.' : HELPER ? '' : 'Podcasts play on the PC radio only.';
+  $('marNote').textContent = marathon ? 'Non-stop is playing now: ' + marathon.all.map(k => MAR_LABEL[k]).join(', ') + '.' : '';
   openSheet('shMarathon');
 };
 $('marGo').onclick = () => {
   const val = q => [...document.querySelectorAll(q)].map(i => i.value);
   const src = val('#marBox [data-g="songs"] .mar-c input:checked'), pods = val('#marPods input:checked');
-  const kinds = [...(src.length ? ['songs'] : []), ...val('#marBox [data-g="voices"] .mar-c input:checked'), ...(pods.length ? ['podcast'] : []), ...val('#marBox [data-g="ads"] input:checked')];
+  const kinds = [...(src.length ? ['songs'] : []), ...val('#marBox [data-g="voices"] .mar-c input:checked'), ...(pods.length ? ['podcast'] : [])];
   S.marathon = { kinds, pods, src, every: marEvery }; saveLib();
   if (marathon) { marathon = null; }
   startMarathon(kinds, pods, src, marEvery);
 };
 $('marEnd').onclick = () => { openSheet(null); stopMarathon(); };
 $('marStop').onclick = e => { e.stopPropagation(); if (albumShow) stopAlbum(); else stopMarathon(); };
-$('btnNewsNow').onclick = () => { unlockAudio(); if (newsOn) endNews(); else runNews(true); };
+
 document.addEventListener('pointerdown', () => { if (!ttsPlayer.src) unlockAudio(); }, { once: true, capture: true });
-$('btnTest').onclick = () => { stopSpeech(); say(`Hello. This is ${R.host}, and this is how I sound on Pale Blue Dot Radio.`); };
-$('btnReset').onclick = () => { lib.removed.forEach(k => markDeleted('removed', k)); lib.removed = []; buildSongs(); saveLib(); toast('All songs restored.'); };
+$('btnReset').onclick = () => { lib.removed.forEach(k => markDeleted('removed', k)); lib.removed = []; buildSongs(); saveLib(); toast('All the songs you removed are back.'); };
 
 $('vol').oninput = e => { S.vol = +e.target.value; if (ytReady && !busy && !P()._fading) setVol(P(), S.vol); saveLib(); };
 $('btnWrong').onclick = openVersions;
@@ -3354,7 +2611,7 @@ $('btnWrong').onclick = openVersions;
 let removeSure = 0;
 $('btnRemoveSong').onclick = () => {
   const s = current, b = $('btnRemoveSong'); if (!s || s.podcast || s.sounds) return;
-  if (Date.now() > removeSure) { removeSure = Date.now() + 4000; b.classList.add('sure'); b.textContent = 'tap again to remove'; setTimeout(() => { if (Date.now() > removeSure) { b.classList.remove('sure'); b.innerHTML = '&#10005; remove this song'; } }, 4100); return; }
+  if (Date.now() > removeSure) { removeSure = Date.now() + 4000; b.classList.add('sure'); b.textContent = 'tap again to confirm'; setTimeout(() => { if (Date.now() > removeSure) { b.classList.remove('sure'); b.innerHTML = '&#10005; never play this again'; } }, 4100); return; }
   removeSure = 0;
   const st = s.focus && focusStation(s.style), k = st ? st.id + '>' + s.key : s.key;
   if (!lib.removed.includes(k)) lib.removed.push(k);
@@ -3363,13 +2620,13 @@ $('btnRemoveSong').onclick = () => {
   if (marathon && marathon.bag) marathon.bag = marathon.bag.filter(x => x.key !== s.key);
   if (marathon && marathon.pool) marathon.pool = marathon.pool.filter(x => x.key !== s.key);
   saveLib();
-  toast('"' + s.t + '" ' + (st ? 'is out of ' + st.label : 'is out of your library') + '. Settings > Restore removed songs brings it back.');
+  toast('"' + s.t + '" ' + (st ? 'is out of ' + st.label : 'will not play again') + '. Settings > My stuff > Bring back removed songs undoes it.');
   next();
 };
 $('btnPlay').onclick = togglePlay; $('btnNext').onclick = next; $('btnPrev').onclick = prev; $('btnTune').onclick = tuneIn;
 $('bar').onclick = e => { if (!ytReady || !playing) return; const r = $('bar').getBoundingClientRect(); P().seekTo(P().getDuration() * (e.clientX - r.left) / r.width, true); };
 $('btnMini').onclick = () => { const m = document.body.classList.toggle('mini'); try { window.resizeTo(m ? 420 : 440, m ? 220 : 760); } catch {} };
-$('btnClose').onclick = async () => { if (!confirm('Turn the radio off?')) return; stopSpeech(); try { pl.forEach(p => p.pauseVideo()); } catch {} try { await fetch('/api/quit'); } catch {} window.close(); document.body.innerHTML = '<p style="padding:40px;font-family:Georgia;color:#8a97c7">Pale Blue Dot Radio is off. Goodnight.</p>'; };
+$('btnClose').onclick = async () => { if (!confirm('Turn the radio off?')) return; stopSpeech(); try { pl.forEach(p => p.pauseVideo()); } catch {} try { await fetch('/api/quit'); } catch {} window.close(); document.body.innerHTML = '<p style="padding:40px;font-family:system-ui;color:#ff3ea5">Feel Good Inc. FM is off. See you soon, Rim.</p>'; };
 document.addEventListener('keydown', e => { if (/input|select/i.test(e.target.tagName)) return; if (e.code === 'Space') { if (e.target.tagName === 'BUTTON') return; e.preventDefault(); togglePlay(); } if (e.key === 'ArrowRight') next(); if (e.key === 'ArrowLeft') prev(); });
 if ('mediaSession' in navigator) { navigator.mediaSession.setActionHandler('play', togglePlay); navigator.mediaSession.setActionHandler('pause', togglePlay); navigator.mediaSession.setActionHandler('nexttrack', next); navigator.mediaSession.setActionHandler('previoustrack', prev); }
 
@@ -3391,7 +2648,7 @@ setInterval(() => {
         console.info('[radio] trim trigger', { d, c, rem, trimAt, trim: S.trim, key: current.key }); advance({ fadeOldMs: trimAt && c >= trimAt ? 4000 : Math.max(2000, Math.round(rem * 1000)) }); }   // fade over what is left of the song
     } catch {}
   }
-  if (sleepAt && Date.now() > sleepAt) { sleepAt = 0; S.sleep = 0; stopSpeech(); bedOff(); busy = true; (async () => { try { await say('It is time to rest. Goodnight. The world will still be here in the morning, and so will you.', 'h'); await fadeP(P(), 0, 6000); if (current) current._selfPauses = 99; P().pauseVideo(); setVol(P(), S.vol); } catch {} busy = false; })(); }
+  if (sleepAt && Date.now() > sleepAt) { sleepAt = 0; S.sleep = 0; stopSpeech(); bedOff(); busy = true; (async () => { try { if (!S.justMusic) await say(sub(fresh('sleep', R.sleepLines || ['That is the sleep timer. Goodnight, Rim.'])), 'h'); await fadeP(P(), 0, 6000); if (current) current._selfPauses = 99; P().pauseVideo(); setVol(P(), S.vol); } catch {} busy = false; })(); }
 }, 500);
 
 // keeps the helper alive while the radio window is open (the installed version closes the helper when the window is gone)
@@ -3408,7 +2665,7 @@ function armUnmute() {   // the browser refuses to unmute without a click: the n
   document.addEventListener('pointerdown', () => { wd.armed = false; try { P().unMute(); setVol(P(), S.vol); } catch {} rlog('unmuted after click'); }, { once: true, capture: true });
 }
 setInterval(() => {
-  if (!started || !ytReady || globalPaused || busy || !playing || !current || adHook) { wd.stuck = 0; wd.lastT = -1; return; }
+  if (!started || !ytReady || globalPaused || busy || !playing || !current) { wd.stuck = 0; wd.lastT = -1; return; }
   const p = P();
   try {
     const st = p.getPlayerState(), t = p.getCurrentTime(), v = p.getVolume();
@@ -3426,7 +2683,7 @@ setInterval(() => {
       if (++wd.stuck === 2) { rlog('player stopped by itself, restarting', { song: current.key, st }); p.playVideo(); }
       else if (wd.stuck >= 5) { rlog('player would not restart, next version', { song: current.key, st }); wd.stuck = 0; tryNextCand(0); }
     } else if (st === YT.PlayerState.BUFFERING) {
-      if (++wd.stuck >= 10) { rlog('buffering for 20 s, next version', { song: current.key }); wd.stuck = 0; tryNextCand(0); }
+      if (++wd.stuck >= 45) { rlog('buffering for 90 s, next version', { song: current.key }); wd.stuck = 0; tryNextCand(0); }   // a slow connection: wait, do not skip
     }
   } catch {}
 }, 2000);
@@ -3437,13 +2694,13 @@ function updateCloudUI() {
   if (!window.Cloud || !Cloud.enabled) { b.disabled = true; b.textContent = 'Sign in with Google'; n.textContent = window.FIREBASE_CONFIG ? 'unavailable (offline?)' : 'not set up yet'; return; }
   b.disabled = false;
   if (Cloud.user) { b.textContent = 'Sign out'; n.textContent = `synced as ${Cloud.user.email}` + (Cloud.status === 'saving' ? ' · saving…' : /^error/.test(Cloud.status) ? ' · ' + Cloud.status : ''); }
-  else { b.textContent = 'Sign in with Google'; n.textContent = 'off: sign in to share your library between devices'; }
+  else { b.textContent = 'Sign in with Google'; n.textContent = 'off: sign in to keep your playlists and liked songs on every device'; }
 }
 if (window.Cloud) Cloud.onStatus = updateCloudUI;
 // Library backup: a file with everything; restoring MERGES it in (like a second device), it never replaces.
 $('btnLibSave').onclick = () => {
   const blob = new Blob([JSON.stringify(lib)], { type: 'application/json' }), a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = 'pale-blue-dot-library-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.href = URL.createObjectURL(blob); a.download = 'feel-good-inc-fm-' + new Date().toISOString().slice(0, 10) + '.json';
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 };
 $('btnLibRestore').onclick = () => $('libFile').click();
@@ -3460,7 +2717,7 @@ $('btnLibDays').onclick = async () => {
       lib = Object.assign({ user: [], cache: {}, removed: [], settings: {}, trim: {}, disc: {} }, mergeLib(lib, Object.assign(old, { savedAt: 0 })));
       normalizeLib(); buildSongs(); updateHeart(); saveLib(); Cloud.push(lib, true);
       const d = k => (lib[k] || []).length - before[k];
-      toast(`Merged ${b.day}: ${d('fav')} favorites, ${d('lists')} lists and ${d('user')} songs came back.`);
+      toast(`Merged ${b.day}: ${d('fav')} liked songs, ${d('lists')} playlists and ${d('user')} songs came back.`);
     };
     box.appendChild(r);
   });
@@ -3481,16 +2738,16 @@ $('libFile').onchange = async e => {
   normalizeLib(); buildSongs(); updateHeart(); saveLib();
   if (window.Cloud && Cloud.user) Cloud.push(lib, true);
   const d = k => (lib[k] || []).length - before[k];
-  toast(`Restored: ${d('fav')} favorites, ${d('lists')} lists and ${d('user')} songs added back.`);
+  toast(`Restored: ${d('fav')} liked songs, ${d('lists')} playlists and ${d('user')} songs added back.`);
   rlog('library restored', { files: n, favorites: (lib.fav || []).length, lists: (lib.lists || []).length, yourSongs: (lib.user || []).length });
 };
 $('btnCloud').onclick = async () => {
   if (!window.Cloud || !Cloud.enabled) return;
   try {
-    if (Cloud.user) { await Cloud.flush(); await Cloud.signOut(); toast('Signed out. The radio keeps a copy on this device.'); }
+    if (Cloud.user) { await Cloud.flush(); await Cloud.signOut(); toast('Signed out. This device keeps a copy of your stuff.'); }
     else {
       await Cloud.signIn();
-      if (Cloud.user) { await syncWithCloud(); normalizeLib(); buildSongs(); updateHeart(); await syncAds(); toast('Signed in. Your library is synced.'); }
+      if (Cloud.user) { await syncWithCloud(); normalizeLib(); buildSongs(); updateHeart(); paintJust(); toast('Signed in. Your stuff is saved on all your devices now.'); }
     }
   } catch (e) { toast('Sign-in did not work: ' + (e.message || e)); }
   updateCloudUI();
@@ -3499,8 +2756,9 @@ $('btnCloud').onclick = async () => {
 // ---------- boot ----------
 let booted; const bootDone = new Promise(r => { booted = r; });
 (async () => {
-  await loadLib(); buildSongs(); booted(); loadVoices(); syncAds().then(runAdCleanups); autoUpdate().catch(() => {});
+  await loadLib(); buildSongs(); booted(); loadVoices(); autoUpdate().catch(() => {});
   $('vol').value = S.vol;
-  setNow(null); updateCloudUI();
+  setNow(null); updateCloudUI(); paintJust(); paintBirthday(); paintStudy();
+  if (isBirthday() && (lib.fav || []).length && lib.bdayDone !== today()) shuffle(lib.fav).slice(0, 5).forEach(f => upNext.push(favToSong(f)));   // her birthday: her liked songs first
 })();
 })();
