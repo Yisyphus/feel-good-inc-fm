@@ -7,7 +7,7 @@ Rim's radio, built from Pale Blue Dot Radio.
 - This repo, `Yisyphus/feel-good-inc-fm`, is the only source of truth. Work on `main`.
 - The website is Firebase Hosting, `https://rim-fm.web.app/` (Firebase project `rim-fm`), deployed from `main`.
 - The Windows app is its own program (Electron, `desktop/main.js`) with its own voices (Kokoro, in `server.js`: Luna =
-  `af_heart`, Joe = `am_adam`). It updates itself from that address (`cloud.json` `appUrl`); a new exe or voice engine
+  `af_heart`, Joe = `am_echo`). It updates itself from that address (`cloud.json` `appUrl`); a new exe or voice engine
   needs a new release (`tools/release/VERSION`, then run the `Release` workflow).
 
 ## Rules that matter

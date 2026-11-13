@@ -200,7 +200,7 @@ For an old PC and slow Wi-Fi, on the website and the desktop app:
 
 ## 13. Voices (English)
 - **The app (Windows):** its own voices, made on the PC by **Kokoro** (free, open source, no account, no limit, no
-  internet once downloaded): **Luna = `af_heart`**, **Joe = `am_adam`** (Joe also reads the bulletin). Only those
+  internet once downloaded): **Luna = `af_heart`**, **Joe = `am_echo`** (chosen 13 November 2026; Adam before) (Joe also reads the bulletin). Only those
   two voices are shipped. The speech model (about 92 MB, pinned revision, checked by its SHA-256) is downloaded by the
   **installer** (`voice-model\\`); if that fails, the app downloads it on its first start. The app **never speaks with a
   stand-in voice**: the tour and the first welcome wait for the voices (a note on screen), and a break that comes before

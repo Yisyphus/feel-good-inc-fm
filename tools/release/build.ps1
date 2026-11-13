@@ -2,7 +2,7 @@
 #   dist\FeelGoodIncFM-Setup-<version>.exe
 # The app is its own program (Electron), not a browser window: "Feel Good Inc FM.exe" shows the radio and runs the
 # helper (server.js) with its built-in Node. Its voices are Kokoro (kokoro-js, only the two voices it uses: Luna =
-# af_heart, Joe = am_adam); the speech model itself (about 92 MB) is downloaded once by the app on its first start.
+# af_heart, Joe = am_echo); the speech model itself (about 92 MB) is downloaded once by the app on its first start.
 param([string]$Version = "0.0.0", [string]$ElectronVersion = "44.10.0", [string]$KokoroVersion = "1.2.1", [string]$RceditVersion = "2.0.0")
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
@@ -51,7 +51,7 @@ Get-ChildItem (Join-Path $nm "onnxruntime-node\bin\napi-v3") -Directory | Where-
 Get-ChildItem (Join-Path $nm "onnxruntime-node\bin\napi-v3\win32") -Directory | Where-Object { $_.Name -ne "x64" } | Remove-Item -Recurse -Force
 Get-ChildItem (Join-Path $nm "@huggingface\transformers\dist") -File | Where-Object { $_.Name -ne "transformers.node.cjs" } | Remove-Item -Force
 Remove-Item -Recurse -Force (Join-Path $nm "@huggingface\transformers\.cache") -ErrorAction SilentlyContinue
-Get-ChildItem (Join-Path $nm "kokoro-js\voices") -Filter *.bin | Where-Object { $_.Name -notin @("af_heart.bin", "am_adam.bin") } | Remove-Item -Force
+Get-ChildItem (Join-Path $nm "kokoro-js\voices") -Filter *.bin | Where-Object { $_.Name -notin @("af_heart.bin", "am_echo.bin") } | Remove-Item -Force
 # transformers loads an image library at start that the voices never use: a small stand-in instead (about 20 MB less)
 New-Item -ItemType Directory -Force (Join-Path $nm "sharp") | Out-Null
 '{ "name": "sharp", "version": "0.0.0-stub", "main": "index.js" }' | Set-Content (Join-Path $nm "sharp\package.json") -Encoding UTF8

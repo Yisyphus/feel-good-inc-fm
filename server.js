@@ -374,7 +374,11 @@ const writeLib = l => fs.writeFileSync(LIB, JSON.stringify(l, null, 1));
 // The page asks for a block of text (POST /api/say) and gets a WAV back. Lines it will need soon are asked for in
 // advance (pre: true), so on a slow PC they are ready before they are said. One block is made at a time.
 const VOICE = { state: 'none', progress: 0, rtf: 0, error: '', loadMs: 0 };
-const VOICE_IDS = { h: 'af_heart', s: 'am_adam', n: 'am_adam' };   // Luna hosts; Joe co-hosts, gives the tour, the mission and the bulletin
+// Luna hosts (af_heart); Joe (am_echo) co-hosts, gives the tour, the mission and the bulletin. An install from before
+// echo was chosen only has am_adam: Joe uses that until the next installer brings echo.
+const hasVoice = v => { try { return fs.existsSync(path.join(__dirname, 'node_modules', 'kokoro-js', 'voices', v + '.bin')); } catch { return false; } };
+const JOE = hasVoice('am_echo') ? 'am_echo' : 'am_adam';
+const VOICE_IDS = { h: 'af_heart', s: JOE, n: JOE };
 let tts = null;
 const sayCache = new Map(), sayJobs = [];
 let sayBusy = false, sayCur = null;
