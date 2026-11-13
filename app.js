@@ -366,7 +366,10 @@ window.onYouTubeIframeAPIReady = () => {
     pl[i] = new YT.Player('yt' + i, { height: '200', width: '200', playerVars: { controls: 0, disablekb: 1, playsinline: 1, rel: 0, iv_load_policy: 3, origin: location.origin }, events: {
       onReady: () => { setVol(pl[i], 0); if (++ready === 2) ytReady = true; },
       onStateChange: e => {
-        if (i !== ai) return;
+        if (i !== ai) {   // the idle player: the next song was started silently to prime it; stop it at its very start
+          if (preload && preload.idx === i && !preload.primed && e.data === YT.PlayerState.PLAYING) { try { pl[i].pauseVideo(); pl[i].seekTo(0, true); } catch {} preload.primed = true; rlog('next song ready', { song: preload.key }); }
+          return;
+        }
         if (e.data === YT.PlayerState.PLAYING) { clearTimeout(startWatch); playing = true; setPlayIcon(true); setLive(true); try { pl[i].unMute(); if (Number.isFinite(pl[i]._vol)) pl[i].setVolume(pl[i]._vol); } catch {} }
         else if (e.data === YT.PlayerState.PAUSED) {
           if (newsOn) return;   // the bulletin paused it on purpose
@@ -455,7 +458,7 @@ async function startSong(s, startVol, fadeInMs = 0, outMs = fadeMs()) {
   candIdx = 0; current = s; ai = n; playing = false;
   const np = pl[n];
   setVol(np, fadeInMs ? 0 : startVol);
-  if (preload && preload.key === s.key && preload.idx === n) np.playVideo(); else np.loadVideoById(c[0].id);
+  if (preload && preload.key === s.key && preload.idx === n) { try { np.seekTo(0, true); } catch {} np.playVideo(); } else np.loadVideoById(c[0].id);   // a primed song only resumes, which works even when minimized
   preload = null;
   rlog('start', { song: s.key, id: c[0].id });
   const stopOld = () => { try { if (pl[ai] !== old) old.pauseVideo(); } catch {} };
@@ -468,6 +471,14 @@ async function startSong(s, startVol, fadeInMs = 0, outMs = fadeMs()) {
     lib.hist = lib.hist || []; lib.hist.push({ k: s.key, a: s.a }); if (lib.hist.length > 400) lib.hist.splice(0, lib.hist.length - 400); saveLib();
   }
   return true;
+}
+
+// Getting the next song ready on the idle player. A minimized window will not let a YouTube video START, but it will
+// let a paused one resume. So the next song is started silently (muted, volume 0) while it is being prepared, and
+// paused right at its start (see onStateChange); when its turn comes it only resumes.
+function primeNext(p, c) {
+  const n = 1 - ai, q = pl[n]; if (!q || !c || !c.length) return;
+  try { setVol(q, 0); q.mute(); preload = { key: p.key, idx: n, primed: false }; q.loadVideoById(c[0].id); } catch {}
 }
 function wrongSong() {
   if (!current || !current.cands || current.cands.length < 2 || busy) return toast('No other version to try.');
@@ -736,7 +747,7 @@ function planPreload() {
   if (albumShow) return albumPreload();
   if (planned || marathon) return;   // a marathon chooses its next part when this one ends planned = pick(); if (!planned) return;
   const p = planned;
-  resolve(p).then(c => { if (planned !== p || !c.length || !ytReady) return; const n = 1 - ai; try { setVol(pl[n], 0); pl[n].cueVideoById(c[0].id); preload = { key: p.key, idx: n }; } catch {} });
+  resolve(p).then(c => { if (planned !== p || !c.length || !ytReady) return; primeNext(p, c); });
 }
 const clock = () => new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 const period = () => { const h = new Date().getHours(); return h < 5 ? 'night' : h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening'; };
@@ -1199,7 +1210,7 @@ function albumStep() {
 function albumPreload() {   // the next track is found and loaded ahead, so tracks follow each other closely
   const sh = albumShow, i = sh.i; if (planned || i >= sh.al.tracks.length || (i % 3 === 0 && !sh.said.has('n' + i))) return;
   const p = planned = albumSong(sh.al, i);
-  resolve(p).then(c => { if (planned !== p || !c.length || !ytReady) return; const n = 1 - ai; try { setVol(pl[n], 0); pl[n].cueVideoById(c[0].id); preload = { key: p.key, idx: n }; } catch {} });
+  resolve(p).then(c => { if (planned !== p || !c.length || !ytReady) return; primeNext(p, c); });
 }
 function albumBack() {   // Previous: the track before this one (its talk is not repeated)
   const sh = albumShow, now = current && current.album === sh.al.id ? current.n : sh.i - 1;
@@ -2526,7 +2537,7 @@ window.addEventListener('pagehide', () => { if (usageDirty) usageWrite(); });
 // A tiny, inaudible tone while the radio is on: a page that goes completely silent while it is minimized is slowed
 // down by the browser, which could hold the next song or Joe's next line until the window came back.
 let keepTone = null;
-function keepAwake() { try { const ctx = getCtx(); if (keepTone) return; const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = 30; g.gain.value = 0.0004; o.connect(g); g.connect(ctx.destination); o.start(); keepTone = o; } catch {} }
+function keepAwake() { try { const ctx = getCtx(); if (keepTone) return; const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = 20; g.gain.value = 0.001; o.connect(g); g.connect(ctx.destination); o.start(); keepTone = o; } catch {} }
 $('btnFocus').onclick = e => { e.stopPropagation(); $('focusMenu').classList.toggle('open'); paintFocus(); };
 $('focusMenu').onclick = e => {
   const ed = e.target.closest('[data-edit]'), b = e.target.closest('button'); if (!b) return;
