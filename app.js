@@ -367,6 +367,7 @@ window.onYouTubeIframeAPIReady = () => {
       onReady: () => { setVol(pl[i], 0); if (++ready === 2) ytReady = true; },
       onStateChange: e => {
         if (i !== ai) {   // the idle player: the next song was started silently to prime it; stop it at its very start
+          if (preload && preload.idx === i && !preload.primed) setVol(pl[i], 0);   // never heard while it is being prepared
           if (preload && preload.idx === i && !preload.primed && e.data === YT.PlayerState.PLAYING) { try { pl[i].pauseVideo(); pl[i].seekTo(0, true); } catch {} preload.primed = true; rlog('next song ready', { song: preload.key }); }
           return;
         }
@@ -441,6 +442,11 @@ function armStartWatch() {
     let st = -1; try { st = P().getPlayerState(); } catch {}
     const waited = Date.now() - t0;
     if ((st === 3 && waited < 45000) || ((st === -1 || st === 5) && waited < 10000)) { startWatch = setTimeout(check, 1500); return; }
+    if (document.hidden) {   // minimized: another version would not start either; keep asking this one, and it plays at the latest when the window comes back
+      if (!my._hidNote) { my._hidNote = 1; rlog('minimized: the song is waiting to start', { song: my.key, state: st }); }
+      try { P().unMute(); P().playVideo(); } catch {}
+      startWatch = setTimeout(check, 2000); return;
+    }
     rlog('did not start, trying another version', { song: my && my.key, state: st, waited: Math.round(waited / 1000) });
     tryNextCand();
   };
@@ -458,9 +464,11 @@ async function startSong(s, startVol, fadeInMs = 0, outMs = fadeMs()) {
   candIdx = 0; current = s; ai = n; playing = false;
   const np = pl[n];
   setVol(np, fadeInMs ? 0 : startVol);
+  try { np.unMute(); } catch {}   // a muted video is paused by the browser while the window is minimized: never start one muted
+  const resumed = !!(preload && preload.key === s.key && preload.idx === n && preload.primed);
   if (preload && preload.key === s.key && preload.idx === n) { try { np.seekTo(0, true); } catch {} np.playVideo(); } else np.loadVideoById(c[0].id);   // a primed song only resumes, which works even when minimized
   preload = null;
-  rlog('start', { song: s.key, id: c[0].id });
+  rlog('start', { song: s.key, id: c[0].id, primed: resumed, minimized: document.hidden });
   const stopOld = () => { try { if (pl[ai] !== old) old.pauseVideo(); } catch {} };
   if (old._fading && old._fadeTo === 0) { const w = setInterval(() => { if (!old._fading) { clearInterval(w); stopOld(); } }, 250); }   // already fading under the host
   else fadeP(old, 0, Math.max(1, outMs)).then(stopOld);
@@ -478,7 +486,7 @@ async function startSong(s, startVol, fadeInMs = 0, outMs = fadeMs()) {
 // paused right at its start (see onStateChange); when its turn comes it only resumes.
 function primeNext(p, c) {
   const n = 1 - ai, q = pl[n]; if (!q || !c || !c.length) return;
-  try { setVol(q, 0); q.mute(); preload = { key: p.key, idx: n, primed: false }; q.loadVideoById(c[0].id); } catch {}
+  try { setVol(q, 0); q.unMute(); preload = { key: p.key, idx: n, primed: false }; q.loadVideoById(c[0].id); setVol(q, 0); } catch {}   // volume 0, not muted (see startSong)
 }
 function wrongSong() {
   if (!current || !current.cands || current.cands.length < 2 || busy) return toast('No other version to try.');
@@ -2531,7 +2539,10 @@ function usageStart() {
   usageWrite();
 }
 setInterval(() => { if (!usage) return; if (!globalPaused && (playing || speaking)) { usage.minutes = Math.min(1440, usage.minutes + 1); usageDirty = true; } if (usageDirty && usage.minutes % 5 === 0) usageWrite(); }, 60000);
-document.addEventListener('visibilitychange', () => { if (document.hidden && usageDirty) usageWrite(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && usageDirty) usageWrite();
+  if (started) rlog(document.hidden ? 'window minimized' : 'window back', { playing, busy, song: current && current.key });
+});
 window.addEventListener('pagehide', () => { if (usageDirty) usageWrite(); });
 
 // A tiny, inaudible tone while the radio is on: a page that goes completely silent while it is minimized is slowed
