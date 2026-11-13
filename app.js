@@ -60,6 +60,7 @@ let libLoaded = false;
 async function loadLib() {
   const ping = await fetch('/api/ping').then(r => r.ok ? r.json() : null).catch(() => null);
   HELPER = !!(ping && (ping.app === 'feel-good-inc-fm' || ping.app === 'pale-blue-dot')); helperOpens = !!(ping && ping.open >= 2);
+  desktopApp = !!(ping && ping.desktop); if (ping && ping.voice) voiceState = ping.voice.state;
   if (HELPER) { try { const r = await fetch('/api/library'); lib = Object.assign(lib, await r.json()); } catch {} }
   if (HELPER && freshWipe) { lib = { user: [], cache: {}, removed: [], settings: {}, trim: {}, disc: {} }; fetch('/api/library', { method: 'POST', body: JSON.stringify(lib) }).catch(() => {}); rlog('fresh start: the library on this PC was cleared'); }
   else { try { const c = JSON.parse(localStorage.getItem('pbd-lib') || 'null'); if (c) lib = Object.assign(lib, c); } catch {} }
@@ -301,7 +302,14 @@ const spoken = x => (R.sayAs || []).reduce((t, [re, to]) => t.replace(re, to), S
 // the radio will say soon is asked for ahead: a whole break about a minute and a half before the song ends, the next
 // lines of a break or the bulletin as soon as it starts. While the voices are not ready (the first start downloads
 // them once) and on the website, the browser's own voices speak.
-let voiceState = '', voiceLoadToast = false;
+let voiceState = '', voiceLoadToast = false, desktopApp = false;
+const voicesPending = () => desktopApp && !['ready', 'error', 'none'].includes(voiceState);   // the app's voices are still loading
+async function waitVoices(ms) {   // a few seconds normally; minutes only if the voices have to be downloaded first
+  if (!voicesPending()) return;
+  const t0 = Date.now(), cap = $('capText'), keep = cap.textContent;
+  while (voicesPending() && Date.now() - t0 < ms) { cap.textContent = 'Getting ' + R.host + "'s and " + R.cohost + "'s voices ready…"; $('cap').classList.remove('idle'); await voicePoll(); await sleep(1000); }
+  cap.textContent = keep;
+}
 const kokoroReady = () => HELPER && voiceState === 'ready';
 const kokoroText = t => spoken((R.kokoroSay || []).reduce((x, [re, to]) => x.replace(re, to), String(t)));
 const kokoroBody = (text, who, pre) => JSON.stringify({ text: kokoroText(text), who: who || 'h', speed: (S.rate || 100) / 100, pre: !!pre });
@@ -329,7 +337,7 @@ function ownVoicesUI() {
   const tip = $('edgeTip'); if (tip) tip.hidden = true;
   const note = $('voiceNote'); if (note) { note.style.color = ''; note.textContent = 'In the app, ' + R.host + ' and ' + R.cohost + ' have voices of their own, made on this PC.'; }
 }
-setInterval(voicePoll, 4000);
+setInterval(voicePoll, 2000);
 function sayKokoro(text, who) {   // true when it was said (or stopped), false when the helper could not make it
   return new Promise(async res => {
     const id = runId, pieces = kPieces(text); speaking = true;
@@ -359,6 +367,7 @@ function playPiece(blob, text, id) {
   });
 }
 function say(text, who = 'h') {
+  if (voicesPending()) return Promise.resolve();   // never a stand-in voice in the app: this line is skipped
   if (kokoroReady()) return sayKokoro(String(text), who).then(ok => ok ? undefined : sayBrowser(text, who));
   return sayBrowser(text, who);
 }
@@ -1626,7 +1635,7 @@ async function advance(opts = {}) {
   const endRunNow = !!(prev && lastRunSong && prev.key === lastRunSong.key);
   let jmBday = null;   // Just music on her birthday: Joe says a few words once, between two songs
   if (S.justMusic && !opts.first && !opts.silent && !next.focus && !opts.replaySegs && isBirthday() && lib.bdayJM !== today()) { lib.bdayJM = today(); saveLib(); jmBday = [lines('Happy birthday, Rim', [sub((R.birthday || {}).justMusic || 'Happy birthday, Rim!')])]; }
-  const talk = !!jmBday || !!opts.replaySegs || (!S.justMusic && !opts.silent && !next.focus && (opts.first || afterPod || endRunNow || songsSinceBreak >= breakEvery() || opts.forceTalk || dedications.has(next.key)));
+  const talk = !voicesPending() && (!!jmBday || !!opts.replaySegs) || (!voicesPending() && !S.justMusic && !opts.silent && !next.focus && (opts.first || afterPod || endRunNow || songsSinceBreak >= breakEvery() || opts.forceTalk || dedications.has(next.key)));
   console.info('[radio] advance', { next: next.t, talk, count: songsSinceBreak, every: breakEvery() });
   if (talk) songsSinceBreak = 0;
   const old = P();
@@ -2013,6 +2022,7 @@ async function tuneIn() {
   if (!voices.length) loadVoices();
   try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch {}
   keepAwake();
+  await waitVoices(tourSeen() ? 20000 : 180000);   // the app: its own voices first (the welcome or the tour)
   if (!tourSeen() && !updResume) await startTour(false);   // the first time: Joe's tour, out loud, before the music
   setPlayIcon(true);
   const back = updResume; updResume = null;

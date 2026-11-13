@@ -198,8 +198,10 @@ For an old PC and slow Wi-Fi, on the website and the desktop app:
 ## 13. Voices (English)
 - **The app (Windows):** its own voices, made on the PC by **Kokoro** (free, open source, no account, no limit, no
   internet once downloaded): **Luna = `af_heart`**, **Joe = `am_adam`** (Joe also reads the bulletin). Only those
-  two voices are shipped. The speech model (about 92 MB) downloads once from Hugging Face on the first start
-  (`voice-model\`); until it is ready, a basic voice speaks. Pronunciation: `R.kokoroSay` first (Rim → Ream, Gorillaz →
+  two voices are shipped. The speech model (about 92 MB, pinned revision, checked by its SHA-256) is downloaded by the
+  **installer** (`voice-model\\`); if that fails, the app downloads it on its first start. The app **never speaks with a
+  stand-in voice**: the tour and the first welcome wait for the voices (a note on screen), and a break that comes before
+  they are ready is skipped (the music goes on). Pronunciation: `R.kokoroSay` first (Rim → Ream, Gorillaz →
   Gorillas, Feel Good Inc. → Ink, artist names), then `R.sayAs`.
 - **The website:** the browser's voices. In Edge, the natural ones: Luna: Ava or Emma Multilingual · Joe: Brian or
   Andrew Multilingual · Bulletin: Joe's voice unless another is chosen. Changeable in Settings. Pronunciation fixes in `R.sayAs`.

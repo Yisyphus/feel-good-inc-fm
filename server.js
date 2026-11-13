@@ -373,7 +373,7 @@ const writeLib = l => fs.writeFileSync(LIB, JSON.stringify(l, null, 1));
 // speech model (about 92 MB) is downloaded once from Hugging Face on the first start, into voice-model/, and kept.
 // The page asks for a block of text (POST /api/say) and gets a WAV back. Lines it will need soon are asked for in
 // advance (pre: true), so on a slow PC they are ready before they are said. One block is made at a time.
-const VOICE = { state: 'none', progress: 0, rtf: 0, error: '' };
+const VOICE = { state: 'none', progress: 0, rtf: 0, error: '', loadMs: 0 };
 const VOICE_IDS = { h: 'af_heart', s: 'am_adam', n: 'am_adam' };   // Luna hosts; Joe co-hosts, gives the tour, the mission and the bulletin
 let tts = null;
 const sayCache = new Map(), sayJobs = [];
@@ -382,16 +382,15 @@ async function voiceInit() {
   let K, T;
   try { const rq = require('module').createRequire(path.join(__dirname, 'server.js')); K = rq('kokoro-js'); T = rq('@huggingface/transformers'); } catch { return; }   // the website's helper, or an older app: no Kokoro
   VOICE.state = 'loading'; VOICE.error = '';
+  const t0 = Date.now();
   try {
     T.env.cacheDir = path.join(__dirname, 'voice-model'); T.env.allowLocalModels = true;
     const seen = {};
     tts = await K.KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', { dtype: 'q8', device: 'cpu', progress_callback: x => {
       if (x && x.file && x.total) { seen[x.file] = [x.loaded || 0, x.total]; const t = Object.values(seen).reduce((a, b) => [a[0] + b[0], a[1] + b[1]], [0, 0]); VOICE.progress = Math.round(100 * t[0] / t[1]); }
     } });
-    const t0 = Date.now(), a = await tts.generate('Hello, this is a quick voice check.', { voice: VOICE_IDS.h });   // how fast this PC speaks: seconds of work per second of speech
-    VOICE.rtf = +(((Date.now() - t0) / 1000) / (a.audio.length / a.sampling_rate)).toFixed(2);
-    VOICE.state = 'ready'; VOICE.progress = 100;
-    console.log('Voices ready (speed ' + VOICE.rtf + ' s of work per s of speech)');
+    VOICE.state = 'ready'; VOICE.progress = 100; VOICE.loadMs = Date.now() - t0;   // the speed (rtf) is measured on the first lines said
+    console.log('Voices ready in ' + VOICE.loadMs + ' ms');
   } catch (e) { tts = null; VOICE.state = 'error'; VOICE.error = String(e.message || e).slice(0, 200); console.log('Voices failed: ' + VOICE.error); setTimeout(voiceInit, 60000); }
 }
 // a block, cut into pieces Kokoro can say in one go (it cuts anything longer than about 500 sounds), joined back
@@ -434,8 +433,8 @@ async function runSay() {
   if (sayBusy || !tts) return; sayBusy = true;
   try {
     while (sayJobs.length) {
-      const j = sayCur = sayJobs.shift();
-      try { const b = await makeSpeech(j.text, j.voice, j.sp); sayCache.set(j.key, b); while (sayCache.size > 120) sayCache.delete(sayCache.keys().next().value); j.wait.forEach(w => w[0](b)); }
+      const j = sayCur = sayJobs.shift(), t0 = Date.now();   // VOICE.rtf: seconds of work per second of speech, smoothed
+      try { const b = await makeSpeech(j.text, j.voice, j.sp); const sec = (b.length - 44) / 48000; if (sec > 1) VOICE.rtf = +(((Date.now() - t0) / 1000) / sec * (VOICE.rtf ? 0.3 : 1) + (VOICE.rtf || 0) * 0.7).toFixed(2); sayCache.set(j.key, b); while (sayCache.size > 120) sayCache.delete(sayCache.keys().next().value); j.wait.forEach(w => w[0](b)); }
       catch (e) { j.wait.forEach(w => w[1](e)); }
     }
   } finally { sayBusy = false; sayCur = null; }
