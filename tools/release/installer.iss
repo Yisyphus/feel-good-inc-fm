@@ -22,7 +22,8 @@ PrivilegesRequired=lowest
 OutputDir=..\..\dist
 OutputBaseFilename=FeelGoodIncFM-Setup-{#MyVersion}
 SetupIconFile=icon.ico
-UninstallDisplayIcon={app}\icon.ico
+UninstallDisplayIcon={app}\Feel Good Inc FM.exe
+CloseApplications=yes
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -30,16 +31,27 @@ WizardStyle=modern
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"
 
+[InstallDelete]
+; the launcher and helper of the older, Edge-based app
+Type: files; Name: "{app}\Feel Good Inc FM.vbs"
+Type: files; Name: "{app}\FeelGoodHelper.exe"
+Type: files; Name: "{app}\NODE-LICENSE.txt"
+
 [Files]
-; everything the radio needs; your own files (data, app-cache, ads-playlist.json) are never touched
+; everything the radio needs; your own files (data, app-cache, voice-model) are never touched
 Source: "{#Stage}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{userprograms}\Feel Good Inc FM"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\Feel Good Inc FM.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\icon.ico"
-Name: "{userdesktop}\Feel Good Inc FM"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\Feel Good Inc FM.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\icon.ico"; Tasks: desktopicon
+Name: "{userprograms}\Feel Good Inc FM"; Filename: "{app}\Feel Good Inc FM.exe"; WorkingDir: "{app}"
+Name: "{userdesktop}\Feel Good Inc FM"; Filename: "{app}\Feel Good Inc FM.exe"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
-Filename: "{sys}\wscript.exe"; Parameters: """{app}\Feel Good Inc FM.vbs"""; Description: "Open Feel Good Inc. FM"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\Feel Good Inc FM.exe"; Description: "Open Feel Good Inc. FM"; Flags: postinstall nowait skipifsilent
+
+[UninstallDelete]
+; the downloaded voices and updates go with the app (your library in data\ stays, in case you install it again)
+Type: filesandordirs; Name: "{app}\voice-model"
+Type: filesandordirs; Name: "{app}\app-cache"
 
 [UninstallRun]
 Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -WindowStyle Hidden -Command ""try {{ Invoke-WebRequest http://127.0.0.1:8789/api/quit -UseBasicParsing -TimeoutSec 3 | Out-Null }} catch {{}}"""; Flags: runhidden; RunOnceId: "StopHelper"

@@ -241,9 +241,9 @@ function loadVoices() {
     add('', autoLabel); if (online) add(ONLINE, 'Online voice (if the others sound wrong)'); en.forEach(v => add(v.name, nice(v))); el.value = S[key] && (S[key] === ONLINE || en.some(v => v.name === S[key])) ? S[key] : ''; };
   fill('voiceSel', 'Automatic (Ava Multilingual, natural)', 'voice', true);
   fill('lunaSel', 'Automatic (Brian or Andrew, natural)', 'lunaVoice');
-  fill('bulletinSel', 'Automatic (a third natural voice)', 'bulletinVoice');
+  fill('bulletinSel', "Automatic (Joe's voice)", 'bulletinVoice');
   const note = $('voiceNote');
-  if (note) note.textContent = voices.some(v => isEn(v) && /natural/i.test(v.name)) ? '' : 'Tip: open the radio in Microsoft Edge for free natural voices (Andrew, Ava, Emma…). Without them an online voice is used.';
+  if (note && !kokoroReady()) note.textContent = voices.some(v => isEn(v) && /natural/i.test(v.name)) ? '' : 'Tip: open the radio in Microsoft Edge for free natural voices (Andrew, Ava, Emma…). Without them an online voice is used.';
 }
 function hostVoice() {
   if (S.voice === ONLINE) return null;
@@ -260,6 +260,7 @@ const VOICE_PREFS = {
   n: [/ryan.*natural/i, /sonia.*natural/i, /libby.*natural/i, /steffan.*natural/i, /jenny.*natural/i, /natural/i],
 };
 function voiceFor(code) {
+  if (code === 'n' && !S.bulletinVoice) return voiceFor('s');   // the bulletin is Joe's
   const chosen = { s: S.lunaVoice, n: S.bulletinVoice }[code];
   if (chosen) { const v = voices.find(v => v.name === chosen); if (v) return v; }
   const host = hostVoice(), en = voices.filter(v => isEn(v) && v !== host);
@@ -295,7 +296,73 @@ function unlockAudio() { if (!mobileWeb()) return; try { ttsPlayer.src = SILENT_
 // How the voice should say a text: names it would say wrong are rewritten (R.sayAs). The caption keeps the text as written.
 const spoken = x => (R.sayAs || []).reduce((t, [re, to]) => t.replace(re, to), String(x));
 // Speak a block of text. All sentences are queued at once so there is no gap between them.
+// ---------- the desktop app's own voices (Kokoro, made by the PC helper: Luna = Heart, Joe = Adam) ----------
+// The installed app asks the helper for a recording of each block of speech. A slow PC makes speech slowly, so what
+// the radio will say soon is asked for ahead: a whole break about a minute and a half before the song ends, the next
+// lines of a break or the bulletin as soon as it starts. While the voices are not ready (the first start downloads
+// them once) and on the website, the browser's own voices speak.
+let voiceState = '', voiceLoadToast = false;
+const kokoroReady = () => HELPER && voiceState === 'ready';
+const kokoroText = t => spoken((R.kokoroSay || []).reduce((x, [re, to]) => x.replace(re, to), String(t)));
+const kokoroBody = (text, who, pre) => JSON.stringify({ text: kokoroText(text), who: who || 'h', speed: (S.rate || 100) / 100, pre: !!pre });
+// a block in pieces of a sentence or two (the same way the helper would cut it), each recorded on its own
+const kPieces = text => { const out = []; let cur = ''; splitParts(String(text).replace(/\b(Inc|Mr|Mrs|Dr|St|Pt|Pts|vs)\. /g, '$1\u2024 ')).map(x => x.replace(/\u2024/g, '.')).forEach(x => { if (cur && (!out.length || (cur + ' ' + x).length > 220)) { out.push(cur); cur = x; } else cur = cur ? cur + ' ' + x : x; }); if (cur) out.push(cur); return out; };   // the first piece is one sentence, so the voice starts sooner
+let preList = [], preTimer = 0;
+function kokoroPre(text, who) {   // collected, then sent in one list so the helper makes them in this order
+  if (!kokoroReady() || !text) return;
+  kPieces(text).forEach(t => preList.push({ text: kokoroText(t), who: who || 'h', speed: (S.rate || 100) / 100 }));
+  if (!preTimer) preTimer = setTimeout(() => { const items = preList; preList = []; preTimer = 0; fetch('/api/say', { method: 'POST', body: JSON.stringify({ items }) }).catch(() => {}); }, 0);
+}
+async function voicePoll() {
+  if (!HELPER || voiceState === 'ready' || voiceState === 'none') return;
+  const p = await fetch('/api/ping').then(r => r.json()).catch(() => null), v = p && p.voice;
+  if (!v) return;
+  if (v.state === 'loading' && !voiceLoadToast && v.progress < 100) { voiceLoadToast = true; toast("Getting " + R.host + "'s and " + R.cohost + "'s voices ready (first time only). Until then, a simpler voice speaks."); }
+  if (v.state === 'ready' && voiceState && voiceState !== 'ready') toast(R.host + "'s and " + R.cohost + "'s voices are ready.");
+  if (v.state !== voiceState) rlog('voices ' + v.state, { progress: v.progress, speed: v.rtf, error: v.error || undefined });
+  voiceState = v.state;
+  const note = $('voiceNote'); if (note && v.state === 'loading') note.textContent = 'Downloading the voices, once: ' + (v.progress || 0) + '%';
+  if (v.state === 'ready') ownVoicesUI();
+}
+function ownVoicesUI() {
+  ['voiceSel', 'lunaSel', 'bulletinSel'].forEach(id => { const el = $(id), row = el && el.closest('.set'); if (row) row.hidden = true; });
+  const tip = $('edgeTip'); if (tip) tip.hidden = true;
+  const note = $('voiceNote'); if (note) { note.style.color = ''; note.textContent = 'In the app, ' + R.host + ' and ' + R.cohost + ' have voices of their own, made on this PC.'; }
+}
+setInterval(voicePoll, 4000);
+function sayKokoro(text, who) {   // true when it was said (or stopped), false when the helper could not make it
+  return new Promise(async res => {
+    const id = runId, pieces = kPieces(text); speaking = true;
+    let next = get(pieces[0]);   // first in line
+    if (pieces.length > 1) fetch('/api/say', { method: 'POST', body: JSON.stringify({ items: pieces.slice(1).map(t => ({ text: kokoroText(t), who: who || 'h', speed: (S.rate || 100) / 100 })) }) }).catch(() => {});   // the rest is made while the first is said
+    function get(t) { return withTimeout(fetch('/api/say', { method: 'POST', body: kokoroBody(t, who, false) }), 90000).then(r => r.ok ? r.blob() : null).catch(() => null); }
+    for (let k = 0; k < pieces.length; k++) {
+      const blob = await (next || get(pieces[k])); next = k + 1 < pieces.length ? get(pieces[k + 1]) : null;
+      if (id !== runId) { speaking = false; return res(true); }
+      if (!blob) { speaking = false; rlog('voice not made, browser voice instead'); return res(k === 0 ? false : true); }
+      await playPiece(blob, pieces[k], id);
+      if (id !== runId) { speaking = false; return res(true); }
+    }
+    speaking = false; res(true);
+  });
+}
+function playPiece(blob, text, id) {
+  return new Promise(res => {
+    const url = URL.createObjectURL(blob), a = new Audio(url), parts = splitParts(text), total = parts.reduce((n, x) => n + x.length + 1, 0) || 1;
+    let shown = -1, done = false, watch;
+    const show = () => { if (id !== runId || !a.duration) return; const k = a.currentTime / a.duration * total; let acc = 0, i = 0; for (; i < parts.length - 1; i++) { acc += parts[i].length + 1; if (acc > k) break; } if (i !== shown) { shown = i; $('capText').textContent = parts[i]; } };
+    const fin = () => { if (done) return; done = true; clearInterval(watch); a.ontimeupdate = null; if (curAudio === a) curAudio = null; URL.revokeObjectURL(url); res(); };
+    watch = setInterval(() => { if (id !== runId) { try { a.pause(); } catch {} fin(); } }, 300);
+    $('capText').textContent = parts[0] || text; shown = 0;
+    curAudio = a; a.ontimeupdate = show; a.onended = fin; a.onerror = fin;
+    if (!globalPaused) a.play().catch(fin);   // paused meanwhile: Play continues it (resumeAll)
+  });
+}
 function say(text, who = 'h') {
+  if (kokoroReady()) return sayKokoro(String(text), who).then(ok => ok ? undefined : sayBrowser(text, who));
+  return sayBrowser(text, who);
+}
+function sayBrowser(text, who = 'h') {
   text = String(text);   // shown as written (Rim); only what the voice hears gets the pronunciation fixes (R.sayAs)
   return new Promise(res => {
     const id = runId, parts = splitParts(text);
@@ -760,6 +827,17 @@ function planPreload() {
   const p = planned;
   resolve(p).then(c => { if (planned !== p || !c.length || !ytReady) return; primeNext(p, c); });
 }
+// The break after this song, written early so its speech can be recorded in time (desktop voices only). Only when
+// the host will talk at that change; anything that changes the plan (Next, a chosen song) simply drops it.
+let preBreak = null;
+function planBreak() {
+  if (!kokoroReady() || !planned || !current || preBreak || busy || marathon || albumShow || S.justMusic || planned.focus || current.podcast) return;
+  if (songsSinceBreak + 1 < breakEvery() || podcastDue || dedications.has(planned.key)) return;
+  if (lastRunSong && current.key === lastRunSong.key) return;
+  preBreak = { next: planned, prev: current, segs: makeBreak(current, planned, false), intro: introFor(planned, current) };
+  preSegs(preBreak.segs); kokoroPre(preBreak.intro, 'h');
+  rlog('next break prepared', { parts: preBreak.segs.length });
+}
 const clock = () => new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 const period = () => { const h = new Date().getHours(); return h < 5 ? 'night' : h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening'; };
 // {age}: the listener's age, from the birth date in R.listener (content19.js)
@@ -866,7 +944,7 @@ const lines = (kind, arr, extra) => ({ kind, lines: arr.filter(Boolean).map(x =>
 function missionSeg(birthday) {
   lib.missionDay = today(); saveLib();
   const m = birthday && R.birthday && R.birthday.mission ? R.birthday.mission : fresh('mission', R.missions);
-  return lines("Today's Mission", [sub(fresh('missionlead', R.missionLeads || ['Okay Rim, mission time.'])), sub(m)]);
+  return lines("Today's Mission", [sub(fresh('missionhand', R.missionHandovers || ['Joe, mission time.'])), { t: sub(fresh('missionlead', R.missionLeads || ['Okay Rim, mission time.'])), w: 's' }, { t: sub(m), w: 's' }]);
 }
 const missionDue = () => lib.missionDay !== today() && (R.missions || []).length;
 // A trivia shot about the song that is coming (or the one that just played); otherwise a general one.
@@ -966,7 +1044,10 @@ function marathonLines(seg) {
     return kept ? { ...l, t: kept } : null;
   }).filter(Boolean);
 }
+const mergeLines = lines => { const merged = []; lines.forEach(l => { const w = l.w || 'h', last = merged[merged.length - 1]; if (last && (last.w || 'h') === w) last.t += ' ' + l.t; else merged.push({ ...l }); }); return merged; };
+function preSegs(segs) { if (kokoroReady() && !marathon) segs.forEach(seg => { if (seg && seg.lines && !seg.jingle) mergeLines(seg.lines).forEach(l => kokoroPre(l.t, l.w && l.w !== 'h' ? l.w : 'h')); }); }
 async function runSegments(segs, id) {
+  preSegs(segs);
   for (let si = 0; si < segs.length; si++) {
     let seg = segs[si];
     if (id !== runId) return false;
@@ -977,8 +1058,7 @@ async function runSegments(segs, id) {
     $('capKind').textContent = seg.title ? `${seg.kind} · ${seg.title}` : seg.kind;
     if (seg.jingle) { await runJingle(seg.jingle); continue; }
     bedOn();
-    const merged = [];
-    seg.lines.forEach(l => { const w = l.w || 'h', last = merged[merged.length - 1]; if (last && (last.w || 'h') === w) last.t += ' ' + l.t; else merged.push({ ...l }); });
+    const merged = mergeLines(seg.lines);
     for (const l of merged) {
       if (id !== runId) return false;
       if (l.w === 's') $('capKind').textContent = R.cohost + (seg.title ? ' · ' + seg.title : '');
@@ -1564,7 +1644,11 @@ async function advance(opts = {}) {
   nextPending = true; // a song you suggest while the host is talking takes the place of this one
   resolve(next);
   if (jmBday) podcastDue = false;
-  const segs = opts.replaySegs || jmBday || makeBreak(prev, next, opts.first);   // after the bulletin: the rest of the interrupted break
+  const pb = preBreak; preBreak = null;
+  const usePb = !!(pb && !opts.replaySegs && !jmBday && !opts.first && pb.next === next && pb.prev === prev);
+  const segs = opts.replaySegs || jmBday || (usePb ? pb.segs : makeBreak(prev, next, opts.first));
+  const introFor0 = next, introT = jmBday ? '' : usePb ? pb.intro : introFor(next, prev);
+  preSegs(segs); if (introT) kokoroPre(introT, 'h');   // the break first, then the intro   // after the bulletin: the rest of the interrupted break
   console.info('[radio] break', lib.b, segs.map(s => s.kind + (s.title ? ' · ' + s.title : '')));
   curBreak = { segs, next, idx: 0 };
   const ok = await runSegments(segs, id);
@@ -1584,7 +1668,7 @@ async function advance(opts = {}) {
   nextPending = false;
   $('vinyl').classList.add('talk');
   $('capKind').textContent = R.host;
-  if (!jmBday) await say(introFor(next, prev), 'h');
+  if (!jmBday) await say(next === introFor0 && introT ? introT : introFor(next, prev), 'h');
   $('vinyl').classList.remove('talk');
   if (id !== runId) return;
   bedOff(2.5);
@@ -1731,16 +1815,17 @@ async function runNews(manual) {
   const fetched = withTimeout(early || getNews(manual), 45000).catch(() => null);
   await sleep(1000); if (id !== runId) return;
   $('capKind').textContent = R.host;
-  await say(sub(fresh('newsin', B().intro || ['It is {time}: time for the Feel Good Bulletin.'])), 'h');
+  await say(sub(fresh('newsin', B().intro || ['It is {time}: time for the Feel Good Bulletin.'])), 'n');
   const n = await fetched;
   if (id !== runId) return;
   if (n) { lastNewsSources = n.sources || null; paintNewsNote(); }
   rlog('bulletin', { items: n && n.items.length, weather: !!(n && n.weather), sources: n && n.sources.map(s => s.id + (s.ok ? ':ok' : ':x')).join(' ') });
-  if (!n || (!n.items.length && !n.weather)) { await say(fresh('newsnone', B().none || ['The news wires are taking a nap, so no bulletin this time. Back to the music.']), 'h'); if (id === runId) finishNews(); return; }
+  if (!n || (!n.items.length && !n.weather)) { await say(fresh('newsnone', B().none || ['The news wires are taking a nap, so no bulletin this time. Back to the music.']), 'n'); if (id === runId) finishNews(); return; }
   newsJingle = Jingles.play(getCtx(), 'bulletin'); await newsJingle.done; newsJingle = null;
   if (id !== runId) return;
   $('capKind').textContent = 'The Feel Good Bulletin';
   const ls = buildBulletin(n);
+  ls.forEach(t => kokoroPre(t, 'n'));
   try { localStorage.setItem('fgi-news-last', JSON.stringify({ at: Date.now(), lines: ls.map((t, i) => ({ said: t, ...(ls.info[i] || {}) })) })); } catch {}
   for (let i = 0; i < ls.length; i++) {
     const tok = ++newsLineTok; newsLink = (ls.info[i] || {}).link || '';
@@ -1753,7 +1838,7 @@ async function runNews(manual) {
   $('capSrc').textContent = ''; newsLink = ''; $('cap').classList.remove('linkable');
   if (id !== runId) return;
   $('capKind').textContent = R.host;
-  await say(sub(fresh('newsout', B().outro || ['That was the bulletin. Back to the music.'])), 'h');
+  await say(sub(fresh('newsout', B().outro || ['That was the bulletin. Back to the music.'])), 'n');
   if (id === runId) finishNews();
 }
 $('cap').addEventListener('click', async e => {   // during the bulletin: the story being read, in the browser
@@ -2488,8 +2573,9 @@ function startTour(force) {
   const steps = (R.tour || []).filter(s => document.querySelector(s.el)); if (!steps.length) return Promise.resolve();
   return new Promise(resolve => {
     let i = 0, timer = null; const box = $('tour'), p = started && ytReady ? P() : null, vol0 = p && p._vol;
-    if (p && playing) fadeP(p, Math.min(S.vol, 20), 600);   // played again from Settings: the music goes quiet under Joe
+    if (p && playing) fadeP(p, Math.min(S.vol, 20), 600);   // played again from Settings: the music goes quiet under the host
     stopSpeech(); bedOn();
+    steps.forEach(s => kokoroPre(sub(s.t), 's'));
     const end = () => {
       clearTimeout(timer); document.querySelectorAll('.tour-spot').forEach(x => x.classList.remove('tour-spot'));
       box.hidden = true; try { localStorage.setItem('fgi-tour', '1'); } catch {}
@@ -2507,8 +2593,8 @@ function startTour(force) {
       const r = el.getBoundingClientRect(), below = r.top < window.innerHeight / 2;
       box.style.top = below ? Math.min(window.innerHeight - 170, r.bottom + 12) + 'px' : 'auto';
       box.style.bottom = below ? 'auto' : Math.max(12, window.innerHeight - r.top + 12) + 'px';
-      stopSpeech(); const my = runId; $('capKind').textContent = R.host + ' · the tour';
-      await say(text, 'h');
+      stopSpeech(); const my = runId; $('capKind').textContent = R.cohost + ' · the tour';
+      await say(text, 's');
       if (my === runId && !box.hidden) timer = setTimeout(() => { i++; show(); }, 1400);   // finished: the next step comes by itself
     };
     $('tourNext').onclick = () => { i++; show(); };
@@ -2729,7 +2815,8 @@ setInterval(() => {
       const d = P().getDuration(), c = P().getCurrentTime(), rem = d - c;
       $('tcur').textContent = fmt(c); $('tdur').textContent = fmt(d); $('barfill').style.width = d ? (100 * c / d) + '%' : '0';
       const isPod = current.podcast;
-      if (!isPod && !repeatOn && d > 30 && c >= 6) planPreload();   // a few seconds into the song: the next one is cued on the other player, so Next and the end are instant
+      if (!isPod && !repeatOn && d > 30 && c >= 6) planPreload();
+      if (!isPod && !repeatOn && d > 30 && rem < 95 && rem > 10) planBreak();   // a few seconds into the song: the next one is cued on the other player, so Next and the end are instant
       const trimAt = lib.trim[current.key];
       if (repeatOn && d > 5 && (rem <= 0.8 || (trimAt && c >= trimAt))) repeatSong();   // repeat: back to the start, no fade, no next song
       // end the song a little early (and learn-trim) so trailing silence never reaches you

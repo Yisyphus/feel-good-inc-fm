@@ -24,7 +24,8 @@ Where the two disagree, **this file wins**.
   are fine.
 - **Tone:** full of energy, positive, motivating, funny, as if Luna is talking to her. **Not existential.** Not bossy:
   advice is offered ("if you feel like it…"), never ordered.
-- **Luna** is the host. **Joe** is a playful co-host: Book Nook, short readings, banter with Luna.
+- **Luna** is the host. **Joe** is a playful co-host: he gives the **welcome tour** (then hands over to Luna), **Today's
+  Mission** (Luna hands it to him), **the Feel Good Bulletin**, Book Nook, short readings, banter with Luna.
 - **Monster Energy:** only as a look (a green claw-scratch sticker). Luna never promotes energy drinks.
 
 ## 3. What is removed from Pale Blue Dot
@@ -194,9 +195,14 @@ For an old PC and slow Wi-Fi, on the website and the desktop app:
 - Website: page files kept on the PC after the first visit; only changed files download again.
 - Desktop app: Luna's speech is prepared while the song plays, so it does not stutter.
 
-## 13. Voices (Edge natural voices, English)
-Luna: Ava or Emma Multilingual · Joe: Brian or Andrew Multilingual · Bulletin: a third voice (Jenny, Ryan…). Changeable in
-Settings. Pronunciation fixes in `R.sayAs`.
+## 13. Voices (English)
+- **The app (Windows):** its own voices, made on the PC by **Kokoro** (free, open source, no account, no limit, no
+  internet once downloaded): **Luna = `af_heart`**, **Joe = `am_adam`** (Joe also reads the bulletin). Only those
+  two voices are shipped. The speech model (about 92 MB) downloads once from Hugging Face on the first start
+  (`voice-model\`); until it is ready, a basic voice speaks. Pronunciation: `R.kokoroSay` first (Rim → Ream, Gorillaz →
+  Gorillas, Feel Good Inc. → Ink, artist names), then `R.sayAs`.
+- **The website:** the browser's voices. In Edge, the natural ones: Luna: Ava or Emma Multilingual · Joe: Brian or
+  Andrew Multilingual · Bulletin: Joe's voice unless another is chosen. Changeable in Settings. Pronunciation fixes in `R.sayAs`.
 
 ## 14. Where it lives
 
@@ -205,13 +211,14 @@ Settings. Pronunciation fixes in `R.sayAs`.
   Action. No GitHub address visible.
 - **Cloud:** Firebase project **`rim-fm`** (Google sign-in, Firestore with owner-only rules). Never the owner's
   Pale Blue Dot project.
-- **Desktop app:** the Windows installer and portable zip (GitHub Releases), `cloud.json` `appUrl` =
-  `https://rim-fm.web.app/`. Website and app update from the same place.
+- **Desktop app:** the Windows installer (GitHub Releases, copied to `rim-fm.web.app/download/` by the deploy),
+  `cloud.json` `appUrl` = `https://rim-fm.web.app/`. Website and app update from the same place.
 - **Get the Windows app** in Settings > My stuff.
 
 ### System check before installing
 - **Check my PC** (Settings > Get the Windows app, and on its own page `rim-fm.web.app/check`): Windows version,
-  memory and processor, Edge version, natural voices, Wi-Fi speed (a small test download). A plain verdict
+  memory and processor, how fast the PC would make the voices (a small speed test), the website's voices, Wi-Fi speed
+  (a small test download, with the time the one-time 230 MB download would take). A plain verdict
   ("Ready for the app" / "Use the website, it will work better here" / "This PC needs …") and **Copy results**.
 - The **installer checks again** and stops with a clear message on a Windows that is too old.
 - If her PC is Windows 7 or 8: adapt the helper (older Node build) at that point.
@@ -246,8 +253,23 @@ Settings. Pronunciation fixes in `R.sayAs`.
   relays; importing a YouTube playlist link needs the app.
 - **The app helper** listens on port **8789** (not 8787: no clash with Pale Blue Dot on the same PC) and answers
   `/api/ping` with `app: 'feel-good-inc-fm'`. Its news allowlist (`NEWS_HOSTS`) holds the bulletin's sources.
-  The installer is `FeelGoodIncFM-Setup-<version>.exe` (Inno Setup, `MinVersion=10.0`), the launcher
-  `Feel Good Inc FM.vbs`, the helper process `FeelGoodHelper.exe`, installed in `%LOCALAPPDATA%\Programs\FeelGoodIncFM`.
+  The installer is `FeelGoodIncFM-Setup-<version>.exe` (Inno Setup, `MinVersion=10.0`), installed in
+  `%LOCALAPPDATA%\Programs\FeelGoodIncFM`.
+- **The app is its own program (Electron, `desktop/main.js`), not a browser window** (since 13 November 2026; before,
+  it opened in Edge, and Edge paused new songs while the window was minimized). `Feel Good Inc FM.exe` starts the
+  helper (`server.js`) with its own built-in Node (`ELECTRON_RUN_AS_NODE`), then shows `http://localhost:8789/`.
+  The window is never slowed down or treated as hidden when minimized or covered (`backgroundThrottling: false` and
+  Chromium switches), so songs start and voices go on. Links open in the normal browser; Google sign-in opens in a
+  small window of its own. Closing the window closes the helper.
+- **Voices in the helper:** `POST /api/say {text, who, speed, pre}` returns a WAV (Kokoro, `node_modules/kokoro-js`,
+  q8 model on the CPU); `/api/ping` reports `voice: {state, progress, rtf}` (`rtf`: seconds of work per second of
+  speech on this PC). The page records speech ahead so a slow PC never makes Luna wait: the next break and its song
+  intro about 95 s before a song ends (`planBreak`), every line of a break or the bulletin as soon as it starts, the
+  tour's steps, and long blocks one or two sentences at a time (the first piece plays while the rest is made).
+- **Build** (`tools/release/build.ps1`, on Windows): Electron for Windows (version pinned, checked against its
+  checksum), the exe renamed and given its icon (rcedit), `kokoro-js` with only what Windows needs (onnxruntime for
+  win32-x64, the Node build of transformers, a stand-in for the unused image library, the two voices), the helper and
+  the page. The installer is about 140 MB; the free Firebase plan serves 360 MB a day, so a couple of downloads a day.
 - **Releases** run only by hand (Actions > Release > Run workflow), after writing the version in `tools/release/VERSION`.
 - **What is in it (12 November 2026):** 792 clean songs (790 checked + clean radio edits of "Feel Good Inc." and
   "Clint Eastwood", fan uploads labelled clean), 9 Album Party albums (Demon Days, Plastic Beach, The Dark Side of the

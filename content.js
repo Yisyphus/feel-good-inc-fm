@@ -138,6 +138,15 @@ window.RADIO = window.RADIO || {};
     [/\bBetweenatna\b/gi, 'Bet-wee-nat-na'], [/\bHoba Hoba Spirit\b/g, 'Hoba Hoba Spirit'], [/\bBab L' Bluz\b/g, 'Bab El Blues'],
     [/\bNass El Ghiwane\b/g, 'Nass El Ghiwane'], [/\bFnaïre\b/g, 'Fnaïr'], [/\bDarija\b/g, 'Darija'],
     [/\bKevin Parker\b/g, 'Kevin Parker'], [/\bRim\b/g, 'Reem'], [/\bLuna\b/g, 'Luna'], [/\b19-2000\b/g, 'nineteen two thousand'],
+    [/\b1901\b/g, 'nineteen oh one'], [/\b505\b/g, 'five oh five'], [/\b909\b/g, 'nine oh nine'], [/\bPts\. 1-5\b/g, 'Parts 1 to 5'], [/\bPt\. (\d)/g, 'Part $1'],
+    [/\bSk8er Boi\b/g, 'Skater Boy'], [/#1\b/g, 'number one'], [/\b80's\b/g, 'eighties'], [/\bTri9i\b/g, 'Treeki'], [/\bNa3ess\b/g, 'Na-ess'], [/\bCaïd\b/g, 'Ka-eed'],
     [/\bFM\b/g, 'F M'], [/\bR&B\b/g, 'R and B'], [/\b&\b/g, 'and'], [/ - /g, ', '], [/\s—\s/g, ', '], [/…/g, '...'],
+  ];
+  // The desktop app's own voices (Kokoro) read some words differently from Edge's: these come first, then R.sayAs.
+  R.kokoroSay = [
+    [/\bRim\b/g, 'Ream'], [/\bGorillaz\b/g, 'Gorillas'], [/\bInc\.\s*(?=FM\b|F M\b)/g, 'Ink '], [/\bInc\./g, 'Ink.'], [/\bInc\b/g, 'Ink'],
+    [/\bAC\/DC\b/g, 'AC DC'], [/\bAlvvays\b/g, 'Always'], [/\bCuco\b/g, 'Kooko'], [/\bFna(ï|i)re\b/g, 'Fnair'], [/\bLaufey\b/g, 'Lay-vay'],
+    [/\bNujabes\b/g, 'Noo jah bess'], [/\bGhiwane\b/g, 'Ghee-wan'], [/\bPortugal\. The Man\b/g, 'Portugal the Man'], [/\bRamones\b/g, 'Rah-moans'],
+    [/\bblink-182\b/gi, 'blink one eighty two'], [/\bEarth, Wind & Fire\b/g, 'Earth Wind and Fire'], [/\bToro y Moi\b/g, 'Toro ee Moy'],
   ];
 })();

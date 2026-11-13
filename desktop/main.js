@@ -1,0 +1,61 @@
+// Feel Good Inc. FM, the Windows app: its own window (Electron), not a browser tab.
+// - It starts the helper (server.js, in the install folder) with the app's own built-in Node, then shows the radio.
+// - The window is never slowed down or paused when it is minimized or covered: music and voices go on.
+// - Links open in the normal browser; Google sign-in opens in a small window of its own.
+const { app, BrowserWindow, shell } = require('electron');
+const path = require('path'), http = require('http'), { spawn } = require('child_process');
+
+const DIR = process.env.FGI_DIR || path.dirname(process.execPath);   // the install folder (server.js, public, data...)
+const PORT = 8789, URL_HOME = 'http://localhost:' + PORT + '/';
+
+// a minimized page must never be put to sleep: no slowed timers, no "hidden" page, no paused media
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('disable-background-timer-throttling');
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+app.setAppUserModelId('FeelGoodIncFM');
+app.userAgentFallback = app.userAgentFallback.replace(/ Electron\/\S+/, '').replace(/ feel-good-inc-fm\/\S+/i, '');   // a plain Chrome to YouTube and Google
+
+if (!app.requestSingleInstanceLock()) app.quit();
+
+const ping = () => new Promise(res => {
+  const r = http.get({ host: '127.0.0.1', port: PORT, path: '/api/ping', timeout: 1500 }, x => { let b = ''; x.on('data', c => b += c); x.on('end', () => { try { res(JSON.parse(b).app === 'feel-good-inc-fm'); } catch { res(false); } }); });
+  r.on('error', () => res(false)); r.on('timeout', () => { r.destroy(); res(false); });
+});
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function startHelper() {
+  if (await ping()) return true;
+  try {
+    spawn(process.execPath, [path.join(DIR, 'server.js')], { cwd: DIR, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', FGI_DESKTOP: '1' }, detached: true, stdio: 'ignore', windowsHide: true }).unref();
+  } catch (e) { return false; }
+  for (let i = 0; i < 80; i++) { await sleep(250); if (await ping()) return true; }
+  return false;
+}
+const SIGN_IN = /^https:\/\/(accounts\.google\.com|[\w-]+\.firebaseapp\.com|[\w-]+\.web\.app|apis\.google\.com)\//;
+
+let win = null;
+async function open() {
+  win = new BrowserWindow({
+    width: 440, height: 820, minWidth: 360, minHeight: 560, title: 'Feel Good Inc. FM', backgroundColor: '#0b0a14',
+    icon: path.join(DIR, 'icon.ico'), autoHideMenuBar: true, show: false,
+    webPreferences: { backgroundThrottling: false, contextIsolation: true, sandbox: true, spellcheck: false },
+  });
+  win.removeMenu();
+  win.once('ready-to-show', () => win.show());
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (SIGN_IN.test(url)) return { action: 'allow', overrideBrowserWindowOptions: { width: 480, height: 640, autoHideMenuBar: true, parent: win, webPreferences: { backgroundThrottling: false } } };
+    if (/^https?:\/\//.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith(URL_HOME)) { e.preventDefault(); shell.openExternal(url); } });
+  win.on('closed', () => { win = null; });
+  const ok = await startHelper();
+  if (!ok) { win.loadURL('data:text/html,' + encodeURIComponent('<body style="font:16px sans-serif;background:#0b0a14;color:#eee;padding:24px"><h2>The radio could not start</h2><p>Close this window and open Feel Good Inc. FM again. If it happens again, restart the PC.</p></body>')); return; }
+  win.loadURL(URL_HOME);
+}
+app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
+app.whenReady().then(open);
+app.on('window-all-closed', () => {   // closing the window closes the helper too
+  const r = http.get({ host: '127.0.0.1', port: PORT, path: '/api/quit', timeout: 1500 }, () => app.quit());
+  r.on('error', () => app.quit()); r.on('timeout', () => { r.destroy(); app.quit(); });
+});

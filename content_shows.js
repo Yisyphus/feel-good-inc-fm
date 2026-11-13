@@ -4,6 +4,8 @@
   const R = window.RADIO;
 
   // ---------- Today's Mission: once a day, the first time the radio is on ----------
+  // Today's Mission: Luna hands over, Joe gives the mission
+  R.missionHandovers = ['Joe, what is the mission today?', 'Joe, you have the mission, right?', 'Over to Joe for today\'s mission.', 'Joe, mission time. Go.'];
   R.missionLeads = ['Okay Rim, mission time.', 'Attention please, mission incoming.', 'Rim, your mission, should you choose to accept it.', 'Daily mission, coming right up.'];
   R.missions = [
     "Today's mission: draw one tiny doodle in the corner of a notebook page, and listen to one song you have never heard before.",
@@ -246,13 +248,13 @@
 
   // ---------- the welcome tour (the first time; again from Settings) ----------
   R.tour = [
-    { el: '#btnPlay', t: 'Hey Rim, Luna here! This is play and pause. Next and previous are right next to it.' },
-    { el: '#btnJust', t: 'This is Just music: tap it and I stop talking. No shows, nothing in between, like Spotify without ads. Tap again to bring me back.' },
+    { el: '#btnPlay', t: 'Hey Rim, Joe here! I am giving you the tour, then Luna takes over. This is play and pause. Next and previous are right next to it.' },
+    { el: '#btnJust', t: 'This is Just music: tap it and Luna and I stop talking. No shows, nothing in between, like Spotify without ads. Tap again to bring us back.' },
     { el: '#btnAddTo', t: 'Like a song? The heart puts it in your Liked Songs. The plus puts it in one of your playlists.' },
     { el: '#btnAdd', t: 'Add a song: type any song, or paste a YouTube link, and it goes into your library and plays next.' },
     { el: '#btnLib', t: 'Your Library: all the songs, your Liked Songs, your playlists, and the albums for the Album Party.' },
     { el: '#btnFocus', t: 'Homework mode: chill music, no talking, and a study timer if you want one.' },
-    { el: '#btnSet', t: 'And Settings, for everything else. That is it. Enjoy your radio!' },
+    { el: '#btnSet', t: 'And Settings, for everything else. That is the tour! Now over to Luna, your host. Luna?' },
   ];
   R.studyLines = {
     break: ['Break time! Five minutes. Stretch, get some water, look out the window.', 'Nice work. Five-minute break. You earned it.'],

@@ -367,6 +367,80 @@ async function similar(id) {
 const readLib = () => { try { return JSON.parse(fs.readFileSync(LIB, 'utf8')); } catch { return { user: [], cache: {}, removed: [], settings: {} }; } };
 const writeLib = l => fs.writeFileSync(LIB, JSON.stringify(l, null, 1));
 
+
+// ---------- the voices of the desktop app: Kokoro, free and local (no account, no limit, no internet once downloaded) ----------
+// Only in the installed app (it ships node_modules/kokoro-js with two voices: af_heart = Luna, am_adam = Joe). The
+// speech model (about 92 MB) is downloaded once from Hugging Face on the first start, into voice-model/, and kept.
+// The page asks for a block of text (POST /api/say) and gets a WAV back. Lines it will need soon are asked for in
+// advance (pre: true), so on a slow PC they are ready before they are said. One block is made at a time.
+const VOICE = { state: 'none', progress: 0, rtf: 0, error: '' };
+const VOICE_IDS = { h: 'af_heart', s: 'am_adam', n: 'am_adam' };   // Luna hosts; Joe co-hosts, gives the tour, the mission and the bulletin
+let tts = null;
+const sayCache = new Map(), sayJobs = [];
+let sayBusy = false, sayCur = null;
+async function voiceInit() {
+  let K, T;
+  try { const rq = require('module').createRequire(path.join(__dirname, 'server.js')); K = rq('kokoro-js'); T = rq('@huggingface/transformers'); } catch { return; }   // the website's helper, or an older app: no Kokoro
+  VOICE.state = 'loading'; VOICE.error = '';
+  try {
+    T.env.cacheDir = path.join(__dirname, 'voice-model'); T.env.allowLocalModels = true;
+    const seen = {};
+    tts = await K.KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', { dtype: 'q8', device: 'cpu', progress_callback: x => {
+      if (x && x.file && x.total) { seen[x.file] = [x.loaded || 0, x.total]; const t = Object.values(seen).reduce((a, b) => [a[0] + b[0], a[1] + b[1]], [0, 0]); VOICE.progress = Math.round(100 * t[0] / t[1]); }
+    } });
+    const t0 = Date.now(), a = await tts.generate('Hello, this is a quick voice check.', { voice: VOICE_IDS.h });   // how fast this PC speaks: seconds of work per second of speech
+    VOICE.rtf = +(((Date.now() - t0) / 1000) / (a.audio.length / a.sampling_rate)).toFixed(2);
+    VOICE.state = 'ready'; VOICE.progress = 100;
+    console.log('Voices ready (speed ' + VOICE.rtf + ' s of work per s of speech)');
+  } catch (e) { tts = null; VOICE.state = 'error'; VOICE.error = String(e.message || e).slice(0, 200); console.log('Voices failed: ' + VOICE.error); setTimeout(voiceInit, 60000); }
+}
+// a block, cut into pieces Kokoro can say in one go (it cuts anything longer than about 500 sounds), joined back
+// with a short breath; the silence Kokoro leaves at each end of a piece is trimmed so the joins sound natural
+function speechPieces(text) {
+  const sents = text.match(/[^.!?…]+[.!?…]+["')\]]*\s*|[^.!?…]+$/g) || [text], out = []; let cur = '';
+  for (const x of sents.map(s => s.trim()).filter(Boolean)) { if (cur && (cur + ' ' + x).length > 220) { out.push(cur); cur = x; } else cur = cur ? cur + ' ' + x : x; }
+  if (cur) out.push(cur);
+  return out.flatMap(p => p.length <= 300 ? [p] : p.match(/.{1,280}(\s|$)|.+/g).map(q => q.trim()).filter(Boolean));
+}
+function trimSilence(a, sr) {
+  const th = 0.008; let i = 0, j = a.length - 1;
+  while (i < j && Math.abs(a[i]) < th) i++; while (j > i && Math.abs(a[j]) < th) j--;
+  return a.subarray(Math.max(0, i - Math.round(sr * 0.02)), Math.min(a.length, j + Math.round(sr * 0.06)));
+}
+function wav(f32, sr) {
+  const b = Buffer.alloc(44 + f32.length * 2);
+  b.write('RIFF', 0); b.writeUInt32LE(36 + f32.length * 2, 4); b.write('WAVEfmt ', 8); b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22);
+  b.writeUInt32LE(sr, 24); b.writeUInt32LE(sr * 2, 28); b.writeUInt16LE(2, 32); b.writeUInt16LE(16, 34); b.write('data', 36); b.writeUInt32LE(f32.length * 2, 40);
+  for (let i = 0; i < f32.length; i++) b.writeInt16LE(Math.max(-32768, Math.min(32767, Math.round(f32[i] * 32767))), 44 + i * 2);
+  return b;
+}
+async function makeSpeech(text, voice, speed) {
+  const parts = [], sr = 24000, gap = new Float32Array(Math.round(sr * 0.14));
+  for (const p of speechPieces(text)) { const a = await tts.generate(p, { voice, speed }); if (parts.length) parts.push(gap); parts.push(trimSilence(a.audio, a.sampling_rate)); }
+  const n = parts.reduce((x, y) => x + y.length, 0), all = new Float32Array(n); let o = 0; for (const x of parts) { all.set(x, o); o += x.length; }
+  return wav(all, sr);
+}
+function say(text, who, speed, pre) {
+  const voice = VOICE_IDS[who] || VOICE_IDS.h, sp = Math.max(0.7, Math.min(1.4, +speed || 1)), key = voice + '|' + sp + '|' + text;
+  if (sayCache.has(key)) { const b = sayCache.get(key); sayCache.delete(key); sayCache.set(key, b); return Promise.resolve(b); }
+  if (sayCur && sayCur.key === key) return new Promise((res, rej) => sayCur.wait.push([res, rej]));   // being made right now
+  let job = sayJobs.find(j => j.key === key);
+  if (!job) { job = { key, text, voice, sp, wait: [] }; if (pre) sayJobs.push(job); else sayJobs.unshift(job); }
+  else if (!pre) { sayJobs.splice(sayJobs.indexOf(job), 1); sayJobs.unshift(job); }   // needed now: first in line
+  const p = new Promise((res, rej) => job.wait.push([res, rej]));
+  runSay(); return p;
+}
+async function runSay() {
+  if (sayBusy || !tts) return; sayBusy = true;
+  try {
+    while (sayJobs.length) {
+      const j = sayCur = sayJobs.shift();
+      try { const b = await makeSpeech(j.text, j.voice, j.sp); sayCache.set(j.key, b); while (sayCache.size > 120) sayCache.delete(sayCache.keys().next().value); j.wait.forEach(w => w[0](b)); }
+      catch (e) { j.wait.forEach(w => w[1](e)); }
+    }
+  } finally { sayBusy = false; sayCur = null; }
+}
+
 const send = (res, code, body, type = 'application/json') => { res.writeHead(code, { 'Content-Type': type, 'Cache-Control': 'no-store' }); res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body)); };
 
 const argv = process.argv.slice(2);
@@ -376,8 +450,18 @@ let lastActivity = Date.now();
 const server = http.createServer(async (req, res) => {
   lastActivity = Date.now();
   const u = new URL(req.url, 'http://localhost');
-  if (u.pathname === '/api/ping') return send(res, 200, { app: 'feel-good-inc-fm', ok: true, dir: __dirname, open: 2 });   // open 2: links open in the browser (not explorer.exe)
+  if (u.pathname === '/api/ping') return send(res, 200, { app: 'feel-good-inc-fm', ok: true, dir: __dirname, open: 2, voice: VOICE, desktop: !!process.env.FGI_DESKTOP });   // open 2: links open in the browser (not explorer.exe)
   try {
+    if (u.pathname === '/api/say' && req.method === 'POST') {   // { text, who: h|s|n, speed, pre } or, to prepare ahead in order, { items: [{ text, who, speed }] }
+      if (!tts) return send(res, 503, { error: 'voices ' + VOICE.state });
+      const q = await readBody(req);
+      if (Array.isArray(q.items)) { q.items.slice(0, 60).forEach(x => { const t = String((x && x.text) || '').slice(0, 4000).trim(); if (t) say(t, x.who, x.speed, true).catch(() => {}); }); return send(res, 200, { queued: q.items.length }); }
+      const text = String(q.text || '').slice(0, 4000).trim();
+      if (!text) return send(res, 400, { error: 'no text' });
+      const p = say(text, q.who, q.speed, !!q.pre);
+      if (q.pre) { p.catch(() => {}); return send(res, 200, { queued: true }); }
+      return send(res, 200, await p, 'audio/wav');
+    }
     if (u.pathname === '/api/search') return send(res, 200, await search(u.searchParams.get('q') || '', u.searchParams.get('a') || '', u.searchParams.get('t') || ''));
     if (u.pathname === '/api/playlist') { try { return send(res, 200, await readPlaylist(u.searchParams.get('list') || '')); } catch (e) { return send(res, 400, { error: String(e.message || e) }); } }
     if (u.pathname === '/api/fetch') { try { const x = await newsFetch(u.searchParams.get('url') || ''); return x.status === 200 ? send(res, 200, x.body, 'text/plain; charset=utf-8') : send(res, 502, 'the site answered ' + x.status + (/cloudflare|cf-chl|just a moment/i.test(x.body) ? ' (bot wall)' : ''), 'text/plain');  } catch (e) { return send(res, 502, e.name === 'TimeoutError' ? 'the site took too long' : String((e.cause && e.cause.code) || e.message || e), 'text/plain'); } }
@@ -457,7 +541,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, '127.0.0.1', () => { console.log('Feel Good Inc. FM is on air: http://localhost:' + PORT); syncApp(); });
+server.listen(PORT, '127.0.0.1', () => { console.log('Feel Good Inc. FM is on air: http://localhost:' + PORT); syncApp(); voiceInit(); });
 setInterval(syncApp, 6 * 3600e3);
 let portTries = 0;
 server.on('error', e => {
