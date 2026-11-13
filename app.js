@@ -2017,7 +2017,7 @@ function next() {
   try { // learn where a silent tail begins: if you skip near the end, trim there from now on
     if (current && !current.podcast && !current.focus && !current.album && playing && !busy) { const d = P().getDuration(), c = P().getCurrentTime(); if (d > 60 && d - c < 90 && d - c > 3) { lib.trim[current.key] = Math.max(0, c - 1); saveLib(); toast('Got it. I will end this song right here from now on.'); } }
   } catch {}
-  advance({ quick: true, fadeOldMs: 500, silent: true });   // Next: straight to the next song (already cued on the other player), the old one gone in half a second; Joe talks at the next natural change
+  advance({ quick: true, fadeOldMs: 500 });   // Next: the next song (already cued on the other player), the old one gone in half a second; when it is the host's turn (every 2 songs, played or skipped), she talks first
 }
 function prev() { if (started && globalPaused) resumeAll(); if (started && marathon && !newsOn) return marathonBack(); if (started && albumShow && !newsOn) return albumBack(); if (!started || !history.length) return toast('No earlier song yet.'); const p = history.pop(); advance({ song: p, prev: null, silent: true, noCount: true, quick: true }); }
 async function tuneIn() {
