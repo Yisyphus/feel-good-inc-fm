@@ -754,7 +754,8 @@ function setFocus(mode) {
 const takePlanned = () => { const p = planned; planned = null; return p || pick(); };
 function planPreload() {
   if (albumShow) return albumPreload();
-  if (planned || marathon) return;   // a marathon chooses its next part when this one ends planned = pick(); if (!planned) return;
+  if (planned || marathon) return;   // a marathon chooses its next part when this one ends
+  planned = pick(); if (!planned) return;
   const p = planned;
   resolve(p).then(c => { if (planned !== p || !c.length || !ytReady) return; primeNext(p, c); });
 }
