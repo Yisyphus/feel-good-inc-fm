@@ -1,4 +1,4 @@
-// The shows: Today's Mission, side quests, Book Nook, notes to Rim, Joe & Luna, the birthday, the bulletin, the tour.
+// The shows: Today's Mission, side quests, Book Nook, notes to Rim, Luna & Joe, the birthday, the bulletin, the tour.
 // Advice is offered, never ordered. Missions are always small, safe and harmless.
 (function () {
   const R = window.RADIO;
@@ -149,10 +149,10 @@
     'Hoba Hoba Spirit have played in Morocco\'s biggest festivals, from Mawazine to L\'Boulevard, the rock festival in Casablanca.',
   ];
 
-  // ---------- Book Nook with Luna: a pitch for a novel, or a fun public-domain extract ----------
-  R.bookLeads = ['Book Nook time. Luna, over to you.', 'And now, Book Nook, with Luna.', 'Luna has a book for you, Rim. Take it away, Luna.', 'Book Nook. Luna, what are we reading?'];
+  // ---------- Book Nook with Joe: a pitch for a novel, or a fun public-domain extract ----------
+  R.bookLeads = ['Book Nook time. Joe, over to you.', 'And now, Book Nook, with Joe.', 'Joe has a book for you, Rim. Take it away, Joe.', 'Book Nook. Joe, what are we reading?'];
   R.bookNook = [
-    { title: 'The Hobbit', by: 'J.R.R. Tolkien', t: ['Today\'s book is The Hobbit. Bilbo Baggins loves his armchair, his snacks and his quiet life. Then thirteen dwarves and a wizard knock on his door, and suddenly he is off to steal treasure from a dragon.', 'It is funny, cosy and full of adventure. Perfect for reading under a blanket.'], joe: 'Thanks Luna. Second breakfast, anyone?' },
+    { title: 'The Hobbit', by: 'J.R.R. Tolkien', t: ['Today\'s book is The Hobbit. Bilbo Baggins loves his armchair, his snacks and his quiet life. Then thirteen dwarves and a wizard knock on his door, and suddenly he is off to steal treasure from a dragon.', 'It is funny, cosy and full of adventure. Perfect for reading under a blanket.'], joe: 'Thanks Joe. Second breakfast, anyone?' },
     { title: 'Alice\'s Adventures in Wonderland', by: 'Lewis Carroll', t: ['A tiny bit from Alice in Wonderland, written in 1865.', '"But I don\'t want to go among mad people," Alice remarked. "Oh, you can\'t help that," said the Cat: "we\'re all mad here. I\'m mad. You\'re mad." "How do you know I\'m mad?" said Alice. "You must be," said the Cat, "or you wouldn\'t have come here."'], joe: 'Honestly, that cat would be a great radio host.' },
     { title: 'Percy Jackson and the Lightning Thief', by: 'Rick Riordan', t: ['Here is one you will fly through: Percy Jackson and the Lightning Thief. Percy is twelve, gets in trouble at every school, and then finds out his dad is a Greek god. Oops.', 'It is fast, funny and full of monsters. And the gods are hilariously dramatic.'] },
     { title: 'Coraline', by: 'Neil Gaiman', t: ['Today, Coraline. A girl moves into an old house and finds a small door to another version of her home, where everything is better. Too much better. And everyone has buttons for eyes.', 'Creepy, clever and brave. You will cheer for Coraline the whole way.'] },
@@ -172,11 +172,11 @@
     { title: 'Little Women', by: 'Louisa May Alcott', t: ['A classic from 1868: Little Women. Four sisters, Meg, Jo, Beth and Amy, growing up, arguing, writing plays and dreaming big.', 'Jo wants to be a writer, and she will not let anyone tell her what a girl should be. Iconic.'] },
   ];
 
-  // ---------- notes to Rim from Joe: short, funny, warm ----------
+  // ---------- notes to Rim from Luna: short, funny, warm ----------
   R.notes = [
     'A quick note, Rim. Your music taste goes from Michael Jackson to Korn to Mac DeMarco, and honestly, that is the coolest range I have ever seen.',
     'Note to Rim: you are allowed to be good at things and still be learning. Both at once. That is how it works.',
-    'A little note from the studio: Luna says you have excellent taste. I say Luna is right. That never happens.',
+    'A little note from the studio: Joe says you have excellent taste. I say Joe is right. That never happens.',
     'Dear Rim, reminder that nobody is born knowing everything. Not even me. Especially not me.',
     'Note: if you ever start a band, I want to be the first radio to play it. Just saying.',
     'A small note, Rim: your laugh is probably the best sound in the house. Better than any song on this radio. Do not tell the songs.',
@@ -185,7 +185,7 @@
     'Dear Rim, I checked: no rule says you have to like only one kind of music. So keep liking all of it.',
     'A note: you do not have to be perfect to be awesome. Look at Gorillaz. They are cartoons, and they are still the coolest band around.',
     'Rim, a quick one: whatever you are working on, a drawing, a story, a playlist, it counts. Making things counts.',
-    'A note from Joe: some days are for being amazing, and some days are just for getting through. Both are good days on this radio.',
+    'A note from Luna: some days are for being amazing, and some days are just for getting through. Both are good days on this radio.',
     'Dear Rim, if your room is a mess right now, that just means you have been busy living. Respect.',
     'Note: your future self is going to be so glad you kept being curious. Keep asking why.',
     'Rim, small reminder: the people who love you think you are great even on your grumpy days. Especially then.',
@@ -198,26 +198,26 @@
     'A note: you do not have to have it all figured out. Nobody does. The fun is in the figuring.',
   ];
 
-  // ---------- Joe & Luna: little bits of banter ----------
+  // ---------- Luna & Joe: little bits of banter ----------
   R.banter = [
-    [{ t: 'Luna, quick question. Pineapple on pizza?' }, { t: 'Joe, we are a music station.', w: 's' }, { t: 'That is not a no.' }],
-    [{ t: 'Luna, I have decided I am going to learn the drums.' }, { t: 'Please do it far away from the microphone.', w: 's' }],
-    [{ t: 'Luna, what is your favourite Gorillaz song?' }, { t: 'All of them. Next question.', w: 's' }, { t: 'That is cheating.' }, { t: 'That is taste.', w: 's' }],
-    [{ t: 'Fun fact, Luna. I can moonwalk.' }, { t: 'Joe, I have seen you walk normally. I have doubts.', w: 's' }],
-    [{ t: 'Luna, if you were in a band, what would it be called?' }, { t: 'Luna and the Volume Knobs.', w: 's' }, { t: 'I would buy that T-shirt.' }],
-    [{ t: 'Luna, do you think Rim likes my jokes?' }, { t: 'I think Rim is very patient.', w: 's' }, { t: 'I will take that as a yes.' }],
-    [{ t: 'Luna, I made a playlist called Songs Joe Sings in the Shower.' }, { t: 'Is it just one song, on repeat?', w: 's' }, { t: 'It is Bohemian Rhapsody. All the parts. Including the opera.' }],
-    [{ t: 'Luna, what would you take to a desert island?' }, { t: 'A good book, headphones, and a boat to leave the desert island.', w: 's' }, { t: 'Smart.' }],
-    [{ t: 'I tried to play Dress to Impress, Luna.' }, { t: 'And?', w: 's' }, { t: 'The theme was "cosy". I came in a full suit of armour.' }, { t: 'Bold.', w: 's' }],
-    [{ t: 'Luna, I think I am getting better at Roblox.' }, { t: 'Joe, you fell off the first platform eleven times.', w: 's' }, { t: 'Ten. The eleventh was on purpose.' }],
-    [{ t: 'Luna, rate my outfit today.' }, { t: 'This is radio, Joe. Nobody can see you.', w: 's' }, { t: 'And yet I dressed up. That is commitment.' }],
-    [{ t: 'Luna, how many records do you own?' }, { t: 'Enough to build a fort.', w: 's' }, { t: 'Have you built the fort?' }, { t: 'No comment.', w: 's' }],
-    [{ t: 'Luna, I just learned that Kevin Parker plays almost everything on Tame Impala records by himself.' }, { t: 'Meanwhile you cannot open the studio door without help.', w: 's' }, { t: 'It is a heavy door, Luna.' }],
-    [{ t: 'Luna, guess how many songs are on this radio.' }, { t: 'More than you can name.', w: 's' }, { t: 'Challenge accepted.' }, { t: 'Please do not.', w: 's' }],
-    [{ t: 'Luna, what is the best time to listen to Black Sabbath?' }, { t: 'When you are doing the dishes and want to feel powerful.', w: 's' }],
-    [{ t: 'Rim, Luna wants to say something.' }, { t: 'Hi Rim. That is all. Hi.', w: 's' }, { t: 'Very meaningful, thank you Luna.' }],
-    [{ t: 'Luna, can you whistle?' }, { t: 'Like a bird.', w: 's' }, { t: 'Prove it.' }, { t: 'This is a radio, not a talent show.', w: 's' }],
-    [{ t: 'Luna, quick: Queen or Nirvana?' }, { t: 'Queen for the car, Nirvana for a bad day.', w: 's' }, { t: 'That is a very good answer and I hate it.' }],
+    [{ t: 'Joe, quick question. Pineapple on pizza?' }, { t: 'Luna, we are a music station.', w: 's' }, { t: 'That is not a no.' }],
+    [{ t: 'Joe, I have decided I am going to learn the drums.' }, { t: 'Please do it far away from the microphone.', w: 's' }],
+    [{ t: 'Joe, what is your favourite Gorillaz song?' }, { t: 'All of them. Next question.', w: 's' }, { t: 'That is cheating.' }, { t: 'That is taste.', w: 's' }],
+    [{ t: 'Fun fact, Joe. I can moonwalk.' }, { t: 'Luna, I have seen you walk normally. I have doubts.', w: 's' }],
+    [{ t: 'Joe, if you were in a band, what would it be called?' }, { t: 'Joe and the Volume Knobs.', w: 's' }, { t: 'I would buy that T-shirt.' }],
+    [{ t: 'Joe, do you think Rim likes my jokes?' }, { t: 'I think Rim is very patient.', w: 's' }, { t: 'I will take that as a yes.' }],
+    [{ t: 'Joe, I made a playlist called Songs Luna Sings in the Shower.' }, { t: 'Is it just one song, on repeat?', w: 's' }, { t: 'It is Bohemian Rhapsody. All the parts. Including the opera.' }],
+    [{ t: 'Joe, what would you take to a desert island?' }, { t: 'A good book, headphones, and a boat to leave the desert island.', w: 's' }, { t: 'Smart.' }],
+    [{ t: 'I tried to play Dress to Impress, Joe.' }, { t: 'And?', w: 's' }, { t: 'The theme was "cosy". I came in a full suit of armour.' }, { t: 'Bold.', w: 's' }],
+    [{ t: 'Joe, I think I am getting better at Roblox.' }, { t: 'Luna, you fell off the first platform eleven times.', w: 's' }, { t: 'Ten. The eleventh was on purpose.' }],
+    [{ t: 'Joe, rate my outfit today.' }, { t: 'This is radio, Luna. Nobody can see you.', w: 's' }, { t: 'And yet I dressed up. That is commitment.' }],
+    [{ t: 'Joe, how many records do you own?' }, { t: 'Enough to build a fort.', w: 's' }, { t: 'Have you built the fort?' }, { t: 'No comment.', w: 's' }],
+    [{ t: 'Joe, I just learned that Kevin Parker plays almost everything on Tame Impala records by himself.' }, { t: 'Meanwhile you cannot open the studio door without help.', w: 's' }, { t: 'It is a heavy door, Joe.' }],
+    [{ t: 'Joe, guess how many songs are on this radio.' }, { t: 'More than you can name.', w: 's' }, { t: 'Challenge accepted.' }, { t: 'Please do not.', w: 's' }],
+    [{ t: 'Joe, what is the best time to listen to Black Sabbath?' }, { t: 'When you are doing the dishes and want to feel powerful.', w: 's' }],
+    [{ t: 'Rim, Joe wants to say something.' }, { t: 'Hi Rim. That is all. Hi.', w: 's' }, { t: 'Very meaningful, thank you Joe.' }],
+    [{ t: 'Joe, can you whistle?' }, { t: 'Like a bird.', w: 's' }, { t: 'Prove it.' }, { t: 'This is a radio, not a talent show.', w: 's' }],
+    [{ t: 'Joe, quick: Queen or Nirvana?' }, { t: 'Queen for the car, Nirvana for a bad day.', w: 's' }, { t: 'That is a very good answer and I hate it.' }],
   ];
 
   // ---------- her birthday (2 January) ----------
@@ -227,7 +227,7 @@
       'Stop everything! Rim, it is your birthday! Happy birthday from everyone at {station}!',
       { t: 'Happy birthday, Rim! I baked a cake. Well, I imagined a cake. It is a very good imaginary cake.', w: 's' },
       '{age} years old today. That is officially an excellent age. Today, the radio plays your liked songs first.',
-      { t: 'And Joe promised not to sing. Joe?', w: 's' },
+      { t: 'And Luna promised not to sing. Luna?', w: 's' },
       'I promised nothing. Okay, fine. No singing. Happy birthday, Rim!',
     ],
     mission: "Today's mission: it is your birthday, so the mission is to do whatever makes you happiest today. That is an order. Okay, a friendly suggestion.",
@@ -246,7 +246,7 @@
 
   // ---------- the welcome tour (the first time; again from Settings) ----------
   R.tour = [
-    { el: '#btnPlay', t: 'Hey Rim, Joe here! This is play and pause. Next and previous are right next to it.' },
+    { el: '#btnPlay', t: 'Hey Rim, Luna here! This is play and pause. Next and previous are right next to it.' },
     { el: '#btnJust', t: 'This is Just music: tap it and I stop talking. No shows, nothing in between, like Spotify without ads. Tap again to bring me back.' },
     { el: '#btnAddTo', t: 'Like a song? The heart puts it in your Liked Songs. The plus puts it in one of your playlists.' },
     { el: '#btnAdd', t: 'Add a song: type any song, or paste a YouTube link, and it goes into your library and plays next.' },

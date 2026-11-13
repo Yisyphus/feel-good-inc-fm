@@ -64,13 +64,13 @@ li small{color:var(--mute);font-size:13px}
   }
   function edge() {
     const m = navigator.userAgent.match(/Edg\/(\d+)/);
-    if (!m) return { cls: 'warn', title: 'Not Microsoft Edge', detail: 'The app opens in Edge by itself. For the website, Edge gives Joe and Luna their best voices.' };
+    if (!m) return { cls: 'warn', title: 'Not Microsoft Edge', detail: 'The app opens in Edge by itself. For the website, Edge gives Luna and Joe their best voices.' };
     const v = +m[1];
     return v >= 110 ? { cls: 'ok', title: 'Microsoft Edge ' + v, detail: 'Up to date.' } : { cls: 'warn', title: 'Microsoft Edge ' + v + ' (old)', detail: 'Edge has not updated for a while. Windows Update may fix it.' };
   }
   function voices() {
     return new Promise(res => {
-      const done = () => { const v = speechSynthesis.getVoices(), nat = v.filter(x => /^en/i.test(x.lang) && /natural/i.test(x.name)); res(nat.length ? { cls: 'ok', title: nat.length + ' natural English voices', detail: 'Joe and Luna will sound real (' + nat.slice(0, 3).map(x => x.name.replace('Microsoft ', '').replace(/ Online \(Natural\).*/, '')).join(', ') + '…).' } : v.some(x => /^en/i.test(x.lang)) ? { cls: 'warn', title: 'Only basic voices', detail: 'Joe and Luna will sound robotic here. In Edge they get natural voices.' } : { cls: 'warn', title: 'No English voice found', detail: 'An online voice will be used instead.' }); };
+      const done = () => { const v = speechSynthesis.getVoices(), nat = v.filter(x => /^en/i.test(x.lang) && /natural/i.test(x.name)); res(nat.length ? { cls: 'ok', title: nat.length + ' natural English voices', detail: 'Luna and Joe will sound real (' + nat.slice(0, 3).map(x => x.name.replace('Microsoft ', '').replace(/ Online \(Natural\).*/, '')).join(', ') + '…).' } : v.some(x => /^en/i.test(x.lang)) ? { cls: 'warn', title: 'Only basic voices', detail: 'Luna and Joe will sound robotic here. In Edge they get natural voices.' } : { cls: 'warn', title: 'No English voice found', detail: 'An online voice will be used instead.' }); };
       if (speechSynthesis.getVoices().length) return done();
       speechSynthesis.onvoiceschanged = done; setTimeout(done, 2500);
     });

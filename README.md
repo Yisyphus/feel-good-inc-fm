@@ -1,6 +1,6 @@
 # Feel Good Inc. FM
 
-Rim's radio: her music, Joe and Luna, missions, trivia, a fun bulletin and good vibes.
+Rim's radio: her music, Luna and Joe, missions, trivia, a fun bulletin and good vibes.
 
 - **Website:** https://rim-fm.web.app/ (Firebase Hosting, deployed from `main` by `.github/workflows/deploy.yml`)
 - **Windows app:** GitHub Releases (`.github/workflows/release.yml`, run by hand from the Actions tab). It updates itself from the website.

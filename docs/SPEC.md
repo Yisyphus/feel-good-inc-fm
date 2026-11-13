@@ -19,13 +19,13 @@ Where the two disagree, **this file wins**.
 
 ## 2. The station
 
-- **Name:** Feel Good Inc. FM. **Host:** Joe. **Co-host:** Luna.
+- **Name:** Feel Good Inc. FM. **Host:** Luna. **Co-host:** Joe. (Swapped on 2026-11-13 at the owner's request: Luna was the co-host before.)
 - **Language:** English only (host, co-host, bulletin, interface). Songs in Darija (Hoba Hoba Spirit, Betweenatna)
   are fine.
-- **Tone:** full of energy, positive, motivating, funny, as if Joe is talking to her. **Not existential.** Not bossy:
+- **Tone:** full of energy, positive, motivating, funny, as if Luna is talking to her. **Not existential.** Not bossy:
   advice is offered ("if you feel like it…"), never ordered.
-- **Joe** is the host. **Luna** is a playful co-host: Book Nook, short readings, banter with Joe.
-- **Monster Energy:** only as a look (a green claw-scratch sticker). Joe never promotes energy drinks.
+- **Luna** is the host. **Joe** is a playful co-host: Book Nook, short readings, banter with Luna.
+- **Monster Energy:** only as a look (a green claw-scratch sticker). Luna never promotes energy drinks.
 
 ## 3. What is removed from Pale Blue Dot
 
@@ -45,12 +45,12 @@ A 64-song cycle, as before, with new parts in the old slots. One big part per br
 | After song | Part |
 |---|---|
 | 8, 24, 40, 56 | A **trivia shot** about the song or artist playing, a **genre trivia** bit tied to what is playing, or a **side quest** |
-| 16 | **Book Nook** with Luna: a short pitch for a novel, or a fun public-domain extract |
-| 32 | **A note to Rim** from Joe: short, funny, warm, no tears |
+| 16 | **Book Nook** with Joe: a short pitch for a novel, or a fun public-domain extract |
+| 32 | **A note to Rim** from Luna: short, funny, warm, no tears |
 | 48 | **Today's Mission** (if not given yet today; otherwise a trivia shot) |
 | 64 | A **podcast**; on Saturdays a **live concert** |
 
-Joe speaks every 2 songs by default (Settings: a lot = every song, normal = every 2, a little = every 4).
+Luna speaks every 2 songs by default (Settings: a lot = every song, normal = every 2, a little = every 4).
 
 ### Today's Mission
 - Simple form: **"Today's mission: do this and this."** No "BREAKING" style.
@@ -76,10 +76,10 @@ Indie bedroom pop, plus the other groups her catalog supports (Grunge, Punk, Cla
 Electronic / French touch, Pop legends…).
 
 ### Birthday (2 January)
-- A birthday show: Joe opens with it, confetti jingles, a special Today's Mission, her favourites first.
+- A birthday show: Luna opens with it, confetti jingles, a special Today's Mission, her favourites first.
 - A **birthday banner** on screen all day.
-- In **Just music** mode: the banner, and **Joe still speaks once** (a short birthday message between two songs).
-  That is the only time Joe speaks in Just music mode.
+- In **Just music** mode: the banner, and **Luna still speaks once** (a short birthday message between two songs).
+  That is the only time Luna speaks in Just music mode.
 - `R.listener = { name: 'Rim', born: '2012-01-02' }`; `{age}` is her age that day.
 
 ## 5. The fun bulletin (replaces the news)
@@ -113,11 +113,11 @@ Electronic / French touch, Pop legends…).
   is skipped, or the album is swapped.
 - **Add a song:** she chooses freely (no forced clean search).
 
-## 8. Album Party with Joe (was the Album show)
+## 8. Album Party with Luna (was the Album show)
 
 Her albums: *Demon Days*, *The Dark Side of the Moon*, *Currents*, *Nevermind*, *Toxicity*, *OK Computer*,
 *Thriller*, *Discovery*, *Oracular Spectacular*, and more from her artists. Same checks as the blueprint (exact
-tracks, `aka`, lengths, five checks), plus the clean rule above. Joe's notes: fun facts, energetic, not existential.
+tracks, `aka`, lengths, five checks), plus the clean rule above. Luna's notes: fun facts, energetic, not existential.
 
 ## 9. Homework mode (was Focus mode)
 
@@ -126,10 +126,10 @@ work / 5 min break, with a soft chime). Her own stations can be added as before.
 
 ## 10. Just music
 
-- A **big switch on the main screen**: Joe and Luna silent, no jingles, no ambient pad, no missions, side quests,
+- A **big switch on the main screen**: Luna and Joe silent, no jingles, no ambient pad, no missions, side quests,
   Book Nook, notes, podcasts, concerts or bulletin. Nothing interrupts a song. Like Spotify without ads.
 - Playlists, Liked Songs, shuffle, repeat, lyrics, Genre Mix, sleep timer all keep working.
-- Switching it off brings Joe back where the cycle stopped. Remembered and synced.
+- Switching it off brings Luna back where the cycle stopped. Remembered and synced.
 - Exception: her birthday (section 4).
 
 ## 11. The interface
@@ -145,8 +145,8 @@ work / 5 min break, with a soft chime). Her own stations can be added as before.
 | Suggest > A list | **Import a playlist** |
 | Genre run | **Genre Mix** |
 | Focus mode | **Homework mode** |
-| Album show | **Album Party with Joe** |
-| Marathon | **Non-stop** ("Only music", "Only Joe & Luna bits"…) |
+| Album show | **Album Party with Luna** |
+| Marathon | **Non-stop** ("Only music", "Only Luna & Joe bits"…) |
 | Compact mode | **Mini player** |
 | Tune in | **Let's go ▶** |
 | no sound or wrong song? try another version | **Wrong song or no sound? Fix it** |
@@ -156,8 +156,8 @@ work / 5 min break, with a soft chime). Her own stations can be added as before.
 ### Easy to understand
 - A **small word under every icon** button.
 - **One plain sentence under every setting.** No technical words (no "64-song cycle", "trim", "upload").
-- A **welcome tour** the first time, **out loud, before the music**: Joe reads each step; the next comes by itself, Next skips to it, Skip ends it. Replay from Settings.
-- **Settings in four groups:** Joe & Luna (how often Joe talks, voices, talking speed) · Music (smooth
+- A **welcome tour** the first time, **out loud, before the music**: Luna reads each step; the next comes by itself, Next skips to it, Skip ends it. Replay from Settings.
+- **Settings in four groups:** Luna & Joe (how often Luna talks, voices, talking speed) · Music (smooth
   transitions, sleep timer) · Shows (bulletin, a podcast now, a concert now, Album Party, Non-stop) · My stuff (sync,
   backup, restore, get the Windows app, update). Then a small **Help & fixing problems** section (playback report,
   check sources).
@@ -192,10 +192,10 @@ For an old PC and slow Wi-Fi, on the website and the desktop app:
 - Lyrics, bulletin and podcasts **load only when needed**, each with its own time limit.
 - The catalog has **exact videos**, so no search before a song.
 - Website: page files kept on the PC after the first visit; only changed files download again.
-- Desktop app: Joe's speech is prepared while the song plays, so it does not stutter.
+- Desktop app: Luna's speech is prepared while the song plays, so it does not stutter.
 
 ## 13. Voices (Edge natural voices, English)
-Joe: Andrew or Brian Multilingual · Luna: Ava or Emma · Bulletin: a third voice (Jenny, Ryan…). Changeable in
+Luna: Ava or Emma Multilingual · Joe: Brian or Andrew Multilingual · Bulletin: a third voice (Jenny, Ryan…). Changeable in
 Settings. Pronunciation fixes in `R.sayAs`.
 
 ## 14. Where it lives
@@ -218,7 +218,7 @@ Settings. Pronunciation fixes in `R.sayAs`.
 
 ## 15. Rules kept from Pale Blue Dot
 - Merge, never overwrite (`mergeLib`); deletions recorded with a time.
-- Everything Joe and Luna say lives in `content*.js`, never in `app.js`.
+- Everything Luna and Joe say lives in `content*.js`, never in `app.js`.
 - Publish with `tools/publish.py` before every commit.
 - Exact versions proven, never an unchecked match. Never claim something was tested when it could not be.
 
@@ -229,7 +229,7 @@ Settings. Pronunciation fixes in `R.sayAs`.
   notes, banter, birthday, bulletin wording, tour, study timer lines), `content_trivia.js` (artist and song facts),
   `content_catalog.js` + `content_ids.js` (generated: the clean songs and their checked videos), `content_pods.js`
   (podcast episodes and concerts by exact video), `content_homework.js` (stations and ambient sounds),
-  `content_albums.js` (Album Party, generated: tracks, lengths, videos in `R.albumIds`, Joe's notes),
+  `content_albums.js` (Album Party, generated: tracks, lengths, videos in `R.albumIds`, Luna's notes),
   `stickers.js` (the 21 sticker drawings, also used for playlist covers), `bg.webp` (the seamless background tile),
   `check.html` (Check my PC).
 - **The catalog** is generated, never typed by hand: every candidate song's lyrics are read from LRCLIB and any

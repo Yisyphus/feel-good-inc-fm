@@ -1,7 +1,7 @@
-// Album Party with Joe: whole albums in their own order (Library > Albums, or Settings > Album Party).
+// Album Party with Luna: whole albums in their own order (Library > Albums, or Settings > Album Party).
 // Tracklists and lengths from Deezer; every track's lyrics checked (explicit tracks are left out, so it is the clean
 // edition); the exact video of every track is in R.albumIds (content_albums.js), so it also plays on the website.
-// What Joe says: an intro, then one note after every three tracks (the last note at the end). Facts only.
+// What Luna says: an intro, then one note after every three tracks (the last note at the end). Facts only.
 (function () {
   const R = window.RADIO;
   R.albumPlaylists = [];

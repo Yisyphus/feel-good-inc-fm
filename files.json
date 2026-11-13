@@ -1,24 +1,24 @@
 {
  "files": {
-  "app.js": "e0541c4fcec6a7ea",
+  "app.js": "32f813170ea93271",
   "bg.webp": "2c55ada11354d1bc",
-  "check.html": "573aafea28b3ebe8",
+  "check.html": "74108f410418ad00",
   "cloud.js": "fee9c7cfc27da2b8",
-  "content.js": "045546cfddff435c",
-  "content_albums.js": "96a51ee3104fd946",
+  "content.js": "52b158cdd59b6d1c",
+  "content_albums.js": "bb8676c5bffd9164",
   "content_catalog.js": "4cc5132bf577b464",
   "content_homework.js": "ebacd81c5a6db1cb",
   "content_ids.js": "41b3d36d3ff3f139",
   "content_pods.js": "a448d7a560b36854",
-  "content_shows.js": "5d3571a2e3f592ba",
-  "content_talk.js": "08fdf482b17c5a09",
-  "content_trivia.js": "4ba2d4467beb8e31",
+  "content_shows.js": "58807446ee777314",
+  "content_talk.js": "190d47e77d48e2fd",
+  "content_trivia.js": "a0bfebfb06fcb8f4",
   "firebase-config.js": "2f564483690cf7d0",
   "icon.png": "414972388b2218eb",
-  "index.html": "bbde03ab284c434f",
+  "index.html": "20e20b8024778437",
   "jingles.js": "7f59ee5d7730845e",
   "stickers.js": "2e454ec8e83c28a4"
  },
  "server": "71b802625490a34d",
- "version": "2026-11-13T09:57:54Z"
+ "version": "2026-11-13T10:47:12Z"
 }

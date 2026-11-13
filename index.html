@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="pbd-version" content="2026-11-13T09:57:54Z">
+<meta name="pbd-version" content="2026-11-13T10:47:12Z">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Feel Good Inc. FM</title>
 <link rel="icon" type="image/png" href="icon.png">
@@ -79,7 +79,7 @@ body.lyr .lyrics{display:flex}
 .mini-btn{font-size:12px;color:var(--mute);padding:4px 8px;border-radius:8px}
 .mini-btn:hover{color:var(--cyan);background:var(--panel2)}
 .mini-btn.sure,#btnRemoveSong.sure{color:var(--ink);background:var(--yellow)}
-/* caption: what Joe and Luna say */
+/* caption: what Luna and Joe say */
 .cap{background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:9px 12px;min-height:96px;position:relative}
 .cap small{font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--pink);text-transform:uppercase;display:block;margin-bottom:3px}
 .cap div{font-size:14.5px;line-height:1.45;color:var(--cream)}
@@ -231,7 +231,7 @@ body.mini .app{gap:6px}
 <div class="app" id="app">
 
   <div class="top card">
-    <div class="brand"><b>Feel Good Inc. <span>FM</span></b><small>Joe &amp; Luna, on air for Rim</small></div>
+    <div class="brand"><b>Feel Good Inc. <span>FM</span></b><small>Luna &amp; Joe, on air for Rim</small></div>
     <div class="onair" id="onair"><i></i>ON AIR</div>
     <button class="ico" id="btnMini" title="Mini player" aria-label="Mini player"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
     <button class="ico" id="btnClose" title="Turn the radio off" aria-label="Turn the radio off"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
@@ -253,7 +253,7 @@ body.mini .app{gap:6px}
       </div>
     </div>
     <div class="run-info" id="runInfo" style="display:none"></div>
-    <div class="cap idle" id="cap"><button class="mini-btn" id="marStop" style="display:none;position:absolute;right:8px;top:6px;z-index:2">&#9632; stop</button><small id="capKind">Joe</small><div id="capText">Joe will be with you in a second.</div><span id="capSrc"></span></div>
+    <div class="cap idle" id="cap"><button class="mini-btn" id="marStop" style="display:none;position:absolute;right:8px;top:6px;z-index:2">&#9632; stop</button><small id="capKind">Luna</small><div id="capText">Luna will be with you in a second.</div><span id="capSrc"></span></div>
     <div>
       <div class="bar" id="bar"><i id="barfill"></i></div>
       <div class="times"><span id="tcur">0:00</span><span id="tdur">0:00</span></div>
@@ -284,7 +284,7 @@ body.mini .app{gap:6px}
     <small>Homework mode: no talking, no shows</small>
     <button id="btnStudy" type="button">⏱ Study timer: 25 min work, 5 min break</button>
     <small>Stations</small><div id="focusStations" class="focus-stations"></div>
-    <small>Or</small><button data-v="sounds" role="menuitem">Ambient sounds (rain, café, fireplace…)</button><button data-v="" role="menuitem">Off: back to Joe</button>
+    <small>Or</small><button data-v="sounds" role="menuitem">Ambient sounds (rain, café, fireplace…)</button><button data-v="" role="menuitem">Off: back to Luna</button>
   </div>
 
   <!-- Add a song -->
@@ -340,14 +340,14 @@ body.mini .app{gap:6px}
         <div class="mar-every" id="marEvery" style="display:none"><span>Songs between the other parts</span><div class="seg"><button data-v="1">1</button><button data-v="2" class="on">2</button><button data-v="3">3</button><button data-v="5">5</button></div></div>
       </div>
       <div class="mar-g" data-g="voices">
-        <label class="mar-h"><input type="checkbox"><span>Joe &amp; Luna bits<small>the fun parts, back to back</small></span><em></em></label>
+        <label class="mar-h"><input type="checkbox"><span>Luna &amp; Joe bits<small>the fun parts, back to back</small></span><em></em></label>
         <div class="themes mar-c">
           <label><input type="checkbox" value="trivia"><span>Trivia shots</span></label>
           <label><input type="checkbox" value="genre"><span>Genre trivia</span></label>
           <label><input type="checkbox" value="sidequest"><span>Side quests</span></label>
           <label><input type="checkbox" value="book"><span>Book Nook</span></label>
           <label><input type="checkbox" value="note"><span>Notes to Rim</span></label>
-          <label><input type="checkbox" value="banter"><span>Joe &amp; Luna</span></label>
+          <label><input type="checkbox" value="banter"><span>Luna &amp; Joe</span></label>
         </div>
       </div>
       <div class="mar-g" data-g="podcast">
@@ -410,12 +410,12 @@ body.mini .app{gap:6px}
   <div class="sheet" id="shSet" style="overflow-y:auto">
     <div class="hd"><h2>Settings</h2><button class="ico" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
 
-    <div class="grp">Joe &amp; Luna</div>
-    <div class="set"><span>How often Joe talks<small>between the songs</small></span><div class="seg" id="segTalk"><button data-v="high">a lot</button><button data-v="normal">normal</button><button data-v="low">a little</button></div></div>
-    <div class="set"><span>Joe's voice<small>the host</small></span><div class="acts"><select id="voiceSel"></select><button class="btn ghost" id="btnTest">Test</button></div></div>
-    <div class="set"><span>Luna's voice<small>the co-host: Book Nook and the banter</small></span><div class="acts"><select id="lunaSel"></select><button class="btn ghost" id="btnLunaTest">Test</button></div></div>
+    <div class="grp">Luna &amp; Joe</div>
+    <div class="set"><span>How often Luna talks<small>between the songs</small></span><div class="seg" id="segTalk"><button data-v="high">a lot</button><button data-v="normal">normal</button><button data-v="low">a little</button></div></div>
+    <div class="set"><span>Luna's voice<small>the host</small></span><div class="acts"><select id="voiceSel"></select><button class="btn ghost" id="btnTest">Test</button></div></div>
+    <div class="set"><span>Joe's voice<small>the co-host: Book Nook and the banter</small></span><div class="acts"><select id="lunaSel"></select><button class="btn ghost" id="btnLunaTest">Test</button></div></div>
     <div class="set"><span>Bulletin voice<small>reads the Feel Good Bulletin</small></span><div class="acts"><select id="bulletinSel"></select><button class="btn ghost" id="btnBulletinTest">Test</button></div></div>
-    <div class="set"><span>Talking speed<small>how fast Joe and Luna talk</small></span><input type="range" id="rate" min="80" max="120" value="100" style="width:130px" aria-label="Talking speed"></div>
+    <div class="set"><span>Talking speed<small>how fast Luna and Joe talk</small></span><input type="range" id="rate" min="80" max="120" value="100" style="width:130px" aria-label="Talking speed"></div>
     <p id="voiceNote" class="hint" style="color:var(--yellow)"></p>
 
     <div class="grp">Music</div>
@@ -426,8 +426,8 @@ body.mini .app{gap:6px}
     <div class="set"><span>The Feel Good Bulletin<small id="newsNote">around 14:00 and 20:00, about 2 minutes</small></span><div class="acts"><div class="seg" id="segNews"><button data-v="on">on</button><button data-v="off">off</button></div><button class="btn ghost" id="btnNews">Play it now</button></div></div>
     <div class="set"><span>A podcast, now<small>plays right away, then the music comes back</small></span><div class="acts" id="podNow"><button class="btn ghost" data-v="polyphonic">Polyphonic</button><button class="btn ghost" data-v="trashtheory">Trash Theory</button><button class="btn ghost" data-v="middle8">Middle 8</button><button class="btn ghost" data-v="markrober">Mark Rober</button></div></div>
     <div class="set"><span>A live concert, now<small>on Saturdays one plays instead of the podcast</small></span><div class="acts" id="concertNow"><button class="btn ghost" data-v="concert">Play a concert</button></div></div>
-    <div class="set"><span>Album Party with Joe<small>a whole album in order, Joe tells its story along the way</small></span><button class="btn ghost" id="btnAlbums">Choose an album</button></div>
-    <div class="set"><span>Non-stop<small>songs, Joe &amp; Luna bits or podcasts back to back</small></span><button class="btn ghost" id="btnMarathon">Choose</button></div>
+    <div class="set"><span>Album Party with Luna<small>a whole album in order, Luna tells its story along the way</small></span><button class="btn ghost" id="btnAlbums">Choose an album</button></div>
+    <div class="set"><span>Non-stop<small>songs, Luna &amp; Joe bits or podcasts back to back</small></span><button class="btn ghost" id="btnMarathon">Choose</button></div>
 
     <div class="grp">My stuff</div>
     <div class="set"><span>Save my stuff on all my devices<small id="cloudNote">off</small></span><button class="btn ghost" id="btnCloud">Sign in with Google</button></div>
@@ -441,7 +441,7 @@ body.mini .app{gap:6px}
     <div class="grp help">Help &amp; fixing problems</div>
     <div class="set"><span>Report<small>what YouTube did, for fixing problems</small></span><button class="btn ghost" id="btnReport">Show</button></div>
     <div class="set"><span>Bulletin sources<small>which news sites answer right now</small></span><div class="acts"><button class="btn ghost" id="btnNewsCheck">Check</button><button class="btn ghost" id="btnNewsLast">Last bulletin</button></div></div>
-    <p class="hint" style="margin-top:8px">Tip: Microsoft Edge has free natural voices (Andrew, Ava, Emma…). They make Joe and Luna sound real.</p>
+    <p class="hint" style="margin-top:8px">Tip: Microsoft Edge has free natural voices (Andrew, Ava, Emma…). They make Luna and Joe sound real.</p>
   </div>
 
   <div class="toast" id="toast" role="status"></div>
@@ -449,28 +449,28 @@ body.mini .app{gap:6px}
   <div class="tune" id="tune">
     <small id="tuneSub">on air now</small>
     <div class="logo">Feel Good<br>Inc. <span>FM</span></div>
-    <p>Your music, Joe and Luna, missions, trivia and good vibes. Made for Rim.</p>
+    <p>Your music, Luna and Joe, missions, trivia and good vibes. Made for Rim.</p>
     <button class="big" id="btnTune" aria-label="Let's go"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Let's go</button>
   </div>
 </div>
 <div class="tour" id="tour" hidden><p id="tourText"></p><div class="row"><small id="tourStep"></small><button class="skip" id="tourSkip">Skip</button><button class="btn" id="tourNext">Next</button></div></div>
 <div id="yt"><div id="yt0"></div><div id="yt1"></div></div>
 <script src="stickers.js?v=2e454ec8e83c28a4"></script>
-<script src="content.js?v=045546cfddff435c"></script>
-<script src="content_talk.js?v=08fdf482b17c5a09"></script>
-<script src="content_shows.js?v=5d3571a2e3f592ba"></script>
-<script src="content_trivia.js?v=4ba2d4467beb8e31"></script>
+<script src="content.js?v=52b158cdd59b6d1c"></script>
+<script src="content_talk.js?v=190d47e77d48e2fd"></script>
+<script src="content_shows.js?v=58807446ee777314"></script>
+<script src="content_trivia.js?v=a0bfebfb06fcb8f4"></script>
 <script src="content_catalog.js?v=4cc5132bf577b464"></script>
 <script src="content_ids.js?v=41b3d36d3ff3f139"></script>
 <script src="content_pods.js?v=a448d7a560b36854"></script>
 <script src="content_homework.js?v=ebacd81c5a6db1cb"></script>
-<script src="content_albums.js?v=96a51ee3104fd946"></script>
+<script src="content_albums.js?v=bb8676c5bffd9164"></script>
 <script src="jingles.js?v=7f59ee5d7730845e"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js?v=2f564483690cf7d0"></script>
 <script src="cloud.js?v=fee9c7cfc27da2b8"></script>
-<script src="app.js?v=e0541c4fcec6a7ea"></script>
+<script src="app.js?v=32f813170ea93271"></script>
 </body>
 </html>

@@ -54,6 +54,7 @@ function normalizeLib() {
   if (lib.cacheV !== 2) { lib.cache = {}; lib.cacheV = 2; } // earlier versions cached some wrong videos; search again with the stricter matching
   lib.used = lib.used || {}; lib.b = lib.b || 0; lib.trim = lib.trim || {}; lib.disc = lib.disc || {}; lib.cache = lib.cache || {}; lib.user = lib.user || []; lib.removed = lib.removed || []; lib.lists = lib.lists || [];
   S = Object.assign(S, lib.settings || {});
+  if (!S.roles2) { const v = S.voice, l = S.lunaVoice; S.voice = l || ''; S.lunaVoice = v === '__online' ? '' : (v || ''); S.roles2 = 1; }   // Luna became the host: the two chosen voices change places once
   }
 let libLoaded = false;
 async function loadLib() {
@@ -227,7 +228,7 @@ function setNow(s, kind) {
 function setLive(on) { $('onair').classList.toggle('live', on); $('vinyl').classList.toggle('on', on); }
 
 // ---------- voice ----------
-// Three voices, all English: Joe (the host), Luna (the co-host: Book Nook, readings, banter) and the bulletin.
+// Three voices, all English: Luna (the host), Joe (the co-host: Book Nook, readings, banter) and the bulletin.
 // Edge's natural voices are preferred; an online voice is the fallback.
 let voices = [];
 const isEn = v => /^en/i.test(v.lang);
@@ -238,8 +239,8 @@ function loadVoices() {
   const en = [...voices].filter(isEn).sort((a, b) => /natural/i.test(b.name) - /natural/i.test(a.name) || a.name.localeCompare(b.name));
   const fill = (id, autoLabel, key, online) => { const el = $(id); if (!el) return; el.innerHTML = ''; const add = (val, label) => { const o = document.createElement('option'); o.value = val; o.textContent = label; el.appendChild(o); };
     add('', autoLabel); if (online) add(ONLINE, 'Online voice (if the others sound wrong)'); en.forEach(v => add(v.name, nice(v))); el.value = S[key] && (S[key] === ONLINE || en.some(v => v.name === S[key])) ? S[key] : ''; };
-  fill('voiceSel', 'Automatic (Brian Multilingual, natural)', 'voice', true);
-  fill('lunaSel', 'Automatic (Ava or Emma, natural)', 'lunaVoice');
+  fill('voiceSel', 'Automatic (Ava Multilingual, natural)', 'voice', true);
+  fill('lunaSel', 'Automatic (Brian or Andrew, natural)', 'lunaVoice');
   fill('bulletinSel', 'Automatic (a third natural voice)', 'bulletinVoice');
   const note = $('voiceNote');
   if (note) note.textContent = voices.some(v => isEn(v) && /natural/i.test(v.name)) ? '' : 'Tip: open the radio in Microsoft Edge for free natural voices (Andrew, Ava, Emma…). Without them an online voice is used.';
@@ -248,15 +249,15 @@ function hostVoice() {
   if (S.voice === ONLINE) return null;
   if (S.voice) { const v = voices.find(v => v.name === S.voice); if (v) return v; }
   const en = voices.filter(isEn);
-  const pref = [/brian multilingual.*natural/i, /brian.*natural/i, /andrew multilingual.*natural/i, /andrew.*natural/i, /guy.*natural/i, /christopher.*natural/i, /eric.*natural/i, /natural/i, /guy|ryan|david|mark|george|james|daniel/i];
+  const pref = [/ava multilingual.*natural/i, /ava.*natural/i, /emma multilingual.*natural/i, /emma.*natural/i, /jenny.*natural/i, /aria.*natural/i, /natural/i, /zira|hazel|susan|aria|jenny|samantha|female/i];
   for (const p of pref) { const v = en.find(v => p.test(v.name)); if (v) return v; }
   return en[0] || null;
 }
-// Other voices, by the code a script line carries: s = Luna, n = the bulletin. Each takes the first installed natural
-// voice from its list that is not Joe's.
+// Other voices, by the code a script line carries: s = Joe (the co-host), n = the bulletin. Each takes the first installed
+// natural voice from its list that is not the host's.
 const VOICE_PREFS = {
-  s: [/ava multilingual.*natural/i, /ava.*natural/i, /emma multilingual.*natural/i, /emma.*natural/i, /jenny.*natural/i, /aria.*natural/i, /sonia.*natural/i, /libby.*natural/i],
-  n: [/ryan.*natural/i, /sonia.*natural/i, /libby.*natural/i, /steffan.*natural/i, /eric.*natural/i, /jenny.*natural/i, /natural/i],
+  s: [/brian multilingual.*natural/i, /brian.*natural/i, /andrew multilingual.*natural/i, /andrew.*natural/i, /guy.*natural/i, /christopher.*natural/i, /eric.*natural/i, /david|mark|george|guy|male/i],
+  n: [/ryan.*natural/i, /sonia.*natural/i, /libby.*natural/i, /steffan.*natural/i, /jenny.*natural/i, /natural/i],
 };
 function voiceFor(code) {
   const chosen = { s: S.lunaVoice, n: S.bulletinVoice }[code];
@@ -748,7 +749,7 @@ function setFocus(mode) {
   focusMode = mode; try { localStorage.setItem('pbd-focus', mode); } catch {}
   paintFocus(); planned = null; preload = null;
   rlog('focus mode', { mode: mode || 'off' });
-  toast(mode === 'sounds' ? 'Homework mode: ambient sounds. No talking.' : mode ? 'Homework mode: ' + (focusStation(mode) || { label: 'chill beats' }).label + '. No talking, no shows. Good luck!' : 'Homework mode off. Joe is back.');
+  toast(mode === 'sounds' ? 'Homework mode: ambient sounds. No talking.' : mode ? 'Homework mode: ' + (focusStation(mode) || { label: 'chill beats' }).label + '. No talking, no shows. Good luck!' : 'Homework mode off. ' + R.host + ' is back.');
   if (started && !newsOn) { stopSpeech(); advance({ silent: true, noCount: true, quick: true }); }   // switch now, with a crossfade
 }
 const takePlanned = () => { const p = planned; planned = null; return p || pick(); };
@@ -893,7 +894,7 @@ function bookSeg() {
   return { kind: 'Book Nook', title: b.title + ' · ' + b.by, lines: out };
 }
 function noteSeg() { const n = fresh('note', R.notes || []); return n ? lines('A note to Rim', (Array.isArray(n) ? n : [n]).map(x => sub(x))) : null; }
-function banterSeg() { const b = fresh('banter', R.banter || []); return b ? { kind: R.station, title: 'Joe & Luna', lines: b.map(l => ({ t: sub(l.t), w: l.w })) } : null; }
+function banterSeg() { const b = fresh('banter', R.banter || []); return b ? { kind: R.station, title: 'Luna & Joe', lines: b.map(l => ({ t: sub(l.t), w: l.w })) } : null; }
 function birthdaySegs() {
   lib.bdayDone = today(); saveLib();
   const B = R.birthday || {};
@@ -980,8 +981,8 @@ async function runSegments(segs, id) {
     seg.lines.forEach(l => { const w = l.w || 'h', last = merged[merged.length - 1]; if (last && (last.w || 'h') === w) last.t += ' ' + l.t; else merged.push({ ...l }); });
     for (const l of merged) {
       if (id !== runId) return false;
-      if (l.w === 's') $('capKind').textContent = 'Luna' + (seg.title ? ' · ' + seg.title : '');
-      else if (merged.some(x => x.w === 's')) $('capKind').textContent = 'Joe' + (seg.title ? ' · ' + seg.title : '');
+      if (l.w === 's') $('capKind').textContent = R.cohost + (seg.title ? ' · ' + seg.title : '');
+      else if (merged.some(x => x.w === 's')) $('capKind').textContent = R.host + (seg.title ? ' · ' + seg.title : '');
       breakSkip = () => { speechSynthesis.cancel(); try { if (curAudio && curAudio.onended) curAudio.onended(); } catch {} };   // Next skips the line being said
       await say(l.t, l.w && l.w !== 'h' ? l.w : 'h');
       breakSkip = null;
@@ -1246,7 +1247,7 @@ async function startAlbum(id) {
   openSheet(null); albumUI(); stopSpeech(); albumStep();
 }
 function stopAlbum() {
-  if (!albumShow) return; albumShow = null; albumUI(); toast('Album Party over. Joe is back.');
+  if (!albumShow) return; albumShow = null; albumUI(); toast('Album Party over. ' + R.host + ' is back.');
   if (started) { stopSpeech(); bedOff(1); planned = null; preload = null; advance({ silent: true, noCount: true }); }
 }
 function albumUI() {
@@ -1445,7 +1446,7 @@ function marathonSong() {
   let i = marathon.bag.findIndex(x => (x.a || '').toLowerCase() !== lastA && !restingBroken(x)); if (i < 0) i = 0;
   return marathon.bag.splice(i, 1)[0];
 }
-const MAR_LABEL = { songs: 'songs', trivia: 'trivia shots', genre: 'genre trivia', sidequest: 'side quests', book: 'Book Nook', note: 'notes to Rim', banter: 'Joe & Luna', podcast: 'podcasts' };
+const MAR_LABEL = { songs: 'songs', trivia: 'trivia shots', genre: 'genre trivia', sidequest: 'side quests', book: 'Book Nook', note: 'notes to Rim', banter: 'Luna & Joe', podcast: 'podcasts' };
 function marathonSegs(kind) {
   const n = songs.length ? rnd(songs) : null;
   const x = kind === 'trivia' ? triviaSeg(n, null) : kind === 'genre' ? (n && genreSeg(n)) : kind === 'sidequest' ? sideQuestSeg() : kind === 'book' ? bookSeg() : kind === 'note' ? noteSeg() : kind === 'banter' ? banterSeg() : null;
@@ -1729,7 +1730,7 @@ async function runNews(manual) {
   const early = !manual && newsEarly && Date.now() - newsEarly.at < 15 * 60e3 ? newsEarly.p : null; newsEarly = null;
   const fetched = withTimeout(early || getNews(manual), 45000).catch(() => null);
   await sleep(1000); if (id !== runId) return;
-  $('capKind').textContent = 'Joe';
+  $('capKind').textContent = R.host;
   await say(sub(fresh('newsin', B().intro || ['It is {time}: time for the Feel Good Bulletin.'])), 'h');
   const n = await fetched;
   if (id !== runId) return;
@@ -1751,7 +1752,7 @@ async function runNews(manual) {
   }
   $('capSrc').textContent = ''; newsLink = ''; $('cap').classList.remove('linkable');
   if (id !== runId) return;
-  $('capKind').textContent = 'Joe';
+  $('capKind').textContent = R.host;
   await say(sub(fresh('newsout', B().outro || ['That was the bulletin. Back to the music.'])), 'h');
   if (id === runId) finishNews();
 }
@@ -2414,8 +2415,8 @@ $('voiceSel').onchange = e => { S.voice = e.target.value; saveLib(); };
 $('lunaSel').onchange = e => { S.lunaVoice = e.target.value; saveLib(); };
 $('bulletinSel').onchange = e => { S.bulletinVoice = e.target.value; saveLib(); };
 $('rate').oninput = e => { S.rate = +e.target.value; saveLib(); };
-$('btnTest').onclick = () => { unlockAudio(); stopSpeech(); say(sub(fresh('testjoe', R.testLines && R.testLines.joe || ['Hey Rim, this is Joe. This is how I sound.']))); };
-$('btnLunaTest').onclick = () => { unlockAudio(); stopSpeech(); say(sub(fresh('testluna', R.testLines && R.testLines.luna || ['Hi Rim, Luna here.'])), 's'); };
+$('btnTest').onclick = () => { unlockAudio(); stopSpeech(); say(sub(fresh('testjoe', R.testLines && R.testLines.joe || ['Hey Rim, this is Luna. This is how I sound.']))); };
+$('btnLunaTest').onclick = () => { unlockAudio(); stopSpeech(); say(sub(fresh('testluna', R.testLines && R.testLines.luna || ['Hi Rim, Joe here.'])), 's'); };
 $('btnBulletinTest').onclick = () => { unlockAudio(); stopSpeech(); say(sub(fresh('testnews', R.testLines && R.testLines.bulletin || ['This is the Feel Good Bulletin voice.'])), 'n'); };
 $('btnNews').onclick = () => { unlockAudio(); openSheet(null); runNews(true); };
 $('btnNewsCheck').onclick = async () => {
@@ -2453,7 +2454,7 @@ document.querySelectorAll('#podNow button, #concertNow button').forEach(b => b.o
 function paintJust() { const b = $('btnJust'); if (!b) return; b.classList.toggle('on', !!S.justMusic); b.setAttribute('aria-pressed', S.justMusic ? 'true' : 'false'); $('justLabel').textContent = S.justMusic ? 'Just music: on' : 'Just music'; document.body.classList.toggle('just', !!S.justMusic); }
 $('btnJust').onclick = () => {
   S.justMusic = !S.justMusic; saveLib(); paintJust();
-  toast(S.justMusic ? 'Just music: no talking, no shows, nothing in between. Tap again to bring Joe back.' : 'Joe is back on the air.');
+  toast(S.justMusic ? 'Just music: no talking, no shows, nothing in between. Tap again to bring ' + R.host + ' back.' : R.host + ' is back on the air.');
   if (S.justMusic && started && (speaking || (curBreak && !current))) { stopSpeech(); bedOff(1); advance({ silent: true, noCount: true, quick: true }); }
 };
 
@@ -2506,7 +2507,7 @@ function startTour(force) {
       const r = el.getBoundingClientRect(), below = r.top < window.innerHeight / 2;
       box.style.top = below ? Math.min(window.innerHeight - 170, r.bottom + 12) + 'px' : 'auto';
       box.style.bottom = below ? 'auto' : Math.max(12, window.innerHeight - r.top + 12) + 'px';
-      stopSpeech(); const my = runId; $('capKind').textContent = 'Joe · the tour';
+      stopSpeech(); const my = runId; $('capKind').textContent = R.host + ' · the tour';
       await say(text, 'h');
       if (my === runId && !box.hidden) timer = setTimeout(() => { i++; show(); }, 1400);   // finished: the next step comes by itself
     };

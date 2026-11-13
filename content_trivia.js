@@ -1,4 +1,4 @@
-// Trivia: what Joe knows about the artists and the songs. Only true facts; said before or after a song, and in the
+// Trivia: what Luna knows about the artists and the songs. Only true facts; said before or after a song, and in the
 // trivia shots. Artist keys are the artist's name; song keys are "artist|title", in lower case.
 (function () {
   const R = window.RADIO;

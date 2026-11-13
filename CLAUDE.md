@@ -11,7 +11,7 @@ Rim's radio, built from Pale Blue Dot Radio.
 ## Rules that matter
 - Never mention an uncle or the giver; nothing existential; clean versions only; advice offered, never ordered.
 - Library and playlist edits from different devices are **merged**, never replaced (`mergeLib`).
-- Everything Joe and Luna say lives in the `content*.js` files, not in `app.js`.
+- Everything Luna and Joe say lives in the `content*.js` files, not in `app.js`.
 - Run `python3 tools/publish.py` before every commit.
 - Never reuse the Pale Blue Dot Firebase project or its data.
 

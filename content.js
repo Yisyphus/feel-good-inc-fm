@@ -1,12 +1,12 @@
 // Feel Good Inc. FM: who is on air, the genres of Rim's music, the Genre Mixes, and genre trivia.
-// Everything Joe and Luna say lives in the content*.js files. {host} {station} {time} {a} {t} {age} are filled in.
+// Everything Luna and Joe say lives in the content*.js files. {host} {station} {time} {a} {t} {age} are filled in.
 window.RADIO = window.RADIO || {};
 (function () {
   const R = window.RADIO;
   R.station = 'Feel Good Inc. FM';
-  R.host = 'Joe';
-  R.cohost = 'Luna';
-  R.tagline = 'Joe & Luna, on air for Rim';
+  R.host = 'Luna';
+  R.cohost = 'Joe';
+  R.tagline = 'Luna & Joe, on air for Rim';
   R.listener = { name: 'Rim', born: '2012-01-02' };   // her birthday: the birthday show, the banner, {age}
   R.appDownload = 'download/FeelGoodIncFM-Setup.zip';   // the installer inside a zip (the free Firebase plan refuses .exe)   // copied from the latest GitHub release at every deploy
   // Fresh start: when this changes, every device forgets what it remembers locally (the tour, today's mission, a
@@ -108,7 +108,7 @@ window.RADIO = window.RADIO || {};
     'funk-disco': ['Earth, Wind & Fire\'s "September" starts by asking "Do you remember the 21st night of September?" Every year on that date, fans all over the internet post the song.'],
   };
 
-  // ---------- themes of the songs: a line Joe can say when nothing more specific comes to mind ----------
+  // ---------- themes of the songs: a line Luna can say when nothing more specific comes to mind ----------
   R.themeLine = {
     love: ['A love song. Feel free to stare out of the window dramatically.', 'This one is about having a crush. We have all been there.', 'Love song alert. Act natural.'],
     fun: ['This one is just pure fun. Volume up.', 'No deep meaning here, just a good time.', 'If this does not make you move a little, check your batteries.'],
