@@ -34,7 +34,7 @@ const MAX_DISCOVERED = 220;
 
 // ---------- state ----------
 let lib = { user: [], cache: {}, removed: [], settings: {}, trim: {}, disc: {} };
-let S = { talk: 'normal', rate: 100, voice: '', sleep: 0, vol: 80, trim: 5, news: 'on', fade: 2, justMusic: false };
+let S = { talk: 'normal', rate: 88, voice: '', sleep: 0, vol: 80, trim: 5, news: 'on', fade: 2, justMusic: false };
 let songs = [];
 let current = null, history = [], played = [], upNext = [], planned = null, preload = null;
 let batch = null, startAnnounce = null, lastRunSong = null; // genre run state
@@ -54,6 +54,7 @@ function normalizeLib() {
   if (lib.cacheV !== 2) { lib.cache = {}; lib.cacheV = 2; } // earlier versions cached some wrong videos; search again with the stricter matching
   lib.used = lib.used || {}; lib.b = lib.b || 0; lib.trim = lib.trim || {}; lib.disc = lib.disc || {}; lib.cache = lib.cache || {}; lib.user = lib.user || []; lib.removed = lib.removed || []; lib.lists = lib.lists || [];
   S = Object.assign(S, lib.settings || {});
+  if (!S.rate2) { if (!S.rate || S.rate === 100) S.rate = 88; S.rate2 = 1; }   // the owner's chosen talking speed, once
   if (!S.roles2) { const v = S.voice, l = S.lunaVoice; S.voice = l || ''; S.lunaVoice = v === '__online' ? '' : (v || ''); S.roles2 = 1; }   // Luna became the host: the two chosen voices change places once
   }
 let libLoaded = false;
@@ -889,11 +890,16 @@ function energyLine(prev, s) {   // only for a big change, and not every time
   return d <= -2 && R.energyDown ? fresh('edown', R.energyDown) : d >= 2 && R.energyUp ? fresh('eup', R.energyUp) : '';
 }
 const themeLine = s => { const tg = tagOf(s); return fresh('theme:' + tg, R.themeLine[tg] || R.themeLine.fun); };
-function genreNote(s) {
+// The artists of the catalog, to tell which bands a fact talks about
+let catArtists = null;
+const allArtists = () => catArtists || (catArtists = [...new Set((R.catalog || []).flatMap(x => artistParts(x.a)).filter(a => a.length > 2))]);
+const namesIn = t => { const f = ' ' + fold(String(t)).replace(/[^a-z0-9& ]+/g, ' ') + ' '; return allArtists().filter(a => f.includes(' ' + a.replace(/[^a-z0-9& ]+/g, ' ').replace(/\s+/g, ' ').trim() + ' ')); };
+// a fact is fine when every band it names is one of the songs around it (or it names none)
+const fitsAround = (t, ...songs) => { const near = new Set(songs.filter(Boolean).flatMap(x => artistParts(x.a))); return namesIn(t).every(a => near.has(a)); };
+function genreNote(s, prev) {
   const g = s.genre || ''; const base = R.genreNotes.find(x => x.g === g);
-  let pool = [base && base.t, ...((R.genreMore || {})[g] || [])].filter(Boolean);
-  if (!pool.length) pool = R.genreNotes.map(x => x.t);
-  return fresh('genre:' + (g || 'any'), pool);
+  let pool = [base && base.t, ...((R.genreMore || {})[g] || [])].filter(Boolean).filter(t => fitsAround(t, s, prev));
+  return pool.length ? fresh('genre:' + (g || 'any'), pool) : null;
 }
 // Shout-outs from Add a song: kept only here, in memory, until Joe has said them; never saved, synced or logged.
 const dedications = new Map();
@@ -920,7 +926,7 @@ function introFor(s, prev) {
   else {
     // otherwise its main theme, its genre (only when the genre changes), or a line that fits its mood
     const r = Math.random(), newGenre = s.genre && (!prev || prev.genre !== s.genre);
-    parts.push(r < 0.4 ? themeLine(s) : r < 0.75 && newGenre ? genreNote(s) : moodLine(s));
+    parts.push(r < 0.4 ? themeLine(s) : r < 0.75 && newGenre ? (genreNote(s, prev) || moodLine(s)) : moodLine(s));
     if (Math.random() < 0.25) parts.push(moodLine(s));
   }
   return parts.join(' ');
@@ -969,9 +975,10 @@ function triviaSeg(next, prev) {
     const main = artistParts(s.a)[0], an = main && artistNotesMap().get(main);
     if (an && an.length) return lines('Trivia shot', [sub(fresh('triviashot', R.triviaLeads || ['Trivia shot.'])), sub(fresh('anote:' + main, an), s)]);
   }
-  return lines('Trivia shot', [sub(fresh('triviashot', R.triviaLeads || ['Trivia shot.'])), sub(fresh('triviaany', R.triviaShots || []))]);
+  const any = (R.triviaShots || []).filter(t => fitsAround(t, next, prev));
+  return any.length ? lines('Trivia shot', [sub(fresh('triviashot', R.triviaLeads || ['Trivia shot.'])), sub(fresh('triviaany', any))]) : null;
 }
-function genreSeg(next) { return lines('Genre trivia', [sub(fresh('genrelead', R.genreLeads || ['A little genre trivia.']), next), genreNote(next)], { title: (R.genreMap[next.genre] || {}).name }); }
+function genreSeg(next, prev) { const n = next && genreNote(next, prev); if (!n) return null; return lines('Genre trivia', [sub(fresh('genrelead', R.genreLeads || ['A little genre trivia.']), next), n], { title: (R.genreMap[next.genre] || {}).name }); }
 function sideQuestSeg() {
   const kinds = Object.keys(R.sideQuests || {}); if (!kinds.length) return null;
   const k = kinds[(lib.sqTurn = ((lib.sqTurn || 0) + 1)) % kinds.length];
@@ -1016,7 +1023,7 @@ function makeBreak(prev, next, first) {
   else if (missionDue() && !big && !afterPod) out.push(missionSeg());   // the radio was opened without a welcome (after an update): the mission still comes
   if (big === 'shot') {
     const turn = (lib.shotTurn = ((lib.shotTurn || 0) + 1)) % 3;
-    out.push(turn === 0 ? triviaSeg(next, prev) : turn === 1 ? genreSeg(next) : (sideQuestSeg() || triviaSeg(next, prev)));
+    out.push(turn === 0 ? triviaSeg(next, prev) : turn === 1 ? (genreSeg(next, prev) || triviaSeg(next, prev)) : (sideQuestSeg() || triviaSeg(next, prev)));
   }
   if (big === 'book') { const b = bookSeg(); if (b) out.push(b); }
   if (big === 'note') { const x = noteSeg(); if (x) out.push(x); }
@@ -1027,7 +1034,7 @@ function makeBreak(prev, next, first) {
     const x = r < 0.25 ? lines(station, [sub(fresh('ident', R.idents), next)])
       : r < 0.5 ? banterSeg()
       : r < 0.65 ? lines('Check-in', [sub(fresh('checkin', R.checkins))])
-      : r < 0.85 ? genreSeg(next)
+      : r < 0.85 ? genreSeg(next, prev)
       : sideQuestSeg();
     if (x) out.push(x);
   }
