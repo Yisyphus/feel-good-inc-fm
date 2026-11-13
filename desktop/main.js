@@ -51,7 +51,15 @@ async function open() {
   win.on('closed', () => { win = null; });
   const ok = await startHelper();
   if (!ok) { win.loadURL('data:text/html,' + encodeURIComponent('<body style="font:16px sans-serif;background:#0b0a14;color:#eee;padding:24px"><h2>The radio could not start</h2><p>Close this window and open Feel Good Inc. FM again. If it happens again, restart the PC.</p></body>')); return; }
+  await updateFirst();
   win.loadURL(URL_HOME);
+}
+// the newest version of the radio before the window shows it (at most a few seconds; offline, the copy on the PC)
+function updateFirst() {
+  return new Promise(res => {
+    const r = http.request({ host: '127.0.0.1', port: PORT, path: '/api/update', method: 'POST', timeout: 8000 }, x => { x.resume(); x.on('end', res); });
+    r.on('error', res); r.on('timeout', () => { r.destroy(); res(); }); r.end();
+  });
 }
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
 app.whenReady().then(open);

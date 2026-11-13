@@ -303,7 +303,7 @@ const spoken = x => (R.sayAs || []).reduce((t, [re, to]) => t.replace(re, to), S
 // lines of a break or the bulletin as soon as it starts. While the voices are not ready (the first start downloads
 // them once) and on the website, the browser's own voices speak.
 let voiceState = '', voiceLoadToast = false, desktopApp = false;
-const voicesPending = () => desktopApp && !['ready', 'error', 'none'].includes(voiceState);   // the app's voices are still loading
+const voicesPending = () => desktopApp && voiceState !== 'ready' && voiceState !== 'error';   // the app's voices are still loading
 async function waitVoices(ms) {   // a few seconds normally; minutes only if the voices have to be downloaded first
   if (!voicesPending()) return;
   const t0 = Date.now(), cap = $('capText'), keep = cap.textContent;
@@ -322,7 +322,7 @@ function kokoroPre(text, who) {   // collected, then sent in one list so the hel
   if (!preTimer) preTimer = setTimeout(() => { const items = preList; preList = []; preTimer = 0; fetch('/api/say', { method: 'POST', body: JSON.stringify({ items }) }).catch(() => {}); }, 0);
 }
 async function voicePoll() {
-  if (!HELPER || voiceState === 'ready' || voiceState === 'none') return;
+  if (!HELPER || voiceState === 'ready') return;
   const p = await fetch('/api/ping').then(r => r.json()).catch(() => null), v = p && p.voice;
   if (!v) return;
   if (v.state === 'loading' && !voiceLoadToast && v.progress < 100) { voiceLoadToast = true; toast("Getting " + R.host + "'s and " + R.cohost + "'s voices ready (first time only). Until then, a simpler voice speaks."); }
@@ -366,9 +366,13 @@ function playPiece(blob, text, id) {
     if (!globalPaused) a.play().catch(fin);   // paused meanwhile: Play continues it (resumeAll)
   });
 }
-function say(text, who = 'h') {
-  if (voicesPending()) return Promise.resolve();   // never a stand-in voice in the app: this line is skipped
-  if (kokoroReady()) return sayKokoro(String(text), who).then(ok => ok ? undefined : sayBrowser(text, who));
+async function say(text, who = 'h') {
+  if (voicesPending()) await waitVoices(30000);
+  if (voicesPending()) return;   // never a stand-in voice in the app: this line is skipped
+  if (kokoroReady()) {
+    if (await sayKokoro(String(text), who)) return;
+    if (desktopApp) { voiceState = 'loading'; await waitVoices(30000); if (kokoroReady()) await sayKokoro(String(text), who); return; }   // the helper restarted or is busy: wait, never a stand-in voice
+  }
   return sayBrowser(text, who);
 }
 function sayBrowser(text, who = 'h') {
@@ -2022,7 +2026,7 @@ async function tuneIn() {
   if (!voices.length) loadVoices();
   try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch {}
   keepAwake();
-  await waitVoices(tourSeen() ? 20000 : 180000);   // the app: its own voices first (the welcome or the tour)
+  await waitVoices(tourSeen() ? 60000 : 180000);   // the app: its own voices first (the welcome or the tour)
   if (!tourSeen() && !updResume) await startTour(false);   // the first time: Joe's tour, out loud, before the music
   setPlayIcon(true);
   const back = updResume; updResume = null;

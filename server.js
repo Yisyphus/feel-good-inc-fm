@@ -380,7 +380,7 @@ const sayCache = new Map(), sayJobs = [];
 let sayBusy = false, sayCur = null;
 async function voiceInit() {
   let K, T;
-  try { const rq = require('module').createRequire(path.join(__dirname, 'server.js')); K = rq('kokoro-js'); T = rq('@huggingface/transformers'); } catch { return; }   // the website's helper, or an older app: no Kokoro
+  try { const rq = require('module').createRequire(path.join(__dirname, 'server.js')); K = rq('kokoro-js'); T = rq('@huggingface/transformers'); } catch (e) { if (process.env.FGI_DESKTOP) { VOICE.state = 'error'; VOICE.error = 'voice engine missing: ' + String(e.message || e).slice(0, 120); } return; }   // the website's helper, or an older app: no Kokoro
   VOICE.state = 'loading'; VOICE.error = '';
   const t0 = Date.now();
   try {

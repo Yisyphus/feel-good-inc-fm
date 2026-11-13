@@ -121,7 +121,7 @@
       'If you love MF DOOM, look up what he did with Madlib. The album is called Madvillainy.',
       'Discovery idea: pick a band you love and find the band that inspired them. Rabbit hole, in a good way.',
       'If you like King Gizzard, here is a challenge: they have more than 25 albums. Pick one at random.',
-      'If you like Hoba Hoba Spirit, try Bab L\'Bluz: Moroccan gnawa meets rock, with a woman playing the guembri.',
+      'If you like Hoba Hoba Spirit, try Betweenatna: Moroccan rock with a lot of humour, also sung in Darija.',
     ],
   };
 

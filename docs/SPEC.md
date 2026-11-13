@@ -20,8 +20,9 @@ Where the two disagree, **this file wins**.
 ## 2. The station
 
 - **Name:** Feel Good Inc. FM. **Host:** Luna. **Co-host:** Joe. (Swapped on 2026-11-13 at the owner's request: Luna was the co-host before.)
-- **Language:** English only (host, co-host, bulletin, interface). Songs in Darija (Hoba Hoba Spirit, Betweenatna)
-  are fine.
+- **Language:** English only (host, co-host, bulletin, interface). **The only Moroccan artists are Hoba Hoba Spirit
+  and Betweenatna** (songs in Darija). Nothing else Moroccan: no old Moroccan music, no tarab, no chaabi (the owner's
+  rule, 13 November 2026).
 - **Tone:** full of energy, positive, motivating, funny, as if Luna is talking to her. **Not existential.** Not bossy:
   advice is offered ("if you feel like it…"), never ordered.
 - **Luna** is the host. **Joe** is a playful co-host: he gives the **welcome tour** (then hands over to Luna), **Today's
@@ -273,7 +274,7 @@ For an old PC and slow Wi-Fi, on the website and the desktop app:
   win32-x64, the Node build of transformers, a stand-in for the unused image library, the two voices), the helper and
   the page. The installer is about 140 MB; the free Firebase plan serves 360 MB a day, so a couple of downloads a day.
 - **Releases** run only by hand (Actions > Release > Run workflow), after writing the version in `tools/release/VERSION`.
-- **What is in it (12 November 2026):** 792 clean songs (790 checked + clean radio edits of "Feel Good Inc." and
+- **What is in it (13 November 2026):** 780 clean songs (12 Moroccan songs by other artists were taken out) (790 checked + clean radio edits of "Feel Good Inc." and
   "Clint Eastwood", fan uploads labelled clean), 9 Album Party albums (Demon Days, Plastic Beach, The Dark Side of the
   Moon, A Night at the Opera, Salad Days, Off the Wall, Thriller, Discovery, Oracular Spectacular; explicit tracks left
   out), 78 podcast episodes, 15 concerts, 5 Homework stations (89 tracks) and 6 ambient sounds. Albums that lost more
