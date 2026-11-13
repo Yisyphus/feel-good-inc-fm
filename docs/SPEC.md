@@ -122,6 +122,8 @@ Her albums: *Demon Days*, *The Dark Side of the Moon*, *Currents*, *Nevermind*, 
 tracks, `aka`, lengths, five checks), plus the clean rule above. Luna's notes: fun facts, energetic, not existential.
 
 ## 9. Homework mode (was Focus mode)
+- **First station: Lofi Girl: study mixes**: 12 of Lofi Girl's own long mixes (1 to 10 hours, exact videos, checked
+  embeddable). No J Dilla ("Time: The Donut of the Heart" had moaning in a sample; his other Donuts tracks went too).
 
 Lofi, chill beats, game-like ambience, instrumental stations; no talk, no shows. A **study timer** (e.g. 25 min
 work / 5 min break, with a soft chime). Her own stations can be added as before.

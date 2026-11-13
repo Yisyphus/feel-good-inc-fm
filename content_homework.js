@@ -3,9 +3,13 @@
 (function () {
   const R = window.RADIO;
   R.focusStations = [
+    // Lofi Girl's own long mixes (the girl studying with headphones): calm beats, hours at a time, checked embeddable
+    { id: 'lofigirl', label: 'Lofi Girl: study mixes', note: 'long mixes, one to ten hours', tracks: [
+      'Lofi Girl|lofi hip hop mix, beats to relax and study to (Part 1)', 'Lofi Girl|lofi hip hop mix, beats to relax and study to (Part 2)', 'Lofi Girl|Best of lofi hip hop 2021', 'Lofi Girl|Best of lofi hip hop 2022', 'Lofi Girl|Best of lofi 2018', 'Lofi Girl|A Book, a Blanket, and the Autumn Breeze', 'Lofi Girl|Morning Coffee', 'Lofi Girl|Lazy Sunday', 'Lofi Girl|chill music for work', 'Lofi Girl|winter lofi mix', 'Lofi Girl|jazz lofi mix', 'Lofi Girl|Soothing Breeze',
+    ] },
     { id: 'lofi', label: 'Lofi & Chill Beats', note: 'soft beats for homework', tracks: [
       'Nujabes|Aruarian Dance', 'Nujabes|Reflection Eternal', 'Nujabes|Spiral', 'Nujabes|Kumomi', 'Nujabes|The Final View', 'Nujabes|Horizon',
-      'J Dilla|Last Donut of the Night', 'J Dilla|Waves', 'Jinsang|Affection', 'Jinsang|Solitude',
+      'Jinsang|Affection', 'Jinsang|Solitude',
       'Tomppabeats|Monday Loop', 'idealism|Snowfall', 'idealism|Phosphene', 'Kupla|Owls of the Night', 'Mndsgn|Camelblues',
       'FKJ|Ylang Ylang', 'FKJ|Lying Together', 'FKJ|Skyline', 'Bonobo|Kiara', 'Bonobo|Cirrus', 'Bonobo|Kong',
       'Tycho|Awake', 'Tycho|Dive', 'Tycho|A Walk', 'Emancipator|Soon It Will Be Cold Enough to Build Fires', 'Emancipator|Lionheart',

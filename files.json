@@ -7,18 +7,18 @@
   "content.js": "cd04ac3c34f1e0c0",
   "content_albums.js": "bb8676c5bffd9164",
   "content_catalog.js": "0fc0d5ffdcc357a7",
-  "content_homework.js": "416efd1e670ed211",
-  "content_ids.js": "41b3d36d3ff3f139",
+  "content_homework.js": "8179d6014d537070",
+  "content_ids.js": "5b7dbfbb58712cfb",
   "content_pods.js": "a448d7a560b36854",
   "content_shows.js": "b41b48f04ee4ae17",
   "content_talk.js": "190d47e77d48e2fd",
   "content_trivia.js": "0c99eded051486d8",
   "firebase-config.js": "2f564483690cf7d0",
   "icon.png": "414972388b2218eb",
-  "index.html": "75b577575da9bb2e",
+  "index.html": "f41719514c898ade",
   "jingles.js": "7f59ee5d7730845e",
   "stickers.js": "2e454ec8e83c28a4"
  },
  "server": "4f7443d4f20c18fa",
- "version": "2026-11-13T14:19:44Z"
+ "version": "2026-11-13T14:24:17Z"
 }
