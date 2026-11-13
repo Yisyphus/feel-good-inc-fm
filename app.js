@@ -371,6 +371,7 @@ window.onYouTubeIframeAPIReady = () => {
           if (preload && preload.idx === i && !preload.primed && e.data === YT.PlayerState.PLAYING) { try { pl[i].pauseVideo(); pl[i].seekTo(0, true); } catch {} preload.primed = true; rlog('next song ready', { song: preload.key }); }
           return;
         }
+        if (document.hidden && e.data !== 3) rlog('minimized: player ' + i + ' is now ' + ({ '-1': 'unstarted', 0: 'ended', 1: 'playing', 2: 'paused', 5: 'cued' }[e.data] || e.data), { song: current && current.key });
         if (e.data === YT.PlayerState.PLAYING) { clearTimeout(startWatch); playing = true; setPlayIcon(true); setLive(true); try { pl[i].unMute(); if (Number.isFinite(pl[i]._vol)) pl[i].setVolume(pl[i]._vol); } catch {} }
         else if (e.data === YT.PlayerState.PAUSED) {
           if (newsOn) return;   // the bulletin paused it on purpose
@@ -2541,7 +2542,9 @@ function usageStart() {
 setInterval(() => { if (!usage) return; if (!globalPaused && (playing || speaking)) { usage.minutes = Math.min(1440, usage.minutes + 1); usageDirty = true; } if (usageDirty && usage.minutes % 5 === 0) usageWrite(); }, 60000);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && usageDirty) usageWrite();
-  if (started) rlog(document.hidden ? 'window minimized' : 'window back', { playing, busy, song: current && current.key });
+  if (!started) return;
+  const ps = [0, 1].map(i => { try { const q = pl[i]; return [q.getPlayerState(), Math.round(q.getCurrentTime()), q._vol, q.isMuted() ? 'muted' : 'on'].join(' '); } catch { return '?'; } });
+  rlog(document.hidden ? 'window minimized' : 'window back', { playing, busy, speaking, song: current && current.key, active: ai, players: ps, next: preload && (preload.key + (preload.primed ? ' ready' : ' preparing')), audio: actx && actx.state, tone: !!keepTone });
 });
 window.addEventListener('pagehide', () => { if (usageDirty) usageWrite(); });
 
