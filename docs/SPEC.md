@@ -281,7 +281,7 @@ For an old PC and slow Wi-Fi, on the website and the desktop app:
 - **Build** (`tools/release/build.ps1`, on Windows): Node.js renamed FeelGoodHelper.exe, the helper, the page, the
   launcher and the icon. The installer is about 30 MB.
 - **Releases** run only by hand (Actions > Release > Run workflow), after writing the version in `tools/release/VERSION`.
-- **What is in it (13 November 2026):** 780 clean songs (12 Moroccan songs by other artists were taken out) (790 checked + clean radio edits of "Feel Good Inc." and
+- **What is in it (13 November 2026):** 768 clean songs (Moroccan: only 4 Hoba Hoba Spirit songs and 1 Betweenatna song, the owner's picks) (790 checked + clean radio edits of "Feel Good Inc." and
   "Clint Eastwood", fan uploads labelled clean), 9 Album Party albums (Demon Days, Plastic Beach, The Dark Side of the
   Moon, A Night at the Opera, Salad Days, Off the Wall, Thriller, Discovery, Oracular Spectacular; explicit tracks left
   out), 78 podcast episodes, 15 concerts, 5 Homework stations (89 tracks) and 6 ambient sounds. Albums that lost more
