@@ -172,11 +172,14 @@ function buildSongs() {
   const cat = (R.catalog || []).map(s => ({ ...s, key: key(s) }));
   const user = lib.user.filter(s => !s.discovered).map(s => ({ ...s, key: s.key || key(s) }));
   const gift = giftSongs();
+  const giftIds = new Map(gift.filter(g => g.cands && g.cands[0]).map(g => [g.key, g.cands[0]]));
   const seen = new Set(); songs = [];
   [...seed, ...cat, ...gift, ...user].forEach(s => { if (seen.has(s.key) || lib.removed.includes(s.key)) return; seen.add(s.key); songs.push(s); });
   songs.forEach(s => {
     if (lib.cache[s.key]) s.cands = lib.cache[s.key];
     else if (R.catalogIds && R.catalogIds[s.key]) { const v = R.catalogIds[s.key]; s.cands = [{ id: v.id, title: v.title, channel: v.channel, seconds: v.seconds || 0 }, ...(v.more || [])]; }   // checked in advance: no search needed, with backups
+    const gv = giftIds.get(s.key);   // the owner picked this exact video for a family playlist
+    if (gv) s.cands = [gv, ...(s.cands || []).filter(c => c.id !== gv.id)];
     const L = (lib.labels || {})[s.key];   // your own labels (Library > the pencil) win over the catalog's
     if (L) { if (L.genre) s.genre = L.genre; if (L.tags) s.tags = L.tags.slice(); if (L.mood) s.mood = L.mood; if (L.energy) s.energy = L.energy; }
   });
