@@ -163,8 +163,8 @@ window.RADIO = window.RADIO || {};
       'Tommy Richman|Million Dollar Baby|ZOkmEJHDP1g',
       'Caravan|All the Way|P3pzX5iKFsk',
       'Nick Drake|River Man|idcaRTg4-fM',
-      'King Gizzard & The Lizard Wizard|Am I in Heaven?|AwUzl07rqzw',
-      'King Gizzard & The Lizard Wizard|Billabong Valley|NTgczHdnl0Q',
+      'King Gizzard & The Lizard Wizard|Am I in Heaven?|hneOa-A7ua0',
+      'King Gizzard & The Lizard Wizard|Billabong Valley|WZ4DT0Nz684',
     ] },
     { key: 'gift-father', name: "Father's Favorites", color: '#ffe600', sticker: 'vinyl', songs: [
       'Dolly Parton|I Will Always Love You|lKsQR72HY0s',
