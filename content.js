@@ -110,7 +110,7 @@ window.RADIO = window.RADIO || {};
 
   // ---------- themes of the songs: a line Luna can say when nothing more specific comes to mind ----------
   R.themeLine = {
-    love: ['A love song. Feel free to stare out of the window dramatically.', 'This one is about having a crush. We have all been there.', 'Love song alert. Act natural.'],
+    love: ['A love song. Feel free to stare out of the window dramatically.', 'Love song alert. Act natural.'],
     fun: ['This one is just pure fun. Volume up.', 'No deep meaning here, just a good time.', 'If this does not make you move a little, check your batteries.'],
     friends: ['This one goes out to your best friends. You know who they are.', 'A song about friendship. Send it to your people.'],
     freedom: ['A song about feeling free. Windows down, even if you are in your room.', 'This one sounds like the last day of school.'],

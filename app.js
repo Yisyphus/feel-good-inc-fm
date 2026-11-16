@@ -908,7 +908,7 @@ function energyLine(prev, s) {   // only for a big change, and not every time
 const themeLine = s => { const tg = tagOf(s); return fresh('theme:' + tg, R.themeLine[tg] || R.themeLine.fun); };
 // The artists of the catalog, to tell which bands a fact talks about
 let catArtists = null;
-const allArtists = () => catArtists || (catArtists = [...new Set((R.catalog || []).flatMap(x => artistParts(x.a)).filter(a => a.length > 2))]);
+const allArtists = () => catArtists || (catArtists = [...new Set([...(R.catalog || []).map(x => x.a), ...Object.keys(R.artistNotes || {})].flatMap(a => artistParts(a)).filter(a => a.length > 2))]);
 const namesIn = t => { const f = ' ' + fold(String(t)).replace(/[^a-z0-9& ]+/g, ' ') + ' '; return allArtists().filter(a => f.includes(' ' + a.replace(/[^a-z0-9& ]+/g, ' ').replace(/\s+/g, ' ').trim() + ' ')); };
 // a fact is fine when every band it names is one of the songs around it (or it names none)
 const fitsAround = (t, ...songs) => { const near = new Set(songs.filter(Boolean).flatMap(x => artistParts(x.a))); return namesIn(t).every(a => near.has(a)); };
@@ -996,10 +996,11 @@ function triviaSeg(next, prev) {
   return any.length ? lines('Trivia shot', [sub(fresh('triviashot', R.triviaLeads || ['Trivia shot.'])), sub(fresh('triviaany', any))]) : null;
 }
 function genreSeg(next, prev) { const n = next && genreNote(next, prev); if (!n) return null; return lines('Genre trivia', [sub(fresh('genrelead', R.genreLeads || ['A little genre trivia.']), next), n], { title: (R.genreMap[next.genre] || {}).name }); }
-function sideQuestSeg() {
+function sideQuestSeg(next, prev) {
   const kinds = Object.keys(R.sideQuests || {}); if (!kinds.length) return null;
   const k = kinds[(lib.sqTurn = ((lib.sqTurn || 0) + 1)) % kinds.length];
-  return lines('Side quest', [sub(fresh('sqlead', R.sideQuestLeads || ['Side quest, if you feel like it.'])), sub(fresh('sq:' + k, R.sideQuests[k]))], { title: (R.sideQuestNames || {})[k] });
+  const pool = (R.sideQuests[k] || []).filter(t => fitsAround(t, next, prev)); if (!pool.length) return null;   // a tip about a band only next to that band
+  return lines('Side quest', [sub(fresh('sqlead', R.sideQuestLeads || ['Side quest, if you feel like it.'])), sub(fresh('sq:' + k, pool))], { title: (R.sideQuestNames || {})[k] });
 }
 function bookSeg() {
   const b = fresh('book', R.bookNook || []); if (!b) return null;
@@ -1040,7 +1041,7 @@ function makeBreak(prev, next, first) {
   else if (missionDue() && !big && !afterPod) out.push(missionSeg());   // the radio was opened without a welcome (after an update): the mission still comes
   if (big === 'shot') {
     const turn = (lib.shotTurn = ((lib.shotTurn || 0) + 1)) % 3;
-    out.push(turn === 0 ? triviaSeg(next, prev) : turn === 1 ? (genreSeg(next, prev) || triviaSeg(next, prev)) : (sideQuestSeg() || triviaSeg(next, prev)));
+    out.push(turn === 0 ? triviaSeg(next, prev) : turn === 1 ? (genreSeg(next, prev) || triviaSeg(next, prev)) : (sideQuestSeg(next, prev) || triviaSeg(next, prev)));
   }
   if (big === 'book') { const b = bookSeg(); if (b) out.push(b); }
   if (big === 'note') { const x = noteSeg(); if (x) out.push(x); }
@@ -1052,7 +1053,7 @@ function makeBreak(prev, next, first) {
       : r < 0.5 ? banterSeg()
       : r < 0.65 ? lines('Check-in', [sub(fresh('checkin', R.checkins))])
       : r < 0.85 ? genreSeg(next, prev)
-      : sideQuestSeg();
+      : sideQuestSeg(next, prev);
     if (x) out.push(x);
   }
   // a Genre Mix is announced last, right before its first song; if a podcast comes first, it waits until after it
