@@ -20,9 +20,9 @@ Where the two disagree, **this file wins**.
 ## 2. The station
 
 - **Name:** Feel Good Inc. FM. **Host:** Luna. **Co-host:** Joe. (Swapped on 2026-11-13 at the owner's request: Luna was the co-host before.)
-- **Language:** English only (host, co-host, bulletin, interface). **The only Moroccan artists are Hoba Hoba Spirit
-  and Betweenatna** (songs in Darija). Nothing else Moroccan: no old Moroccan music, no tarab, no chaabi (the owner's
-  rule, 13 November 2026).
+- **Language:** English only (host, co-host, bulletin, interface). **Moroccan songs are the owner's picks only**
+  (16 November 2026: Hoba Hoba Spirit, Betweenatna, Darga, Mazagan, Heat Spirit). No old Moroccan music, no tarab, no
+  chaabi.
 - **Tone:** full of energy, positive, motivating, funny, as if Luna is talking to her. **Not existential.** Not bossy:
   advice is offered ("if you feel like it…"), never ordered.
 - **Luna** is the host. **Joe** is a playful co-host: he gives the **welcome tour** (then hands over to Luna), **Today's
@@ -281,7 +281,7 @@ For an old PC and slow Wi-Fi, on the website and the desktop app:
 - **Build** (`tools/release/build.ps1`, on Windows): Node.js renamed FeelGoodHelper.exe, the helper, the page, the
   launcher and the icon. The installer is about 30 MB.
 - **Releases** run only by hand (Actions > Release > Run workflow), after writing the version in `tools/release/VERSION`.
-- **What is in it (13 November 2026):** 768 clean songs (Moroccan: only 4 Hoba Hoba Spirit songs and 1 Betweenatna song, the owner's picks) (790 checked + clean radio edits of "Feel Good Inc." and
+- **What is in it (13 November 2026):** 773 clean songs (Moroccan: the owner's picks, 10 entries including Betweenatna live at Bab'Live) (790 checked + clean radio edits of "Feel Good Inc." and
   "Clint Eastwood", fan uploads labelled clean), 9 Album Party albums (Demon Days, Plastic Beach, The Dark Side of the
   Moon, A Night at the Opera, Salad Days, Off the Wall, Thriller, Discovery, Oracular Spectacular; explicit tracks left
   out), 78 podcast episodes, 15 concerts, 5 Homework stations (89 tracks) and 6 ambient sounds. Albums that lost more
