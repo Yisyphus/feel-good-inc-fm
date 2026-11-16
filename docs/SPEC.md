@@ -130,8 +130,8 @@ work / 5 min break, with a soft chime). Her own stations can be added as before.
 
 - **The dream skin** (16 November 2026): while Homework mode is on, the radio wears a dreamcore aqua / Frutiger Aero skin,
   like Windows XP's crystal look: an underwater scene (`aqua.webp`, about 60 KB, an original drawing made by
-  `tools/aqua-art.py`, no logos) with bubbles, tropical fish, a glossy globe, a dolphin, glass stars, a lime heart and a
-  shiny CD, behind glossy glass panels and bubble buttons (`body.dream` in index.html). No blur, no animation; the
+  `tools/aqua-art.py`, no logos) with bubbles, tropical fish, a glossy globe, a dolphin, glass stars and a
+  shiny CD (the green heart was taken out), behind glossy glass panels and bubble buttons (`body.dream` in index.html). No blur, no animation; the
   picture is only fetched in Homework mode. It goes back to the neon skin when Homework mode ends.
 - **Aquacore station** (Homework): dreamy underwater music, 14 long tracks with exact videos (Aquatic Ambience, Dire,
   Dire Docks, Endless Ocean, Ecco the Dolphin, Frutiger Aero mixes…).

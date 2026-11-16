@@ -96,8 +96,6 @@ fish(250, 900, 0.7, '#ff5a8a', '#ffc0d8', 'small')
 fish(470, 1460, 0.95, '#c6f25a', '#ffe14a', 'small', flip=True)
 # a dolphin
 o.append('<g transform="translate(690 1480) rotate(-18) scale(1.3)"><path d="M-120 10 C -80 -40, 20 -50, 80 -20 C 100 -14, 118 -16, 132 -24 C 124 -12, 118 -4, 112 2 C 90 20, 40 30, -20 26 L -40 50 L -50 24 C -80 22, -104 20, -120 10 Z" fill="url(#dol)"/><path d="M-10 -40 C 4 -66, 20 -70, 24 -44 Z" fill="#8b9db5"/><path d="M-120 10 L -156 -14 L -146 10 L -160 34 Z" fill="#8b9db5"/><circle cx="92" cy="-14" r="3.5" fill="#1b2333"/><path d="M-80 -6 C -30 -30, 40 -34, 80 -18" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="5" stroke-linecap="round"/></g>')
-# a glossy lime heart
-o.append('<g transform="translate(150 1420) scale(1.25)"><path d="M0 40 C -60 0, -70 -40, -40 -56 C -20 -66, -4 -54, 0 -40 C 4 -54, 20 -66, 40 -56 C 70 -40, 60 0, 0 40 Z" fill="url(#heart)" stroke="#e9ff9a" stroke-width="3"/><path d="M-36 -40 C -24 -54, -10 -48, -8 -36" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" opacity=".85"/></g>')
 # glass stars
 def star(cx, cy, r, rot=0):
     pts = []
