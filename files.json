@@ -5,7 +5,7 @@
   "bg.webp": "2c55ada11354d1bc",
   "check.html": "45ae02f4328db3c4",
   "cloud.js": "fee9c7cfc27da2b8",
-  "content.js": "0c6f049700bfd3be",
+  "content.js": "66e17ae230a5178a",
   "content_ads.js": "48a9d8c0d8be7da7",
   "content_albums.js": "bb8676c5bffd9164",
   "content_catalog.js": "2b15b6e6d98bbb7c",
@@ -17,10 +17,10 @@
   "content_trivia.js": "0c99eded051486d8",
   "firebase-config.js": "2f564483690cf7d0",
   "icon.png": "9219fcf96a8f3b7c",
-  "index.html": "39de5d85eb233dc9",
+  "index.html": "737ab5f036013527",
   "jingles.js": "7f59ee5d7730845e",
   "stickers.js": "2e454ec8e83c28a4"
  },
  "server": "0a59975482d4d681",
- "version": "2026-11-16T16:46:13Z"
+ "version": "2026-11-16T16:51:05Z"
 }
