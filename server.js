@@ -368,82 +368,6 @@ const readLib = () => { try { return JSON.parse(fs.readFileSync(LIB, 'utf8')); }
 const writeLib = l => fs.writeFileSync(LIB, JSON.stringify(l, null, 1));
 
 
-// ---------- the voices of the desktop app: Kokoro, free and local (no account, no limit, no internet once downloaded) ----------
-// Only in the installed app (it ships node_modules/kokoro-js with two voices: af_heart = Luna, am_adam = Joe). The
-// speech model (about 92 MB) is downloaded once from Hugging Face on the first start, into voice-model/, and kept.
-// The page asks for a block of text (POST /api/say) and gets a WAV back. Lines it will need soon are asked for in
-// advance (pre: true), so on a slow PC they are ready before they are said. One block is made at a time.
-const VOICE = { state: 'none', progress: 0, rtf: 0, error: '', loadMs: 0 };
-// Luna hosts (af_heart); Joe (am_echo) co-hosts, gives the tour, the mission and the bulletin. An install from before
-// echo was chosen only has am_adam: Joe uses that until the next installer brings echo.
-const hasVoice = v => { try { return fs.existsSync(path.join(__dirname, 'node_modules', 'kokoro-js', 'voices', v + '.bin')); } catch { return false; } };
-const JOE = hasVoice('am_echo') ? 'am_echo' : 'am_adam';
-const VOICE_IDS = { h: 'af_heart', s: JOE, n: JOE };
-let tts = null;
-const sayCache = new Map(), sayJobs = [];
-let sayBusy = false, sayCur = null;
-async function voiceInit() {
-  let K, T;
-  try { const rq = require('module').createRequire(path.join(__dirname, 'server.js')); K = rq('kokoro-js'); T = rq('@huggingface/transformers'); } catch (e) { if (process.env.FGI_DESKTOP) { VOICE.state = 'error'; VOICE.error = 'voice engine missing: ' + String(e.message || e).slice(0, 120); } return; }   // the website's helper, or an older app: no Kokoro
-  VOICE.state = 'loading'; VOICE.error = '';
-  const t0 = Date.now();
-  try {
-    T.env.cacheDir = path.join(__dirname, 'voice-model'); T.env.allowLocalModels = true;
-    const seen = {};
-    tts = await K.KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', { dtype: 'q8', device: 'cpu', progress_callback: x => {
-      if (x && x.file && x.total) { seen[x.file] = [x.loaded || 0, x.total]; const t = Object.values(seen).reduce((a, b) => [a[0] + b[0], a[1] + b[1]], [0, 0]); VOICE.progress = Math.round(100 * t[0] / t[1]); }
-    } });
-    VOICE.state = 'ready'; VOICE.progress = 100; VOICE.loadMs = Date.now() - t0;   // the speed (rtf) is measured on the first lines said
-    console.log('Voices ready in ' + VOICE.loadMs + ' ms');
-  } catch (e) { tts = null; VOICE.state = 'error'; VOICE.error = String(e.message || e).slice(0, 200); console.log('Voices failed: ' + VOICE.error); setTimeout(voiceInit, 60000); }
-}
-// a block, cut into pieces Kokoro can say in one go (it cuts anything longer than about 500 sounds), joined back
-// with a short breath; the silence Kokoro leaves at each end of a piece is trimmed so the joins sound natural
-function speechPieces(text) {
-  const sents = text.match(/[^.!?…]+[.!?…]+["')\]]*\s*|[^.!?…]+$/g) || [text], out = []; let cur = '';
-  for (const x of sents.map(s => s.trim()).filter(Boolean)) { if (cur && (cur + ' ' + x).length > 220) { out.push(cur); cur = x; } else cur = cur ? cur + ' ' + x : x; }
-  if (cur) out.push(cur);
-  return out.flatMap(p => p.length <= 300 ? [p] : p.match(/.{1,280}(\s|$)|.+/g).map(q => q.trim()).filter(Boolean));
-}
-function trimSilence(a, sr) {
-  const th = 0.008; let i = 0, j = a.length - 1;
-  while (i < j && Math.abs(a[i]) < th) i++; while (j > i && Math.abs(a[j]) < th) j--;
-  return a.subarray(Math.max(0, i - Math.round(sr * 0.02)), Math.min(a.length, j + Math.round(sr * 0.06)));
-}
-function wav(f32, sr) {
-  const b = Buffer.alloc(44 + f32.length * 2);
-  b.write('RIFF', 0); b.writeUInt32LE(36 + f32.length * 2, 4); b.write('WAVEfmt ', 8); b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22);
-  b.writeUInt32LE(sr, 24); b.writeUInt32LE(sr * 2, 28); b.writeUInt16LE(2, 32); b.writeUInt16LE(16, 34); b.write('data', 36); b.writeUInt32LE(f32.length * 2, 40);
-  for (let i = 0; i < f32.length; i++) b.writeInt16LE(Math.max(-32768, Math.min(32767, Math.round(f32[i] * 32767))), 44 + i * 2);
-  return b;
-}
-async function makeSpeech(text, voice, speed) {
-  const parts = [], sr = 24000, gap = new Float32Array(Math.round(sr * 0.14));
-  for (const p of speechPieces(text)) { const a = await tts.generate(p, { voice, speed }); if (parts.length) parts.push(gap); parts.push(trimSilence(a.audio, a.sampling_rate)); }
-  const n = parts.reduce((x, y) => x + y.length, 0), all = new Float32Array(n); let o = 0; for (const x of parts) { all.set(x, o); o += x.length; }
-  return wav(all, sr);
-}
-function say(text, who, speed, pre) {
-  const voice = VOICE_IDS[who] || VOICE_IDS.h, sp = Math.max(0.7, Math.min(1.4, +speed || 1)), key = voice + '|' + sp + '|' + text;
-  if (sayCache.has(key)) { const b = sayCache.get(key); sayCache.delete(key); sayCache.set(key, b); return Promise.resolve(b); }
-  if (sayCur && sayCur.key === key) return new Promise((res, rej) => sayCur.wait.push([res, rej]));   // being made right now
-  let job = sayJobs.find(j => j.key === key);
-  if (!job) { job = { key, text, voice, sp, wait: [] }; if (pre) sayJobs.push(job); else sayJobs.unshift(job); }
-  else if (!pre) { sayJobs.splice(sayJobs.indexOf(job), 1); sayJobs.unshift(job); }   // needed now: first in line
-  const p = new Promise((res, rej) => job.wait.push([res, rej]));
-  runSay(); return p;
-}
-async function runSay() {
-  if (sayBusy || !tts) return; sayBusy = true;
-  try {
-    while (sayJobs.length) {
-      const j = sayCur = sayJobs.shift(), t0 = Date.now();   // VOICE.rtf: seconds of work per second of speech, smoothed
-      try { const b = await makeSpeech(j.text, j.voice, j.sp); const sec = (b.length - 44) / 48000; if (sec > 1) VOICE.rtf = +(((Date.now() - t0) / 1000) / sec * (VOICE.rtf ? 0.3 : 1) + (VOICE.rtf || 0) * 0.7).toFixed(2); sayCache.set(j.key, b); while (sayCache.size > 120) sayCache.delete(sayCache.keys().next().value); j.wait.forEach(w => w[0](b)); }
-      catch (e) { j.wait.forEach(w => w[1](e)); }
-    }
-  } finally { sayBusy = false; sayCur = null; }
-}
-
 const send = (res, code, body, type = 'application/json') => { res.writeHead(code, { 'Content-Type': type, 'Cache-Control': 'no-store' }); res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body)); };
 
 const argv = process.argv.slice(2);
@@ -453,18 +377,13 @@ let lastActivity = Date.now();
 const server = http.createServer(async (req, res) => {
   lastActivity = Date.now();
   const u = new URL(req.url, 'http://localhost');
-  if (u.pathname === '/api/ping') return send(res, 200, { app: 'feel-good-inc-fm', ok: true, dir: __dirname, open: 2, voice: VOICE, desktop: !!process.env.FGI_DESKTOP });   // open 2: links open in the browser (not explorer.exe)
+  if (u.pathname === '/api/ping') return send(res, 200, { app: 'feel-good-inc-fm', ok: true, dir: __dirname, open: 2, hide: GHOST });   // open 2: links open in the browser (not explorer.exe)
   try {
-    if (u.pathname === '/api/say' && req.method === 'POST') {   // { text, who: h|s|n, speed, pre } or, to prepare ahead in order, { items: [{ text, who, speed }] }
-      if (!tts) return send(res, 503, { error: 'voices ' + VOICE.state });
-      const q = await readBody(req);
-      if (Array.isArray(q.items)) { q.items.slice(0, 60).forEach(x => { const t = String((x && x.text) || '').slice(0, 4000).trim(); if (t) say(t, x.who, x.speed, true).catch(() => {}); }); return send(res, 200, { queued: q.items.length }); }
-      const text = String(q.text || '').slice(0, 4000).trim();
-      if (!text) return send(res, 400, { error: 'no text' });
-      const p = say(text, q.who, q.speed, !!q.pre);
-      if (q.pre) { p.catch(() => {}); return send(res, 200, { queued: true }); }
-      return send(res, 200, await p, 'audio/wav');
+    if (u.pathname === '/api/hide' && req.method === 'POST') {   // the page can't be seen (covered): the watcher hides it, so songs keep starting
+      if (ghostProc && ghostProc.stdin.writable) ghostProc.stdin.write('hide\n');
+      return send(res, 200, { ok: !!ghostProc });
     }
+    if (u.pathname === '/api/hide-log') { const since = +u.searchParams.get('since') || 0; return send(res, 200, { seq: ghostSeq, events: GHOST_EVENTS.filter(e => e.n > since) }); }
     if (u.pathname === '/api/search') return send(res, 200, await search(u.searchParams.get('q') || '', u.searchParams.get('a') || '', u.searchParams.get('t') || ''));
     if (u.pathname === '/api/playlist') { try { return send(res, 200, await readPlaylist(u.searchParams.get('list') || '')); } catch (e) { return send(res, 400, { error: String(e.message || e) }); } }
     if (u.pathname === '/api/fetch') { try { const x = await newsFetch(u.searchParams.get('url') || ''); return x.status === 200 ? send(res, 200, x.body, 'text/plain; charset=utf-8') : send(res, 502, 'the site answered ' + x.status + (/cloudflare|cf-chl|just a moment/i.test(x.body) ? ' (bot wall)' : ''), 'text/plain');  } catch (e) { return send(res, 502, e.name === 'TimeoutError' ? 'the site took too long' : String((e.cause && e.cause.code) || e.message || e), 'text/plain'); } }
@@ -544,7 +463,133 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, '127.0.0.1', () => { console.log('Feel Good Inc. FM is on air: http://localhost:' + PORT); syncApp(); voiceInit(); });
+// Minimize = hide, while the radio keeps playing. YouTube will not start a new song in a window Windows counts as hidden
+// (minimized, or fully covered): it waits at "buffering" until the window is seen again. So when the radio's Edge window
+// is minimized, this watcher puts it straight back, but invisible (1% opacity), click-through and on top: for Windows and
+// Edge it is open and uncovered, so songs start; for you nothing is there and your clicks go to what is under it.
+// Clicking its taskbar icon (or Alt+Tab) brings it back to normal. Windows PC with the Edge app only.
+const GHOST = { state: 'off', error: '' };
+const GHOST_EVENTS = []; let ghostSeq = 0;   // the latest hide/back steps, for the page's Report
+function radioLog(line) {
+  GHOST_EVENTS.push({ n: ++ghostSeq, t: Date.now(), line: String(line) }); if (GHOST_EVENTS.length > 30) GHOST_EVENTS.shift();
+  try {
+    const f = path.join(DATA, 'radio-log.txt'); fs.mkdirSync(DATA, { recursive: true });
+    fs.appendFileSync(f, new Date().toISOString() + '  ' + String(line).replace(/[\r\n]+/g, ' ').slice(0, 1000) + '\n');
+  } catch {}
+}
+const GHOST_CS = `
+using System; using System.Text; using System.Diagnostics; using System.Collections.Generic; using System.Threading; using System.Runtime.InteropServices;
+public static class FgiGhost {
+  delegate bool EnumProc(IntPtr h, IntPtr l);
+  [DllImport("user32.dll")] static extern bool EnumWindows(EnumProc f, IntPtr l);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassName(IntPtr h, StringBuilder s, int n);
+  [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
+  [DllImport("user32.dll")] static extern bool IsWindow(IntPtr h);
+  [DllImport("user32.dll")] static extern bool IsIconic(IntPtr h);
+  [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+  [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] static extern int GetWindowLong(IntPtr h, int i);
+  [DllImport("user32.dll")] static extern int SetWindowLong(IntPtr h, int i, int v);
+  [DllImport("user32.dll")] static extern bool SetLayeredWindowAttributes(IntPtr h, uint key, byte a, uint f);
+  [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint f);
+  [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int c);
+  const int EX = -20, LAYERED = 0x80000, CLICKTHROUGH = 0x20; const uint NOSIZE = 1, NOMOVE = 2, NOACTIVATE = 0x10;
+  static Dictionary<uint, bool> edge = new Dictionary<uint, bool>();
+  static bool IsEdge(uint pid) {
+    bool r; if (edge.TryGetValue(pid, out r)) return r;
+    try { r = Process.GetProcessById((int)pid).ProcessName.ToLower() == "msedge"; } catch { r = false; }
+    edge[pid] = r; return r;
+  }
+  // the radio's own Edge window: its title has "Feel Good"; Edge's normal browser windows end in "Microsoft Edge"
+  static IntPtr Find() { IntPtr f = Find(true); return f != IntPtr.Zero ? f : Find(false); }   // a shown one first, else one in the tray
+  static IntPtr Find(bool shown) {
+    IntPtr found = IntPtr.Zero;
+    EnumWindows((h, l) => {
+      if (shown && !IsWindowVisible(h)) return true;
+      var c = new StringBuilder(64); GetClassName(h, c, 64); if (c.ToString() != "Chrome_WidgetWin_1") return true;
+      var t = new StringBuilder(512); GetWindowText(h, t, 512); var s = t.ToString();
+      if (s.IndexOf("Feel Good", StringComparison.OrdinalIgnoreCase) < 0 || s.IndexOf("Microsoft") >= 0) return true;
+      uint pid; GetWindowThreadProcessId(h, out pid); if (!IsEdge(pid)) return true;
+      found = h; return false;
+    }, IntPtr.Zero);
+    return found;
+  }
+  static volatile bool hideAsked = false;
+  static void Listen() { try { string l; while ((l = Console.In.ReadLine()) != null) if (l.Trim() == "hide") hideAsked = true; } catch { } }
+  public static void Run(int parent) {
+    IntPtr h = IntPtr.Zero, g = IntPtr.Zero; int orig = 0; bool leftFront = false; int tick = 0, unseen = 0;
+    var t = new Thread(Listen); t.IsBackground = true; t.Start();
+    Console.WriteLine("watching"); Console.Out.Flush();
+    while (true) {
+      Thread.Sleep(150);
+      if (++tick % 20 == 0) { try { Process.GetProcessById(parent); } catch { return; } }   // the helper closed or restarted: a hidden window stays hidden, the next helper takes it over
+      try {
+        if (g != IntPtr.Zero) {   // hidden: wait for you to bring it back
+          if (!IsWindow(g)) { g = IntPtr.Zero; continue; }
+          IntPtr f = GetForegroundWindow();
+          if (f != g) leftFront = true;
+          else if (leftFront) { Back(g, orig); g = IntPtr.Zero; Console.WriteLine("back"); Console.Out.Flush(); continue; }
+          if (IsIconic(g) || !IsWindowVisible(g)) ShowWindow(g, 4);   // minimized or sent to the tray again: invisible again
+          continue;
+        }
+        // look for the window again now and then, but keep the one we have while a tray tool (RBTray) hides it
+        if (h != IntPtr.Zero && !IsWindow(h)) h = IntPtr.Zero;
+        if (h == IntPtr.Zero || (tick % 7 == 0 && IsWindowVisible(h))) { IntPtr f = Find(); if (f != IntPtr.Zero) h = f; }
+        if (h == IntPtr.Zero) continue;
+        unseen = IsWindowVisible(h) ? 0 : unseen + 1;
+        int ex = GetWindowLong(h, EX);
+        if (!IsIconic(h) && (ex & (LAYERED | CLICKTHROUGH)) == (LAYERED | CLICKTHROUGH)) {   // left hidden by a helper that restarted: take it over
+          g = h; orig = ex & ~(LAYERED | CLICKTHROUGH); leftFront = GetForegroundWindow() != h;
+          Console.WriteLine("hidden"); Console.Out.Flush(); continue;
+        }
+        bool min = IsIconic(h), tray = unseen >= 3, asked = hideAsked; hideAsked = false;
+        // minimized, sent to the tray (RBTray hides the window: half a second, so a window that is closing is left alone),
+        // or the page says it can't be seen (covered by another program): from now on invisible and on top
+        if (min || tray || (asked && GetForegroundWindow() != h)) {
+          orig = ex;
+          SetWindowLong(h, EX, orig | LAYERED | CLICKTHROUGH);
+          SetLayeredWindowAttributes(h, 0, 3, 2);               // about 1% visible: nothing you can see
+          SetWindowPos(h, new IntPtr(-1), 0, 0, 0, 0, NOSIZE | NOMOVE | NOACTIVATE);   // on top, so never covered
+          if (min || tray) ShowWindow(h, 4);                    // out of "minimized" or the tray, without taking focus
+          g = h; leftFront = GetForegroundWindow() != h; unseen = 0;
+          Console.WriteLine(min ? "hidden" : tray ? "hidden-tray" : "hidden-covered"); Console.Out.Flush();
+        }
+      } catch (Exception e) { Console.WriteLine("error " + e.Message); Console.Out.Flush(); }
+    }
+  }
+  static void Back(IntPtr h, int orig) {
+    SetWindowPos(h, new IntPtr(-2), 0, 0, 0, 0, NOSIZE | NOMOVE | NOACTIVATE);   // no longer on top
+    SetWindowLong(h, EX, orig);
+    if ((orig & LAYERED) != 0) SetLayeredWindowAttributes(h, 0, 255, 2);
+    SetWindowPos(h, IntPtr.Zero, 0, 0, 0, 0, NOSIZE | NOMOVE | NOACTIVATE | 0x20 | 4);   // redraw with its own style
+  }
+}`;
+let ghostProc = null;
+function ghostStart() {
+  if (process.platform !== 'win32' || ghostProc) return;
+  const ps = "Add-Type -TypeDefinition @'\n" + GHOST_CS + "\n'@\n[FgiGhost]::Run(" + process.pid + ')';
+  try {
+    ghostProc = require('child_process').spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', Buffer.from(ps, 'utf16le').toString('base64')], { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+    ghostProc.stdin.on('error', () => {});
+  } catch (e) { GHOST.state = 'error'; GHOST.error = String(e.message || e); radioLog('hide-on-minimize could not start: ' + GHOST.error); return; }
+  let buf = '';
+  ghostProc.stdout.on('data', d => {
+    buf += d; const lines = buf.split(/\r?\n/); buf = lines.pop();
+    for (const l of lines.map(x => x.trim()).filter(Boolean)) {
+      if (l === 'watching') { GHOST.state = 'on'; radioLog('hide-on-minimize ready'); }
+      else if (l === 'hidden') { GHOST.state = 'hidden'; radioLog('window hidden (minimize): invisible, still playing'); }
+      else if (l === 'hidden-tray') { GHOST.state = 'hidden'; radioLog('window hidden (sent to the tray): invisible, still playing'); }
+      else if (l === 'hidden-covered') { GHOST.state = 'hidden'; radioLog('window hidden (covered by another program): invisible, still playing'); }
+      else if (l === 'back') { GHOST.state = 'on'; radioLog('window back from hiding'); }
+      else radioLog('hide-on-minimize: ' + l);
+    }
+  });
+  ghostProc.stderr.on('data', d => { GHOST.error = (GHOST.error + d).slice(-300); });
+  ghostProc.on('exit', code => { ghostProc = null; if (GHOST.state !== 'off') radioLog('hide-on-minimize stopped' + (GHOST.error ? ': ' + GHOST.error : ' (' + code + ')')); GHOST.state = 'error'; });
+}
+
+server.listen(PORT, '127.0.0.1', () => { console.log('Feel Good Inc. FM is on air: http://localhost:' + PORT); syncApp(); ghostStart(); });
 setInterval(syncApp, 6 * 3600e3);
 let portTries = 0;
 server.on('error', e => {

@@ -196,18 +196,14 @@ For an old PC and slow Wi-Fi, on the website and the desktop app:
 - Lyrics, bulletin and podcasts **load only when needed**, each with its own time limit.
 - The catalog has **exact videos**, so no search before a song.
 - Website: page files kept on the PC after the first visit; only changed files download again.
-- Desktop app: Luna's speech is prepared while the song plays, so it does not stutter.
 
 ## 13. Voices (English)
-- **The app (Windows):** its own voices, made on the PC by **Kokoro** (free, open source, no account, no limit, no
-  internet once downloaded): **Luna = `af_heart`**, **Joe = `am_echo`** (chosen 13 November 2026; Adam before) (Joe also reads the bulletin). Only those
-  two voices are shipped. The speech model (about 92 MB, pinned revision, checked by its SHA-256) is downloaded by the
-  **installer** (`voice-model\\`); if that fails, the app downloads it on its first start. The app **never speaks with a
-  stand-in voice**: the tour and the first welcome wait for the voices (a note on screen), and a break that comes before
-  they are ready is skipped (the music goes on). Pronunciation: `R.kokoroSay` first (Rim → Ream, Gorillaz →
-  Gorillas, Feel Good Inc. → Ink, artist names), then `R.sayAs`.
-- **The website:** the browser's voices. In Edge, the natural ones: Luna: Ava or Emma Multilingual · Joe: Brian or
-  Andrew Multilingual · Bulletin: Joe's voice unless another is chosen. Changeable in Settings. Pronunciation fixes in `R.sayAs`.
+- **Edge's natural voices, in the app and on the website** (16 November 2026: back from Kokoro, which paused between
+  phrases and sounded flat on the owner's PC; Edge's voices are made by Microsoft online, so an old PC does no voice
+  work). The same voices as Pale Blue Dot: **Luna = Emily** (Pale Blue Dot's Luna; then Sonia, Libby, Emma or Ava),
+  **Joe = Brian Multilingual** (Pale Blue Dot's Astro; then Andrew, Guy), the bulletin in Joe's voice unless another is
+  chosen. Changeable in Settings. Pronunciation fixes in `R.sayAs`. Other browsers: their own voices, an online one
+  as the last resort.
 
 ## 14. Where it lives
 
@@ -258,32 +254,32 @@ For an old PC and slow Wi-Fi, on the website and the desktop app:
   relays; importing a YouTube playlist link needs the app.
 - **The app helper** listens on port **8789** (not 8787: no clash with Pale Blue Dot on the same PC) and answers
   `/api/ping` with `app: 'feel-good-inc-fm'`. Its news allowlist (`NEWS_HOSTS`) holds the bulletin's sources.
-  The installer is `FeelGoodIncFM-Setup-<version>.exe` (Inno Setup, `MinVersion=10.0`), installed in
+  The installer is `FeelGoodIncFM-Setup-<version>.exe` (Inno Setup; Windows 10 or newer, checked by the installer), installed in
   `%LOCALAPPDATA%\Programs\FeelGoodIncFM`.
-- **The app is its own program (Electron, `desktop/main.js`), not a browser window** (since 13 November 2026; before,
-  it opened in Edge, and Edge paused new songs while the window was minimized). `Feel Good Inc FM.exe` starts the
-  helper (`server.js`) with its own built-in Node (`ELECTRON_RUN_AS_NODE`), then shows `http://localhost:8789/`.
-  The window is never slowed down or treated as hidden when minimized or covered (`backgroundThrottling: false` and
-  Chromium switches), so songs start and voices go on. Links open in the normal browser; Google sign-in opens in a
-  small window of its own. Closing the window closes the helper.
+- **The app is Microsoft Edge in app mode, like Pale Blue Dot** (`Feel Good Inc FM.vbs` starts the helper, then Edge
+  with `--app=http://localhost:8789/`). From 13 to 16 November 2026 it was an Electron app with Kokoro voices; that was
+  dropped (the voices were slow and flat on an old PC, and Electron alone did not fix minimizing).
+- **The installer checks the PC first** (`tools/release/check-pc.ps1`, shown on a "Checking this PC" page before
+  anything is installed): Windows 10 or newer (older Windows: a clear message, nothing installed, the website still
+  works), Microsoft Edge present, recent (110+) and really starting (an invisible test run on a temporary profile), the
+  internet (the radio's website and YouTube), 200 MB free, and PowerShell able to compile the minimize watcher. If Edge
+  is missing, old or doesn't start, it downloads Microsoft's own Edge installer, runs it only if its Microsoft
+  signature is valid (Windows asks once for permission), and checks again; if Edge still won't start, it explains how to
+  repair it (Settings > Apps > Microsoft Edge > Modify > Repair). The release build runs the same check on the build
+  machine first.
 - **Minimize = hide** (16 November 2026, the fix proven on Pale Blue Dot): YouTube won't START a new song while
   Windows counts the window as unseen (minimized, sent to the tray by RBTray, or fully covered); it waits at
-  "buffering". Not slowing the page down doesn't help. So `desktop/main.js` never lets it be unseen: on minimize, after
-  half a second hidden (tray), or when the page reports `document.hidden` (covered), the window is shown again without
-  focus, at 1% opacity, click-through and always on top. When it comes to the front again (taskbar button, Alt+Tab, tray
+  "buffering". Not slowing the page down doesn't help. So the helper's watcher (`server.js`, a small C# class compiled
+  by PowerShell, the same as Pale Blue Dot's; it finds the Edge window by "Feel Good" in its title, which the page always
+  keeps) never lets it be unseen: on minimize, after half a second hidden (tray), or when the page reports
+  `document.hidden` (covered, POST /api/hide), the window is shown again without focus, at 1% opacity, click-through and
+  always on top. When it comes to the front again (taskbar button, Alt+Tab, tray
   icon; only after it has left the front once), it is back to normal. The taskbar button stays. Every step is in the
   Report ("window hidden (…)", "window back from hiding").
 - **Fades:** 3 s by default (Settings: off, 3 s, 5 s): the old song fades out and the new one fades in. After a break,
   the song plays softly under the intro and rises to full volume during the host's last 3 seconds.
-- **Voices in the helper:** `POST /api/say {text, who, speed, pre}` returns a WAV (Kokoro, `node_modules/kokoro-js`,
-  q8 model on the CPU); `/api/ping` reports `voice: {state, progress, rtf}` (`rtf`: seconds of work per second of
-  speech on this PC). The page records speech ahead so a slow PC never makes Luna wait: the next break and its song
-  intro about 95 s before a song ends (`planBreak`), every line of a break or the bulletin as soon as it starts, the
-  tour's steps, and long blocks one or two sentences at a time (the first piece plays while the rest is made).
-- **Build** (`tools/release/build.ps1`, on Windows): Electron for Windows (version pinned, checked against its
-  checksum), the exe renamed and given its icon (rcedit), `kokoro-js` with only what Windows needs (onnxruntime for
-  win32-x64, the Node build of transformers, a stand-in for the unused image library, the two voices), the helper and
-  the page. The installer is about 140 MB; the free Firebase plan serves 360 MB a day, so a couple of downloads a day.
+- **Build** (`tools/release/build.ps1`, on Windows): Node.js renamed FeelGoodHelper.exe, the helper, the page, the
+  launcher and the icon. The installer is about 30 MB.
 - **Releases** run only by hand (Actions > Release > Run workflow), after writing the version in `tools/release/VERSION`.
 - **What is in it (13 November 2026):** 780 clean songs (12 Moroccan songs by other artists were taken out) (790 checked + clean radio edits of "Feel Good Inc." and
   "Clint Eastwood", fan uploads labelled clean), 9 Album Party albums (Demon Days, Plastic Beach, The Dark Side of the

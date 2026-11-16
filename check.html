@@ -62,21 +62,15 @@ li small{color:var(--mute);font-size:13px}
     const cls = [r, c].includes('bad') ? 'bad' : [r, c].includes('warn') ? 'warn' : 'ok';
     return { cls, title: `Memory ${ram ? (ram >= 8 ? '8 GB or more' : 'about ' + ram + ' GB') : 'unknown'} · ${cpu || '?'} processor cores`, detail: cls === 'ok' ? 'Plenty for the radio.' : cls === 'warn' ? 'A bit weak, but the radio is built to be light. It should be fine.' : 'Very weak: the website in one browser tab may be smoother.', weak: cls === 'bad' };
   }
-  // How fast this PC would make Luna's and Joe's voices in the app (Kokoro): a small matrix multiply, the kind of
-  // work the voice model does, compared with a PC where speech takes 0.6 s of work per second of talk (38 ms, 4 cores).
-  function voiceSpeed() {
-    const n = 160, a = new Float32Array(n * n), b = new Float32Array(n * n), c = new Float32Array(n * n);
-    for (let i = 0; i < n * n; i++) { a[i] = (i % 7) / 7; b[i] = (i % 5) / 5; }
-    const run = () => { const t0 = performance.now(); for (let r = 0; r < 6; r++) for (let i = 0; i < n; i++) for (let k = 0; k < n; k++) { const x = a[i * n + k]; for (let j = 0; j < n; j++) c[i * n + j] += x * b[k * n + j]; } return performance.now() - t0; };
-    run(); const t = [run(), run(), run()].sort((x, y) => x - y)[1], cores = Math.max(1, Math.min(navigator.hardwareConcurrency || 2, 4));
-    const rtf = 0.6 * (t / 38) * Math.pow(4 / cores, 0.6);
-    if (rtf <= 0.9) return { cls: 'ok', title: 'Voices: fast', detail: 'Luna and Joe will talk right away in the app.', rtf };
-    if (rtf <= 2.2) return { cls: 'ok', title: 'Voices: fine', detail: 'This PC makes speech a little slowly, but the app prepares it during the songs, so Luna and Joe will not wait.', rtf };
-    return { cls: 'warn', title: 'Voices: slow', detail: 'This PC makes speech slowly. The app prepares most of it during the songs, but Luna may take a few seconds before she talks, mostly right after you press play.', rtf, slowVoice: true };
+  function edge() {
+    const m = navigator.userAgent.match(/Edg\/(\d+)/);
+    if (!m) return { cls: 'warn', title: 'Not Microsoft Edge', detail: 'The app runs in Microsoft Edge (it gives Luna and Joe their natural voices). The installer puts Edge on this PC if it is missing.' };
+    const v = +m[1];
+    return v >= 110 ? { cls: 'ok', title: 'Microsoft Edge ' + v, detail: 'Up to date.' } : { cls: 'warn', title: 'Microsoft Edge ' + v + ' (old)', detail: 'Edge has not updated for a while. Windows Update may fix it.' };
   }
   function voices() {
     return new Promise(res => {
-      const done = () => { const v = speechSynthesis.getVoices(), nat = v.filter(x => /^en/i.test(x.lang) && /natural/i.test(x.name)); res(nat.length ? { cls: 'ok', title: 'For the website: ' + nat.length + ' natural English voices', detail: 'On the website, Luna and Joe will sound real (' + nat.slice(0, 3).map(x => x.name.replace('Microsoft ', '').replace(/ Online \(Natural\).*/, '')).join(', ') + '…).' } : v.some(x => /^en/i.test(x.lang)) ? { cls: 'warn', title: 'For the website: only basic voices', detail: 'On the website, Luna and Joe sound robotic in this browser (Edge has natural ones). The app has its own natural voices.' } : { cls: 'warn', title: 'For the website: no English voice', detail: 'On the website an online voice is used. The app has its own natural voices.' }); };
+      const done = () => { const v = speechSynthesis.getVoices(), nat = v.filter(x => /^en/i.test(x.lang) && /natural/i.test(x.name)); res(nat.length ? { cls: 'ok', title: nat.length + ' natural English voices', detail: 'Luna and Joe will sound real (' + nat.slice(0, 3).map(x => x.name.replace('Microsoft ', '').replace(/ Online \(Natural\).*/, '')).join(', ') + '…).' } : v.some(x => /^en/i.test(x.lang)) ? { cls: 'warn', title: 'Only basic voices in this browser', detail: 'Luna and Joe sound robotic here. In Microsoft Edge (the app uses it) they get natural voices.' } : { cls: 'warn', title: 'No English voice in this browser', detail: 'In Microsoft Edge (the app uses it) Luna and Joe get natural voices.' }); };
       if (speechSynthesis.getVoices().length) return done();
       speechSynthesis.onvoiceschanged = done; setTimeout(done, 2500);
     });
@@ -88,7 +82,7 @@ li small{color:var(--mute);font-size:13px}
       const s = (performance.now() - t0) / 1000; mbps = Math.max(mbps, (b.byteLength * 8 / 1e6) / s);
     } catch { return { cls: 'bad', title: 'Wi-Fi: very slow or offline', detail: 'The test download did not finish. Music will stutter on this connection.', slow: true }; }
     const v = mbps.toFixed(1);
-    const mins = Math.max(1, Math.round(230 * 8 / Math.max(mbps, 0.2) / 60)), once = ' Installing the app downloads about 230 MB once (the app, then the voices): about ' + mins + ' minute' + (mins > 1 ? 's' : '') + ' here.';
+    const mins = Math.max(1, Math.round(30 * 8 / Math.max(mbps, 0.2) / 60)), once = ' Installing the app downloads about 30 MB once: about ' + mins + ' minute' + (mins > 1 ? 's' : '') + ' here.';
     if (mbps >= 3) return { cls: 'ok', title: 'Wi-Fi: about ' + v + ' Mbps', detail: 'Fast enough for smooth music.' + once };
     if (mbps >= 1) return { cls: 'warn', title: 'Wi-Fi: about ' + v + ' Mbps', detail: 'A bit slow, but the radio waits instead of skipping. It should work.' + once };
     return { cls: 'bad', title: 'Wi-Fi: about ' + v + ' Mbps', detail: 'Slow. Music may pause sometimes. Being closer to the router helps.' + once, slow: true };
@@ -97,13 +91,13 @@ li small{color:var(--mute);font-size:13px}
     $('go').disabled = true; $('go').textContent = 'Checking…'; $('list').innerHTML = ''; $('list').hidden = false; res.length = 0;
     const w = await windows(); add(w.cls, w.title, w.detail);
     const m = memory(); add(m.cls, m.title, m.detail);
-    const e = voiceSpeed(); add(e.cls, e.title, e.detail);
+    const e = edge(); add(e.cls, e.title, e.detail);
     const v = await voices(); add(v.cls, v.title, v.detail);
     const f = await wifi(); add(f.cls, f.title, f.detail);
     const vd = $('verdict'); vd.hidden = false;
     if (w.win && w.win < 10) { vd.className = 'verdict warn'; vd.innerHTML = 'Use the website, it will work better here.<small>This Windows is too old for the app. The website plays everything except YouTube searches.</small>'; }
     else if (!w.win) { vd.className = 'verdict warn'; vd.innerHTML = 'Use the website on this device.<small>The app is for Windows PCs.</small>'; }
-    else if (m.weak || f.slow || e.slowVoice) { vd.className = 'verdict warn'; vd.innerHTML = 'The app will work, but this PC needs a little help.<small>' + [m.weak && 'Close other programs while the radio plays.', f.slow && 'A better Wi-Fi spot will make music smoother.', e.slowVoice && 'Give Luna a few seconds when you press play.'].filter(Boolean).join(' ') + '</small>'; }
+    else if (m.weak || f.slow) { vd.className = 'verdict warn'; vd.innerHTML = 'The app will work, but this PC needs a little help.<small>' + [m.weak && 'Close other programs while the radio plays.', f.slow && 'A better Wi-Fi spot will make music smoother.'].filter(Boolean).join(' ') + '</small>'; }
     else { vd.className = 'verdict ok'; vd.innerHTML = 'Ready for the app!<small>Download it and open it once: it updates itself after that.</small>'; }
     $('after').hidden = false; $('go').disabled = false; $('go').textContent = 'Check again';
   };

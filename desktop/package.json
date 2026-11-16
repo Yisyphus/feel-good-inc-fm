@@ -1,8 +1,0 @@
-{
-  "name": "feel-good-inc-fm",
-  "productName": "Feel Good Inc. FM",
-  "version": "1.0.0",
-  "description": "Rim's radio, in its own window",
-  "main": "main.js",
-  "private": true
-}

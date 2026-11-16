@@ -54,6 +54,7 @@ function normalizeLib() {
   if (lib.cacheV !== 2) { lib.cache = {}; lib.cacheV = 2; } // earlier versions cached some wrong videos; search again with the stricter matching
   lib.used = lib.used || {}; lib.b = lib.b || 0; lib.trim = lib.trim || {}; lib.disc = lib.disc || {}; lib.cache = lib.cache || {}; lib.user = lib.user || []; lib.removed = lib.removed || []; lib.lists = lib.lists || [];
   S = Object.assign(S, lib.settings || {});
+  if (!S.voices3) { S.voice = ''; S.lunaVoice = ''; S.bulletinVoice = ''; S.voices3 = 1; }   // the new automatic voices (Emily, Brian), once
   if (!S.fade3) { if (S.fade === 2 || S.fade === undefined) S.fade = 3; else if (S.fade === 4) S.fade = 5; S.fade3 = 1; }   // fades of 3 s (long: 5 s), once
   if (!S.rate2) { if (!S.rate || S.rate === 100) S.rate = 88; S.rate2 = 1; }   // the owner's chosen talking speed, once
   if (!S.roles2) { const v = S.voice, l = S.lunaVoice; S.voice = l || ''; S.lunaVoice = v === '__online' ? '' : (v || ''); S.roles2 = 1; }   // Luna became the host: the two chosen voices change places once
@@ -224,7 +225,7 @@ function setNow(s, kind) {
   const id = s && s.cands && s.cands[0] ? (s.cands[candIdx] || s.cands[0]).id : null;
   setArt(s, id);
   if (s) { let h = 0; for (const c of s.key) h = (h * 31 + c.charCodeAt(0)) >>> 0; const p = 8 + (h % 84); $('needle').style.left = p + '%'; $('freq').textContent = (87.5 + p * 0.2).toFixed(1) + ' FM'; }
-  document.title = s ? `${s.t} · ${s.a}` : R.station;
+  document.title = s ? `${s.t} · ${s.a} · ${R.station}` : R.station;   // always "Feel Good" in it: the minimize watcher finds the window by its title
   updateHeart();
   if ('mediaSession' in navigator && s) navigator.mediaSession.metadata = new MediaMetadata({ title: s.t, artist: s.a, album: R.station });
 }
@@ -242,8 +243,8 @@ function loadVoices() {
   const en = [...voices].filter(isEn).sort((a, b) => /natural/i.test(b.name) - /natural/i.test(a.name) || a.name.localeCompare(b.name));
   const fill = (id, autoLabel, key, online) => { const el = $(id); if (!el) return; el.innerHTML = ''; const add = (val, label) => { const o = document.createElement('option'); o.value = val; o.textContent = label; el.appendChild(o); };
     add('', autoLabel); if (online) add(ONLINE, 'Online voice (if the others sound wrong)'); en.forEach(v => add(v.name, nice(v))); el.value = S[key] && (S[key] === ONLINE || en.some(v => v.name === S[key])) ? S[key] : ''; };
-  fill('voiceSel', 'Automatic (Ava Multilingual, natural)', 'voice', true);
-  fill('lunaSel', 'Automatic (Brian or Andrew, natural)', 'lunaVoice');
+  fill('voiceSel', 'Automatic (Emily, natural)', 'voice', true);
+  fill('lunaSel', 'Automatic (Brian Multilingual, natural)', 'lunaVoice');
   fill('bulletinSel', "Automatic (Joe's voice)", 'bulletinVoice');
   const note = $('voiceNote');
   if (note && !kokoroReady()) note.textContent = voices.some(v => isEn(v) && /natural/i.test(v.name)) ? '' : 'Tip: open the radio in Microsoft Edge for free natural voices (Andrew, Ava, Emma…). Without them an online voice is used.';
@@ -252,14 +253,14 @@ function hostVoice() {
   if (S.voice === ONLINE) return null;
   if (S.voice) { const v = voices.find(v => v.name === S.voice); if (v) return v; }
   const en = voices.filter(isEn);
-  const pref = [/ava multilingual.*natural/i, /ava.*natural/i, /emma multilingual.*natural/i, /emma.*natural/i, /jenny.*natural/i, /aria.*natural/i, /natural/i, /zira|hazel|susan|aria|jenny|samantha|female/i];
+  const pref = [/emily.*natural/i, /sonia.*natural/i, /libby.*natural/i, /(emma|ava).*natural/i, /(jenny|aria).*natural/i, /natural/i, /zira|hazel|susan|aria|jenny|samantha|female/i];   // Luna: Pale Blue Dot's Luna voice
   for (const p of pref) { const v = en.find(v => p.test(v.name)); if (v) return v; }
   return en[0] || null;
 }
 // Other voices, by the code a script line carries: s = Joe (the co-host), n = the bulletin. Each takes the first installed
 // natural voice from its list that is not the host's.
 const VOICE_PREFS = {
-  s: [/brian multilingual.*natural/i, /brian.*natural/i, /andrew multilingual.*natural/i, /andrew.*natural/i, /guy.*natural/i, /christopher.*natural/i, /eric.*natural/i, /david|mark|george|guy|male/i],
+  s: [/brian multilingual.*natural/i, /brian.*natural/i, /andrew.*natural/i, /guy.*natural/i, /christopher.*natural/i, /eric.*natural/i, /david|mark|george|guy|male/i],   // Joe: Pale Blue Dot's Astro voice
   n: [/ryan.*natural/i, /sonia.*natural/i, /libby.*natural/i, /steffan.*natural/i, /jenny.*natural/i, /natural/i],
 };
 function voiceFor(code) {
@@ -325,9 +326,9 @@ function kokoroPre(text, who) {   // collected, then sent in one list so the hel
   if (!preTimer) preTimer = setTimeout(() => { const items = preList; preList = []; preTimer = 0; fetch('/api/say', { method: 'POST', body: JSON.stringify({ items }) }).catch(() => {}); }, 0);
 }
 async function voicePoll() {
-  if (!HELPER || voiceState === 'ready') return;
+  if (!HELPER || voiceState === 'ready' || voiceState === 'none') return;
   const p = await fetch('/api/ping').then(r => r.json()).catch(() => null), v = p && p.voice;
-  if (!v) return;
+  if (!v) { if (p) voiceState = 'none'; return; }
   if (v.state === 'loading' && !voiceLoadToast && v.progress < 100) { voiceLoadToast = true; toast("Getting " + R.host + "'s and " + R.cohost + "'s voices ready (first time only). Until then, a simpler voice speaks."); }
   if (v.state === 'ready' && voiceState && voiceState !== 'ready') toast(R.host + "'s and " + R.cohost + "'s voices are ready.");
   if (v.state !== voiceState) rlog('voices ' + v.state, { progress: v.progress, speed: v.rtf, error: v.error || undefined });
@@ -642,7 +643,15 @@ function rlog(msg, data) {
     if (HELPER) fetch('/api/log', { method: 'POST', body: msg + (data ? ' ' + JSON.stringify(data) : '') }).catch(() => {});
   } catch {}
 }
-window.__nativeLog = m => rlog(m);   // the Windows app (desktop/main.js) writes its hide / back steps here
+// The Windows app's minimize watcher (server.js): its hide / back steps go into this Report too
+let hideSeq = -1;
+setInterval(async () => {
+  if (!HELPER) return;
+  const j = await fetch('/api/hide-log?since=' + Math.max(0, hideSeq)).then(r => r.json()).catch(() => null);
+  if (!j) return;
+  if (hideSeq >= 0) (j.events || []).forEach(e => rlog(e.line));
+  hideSeq = j.seq || 0;
+}, 3000);
 // code: the YouTube error. 100 = removed, 101/150 = the owner does not allow embedding. Those versions are
 // dropped from the saved list for good, so the same broken upload is never tried again.
 function tryNextCand(code) {
@@ -2660,6 +2669,7 @@ function usageStart() {
 setInterval(() => { if (!usage) return; if (!globalPaused && (playing || speaking)) { usage.minutes = Math.min(1440, usage.minutes + 1); usageDirty = true; } if (usageDirty && usage.minutes % 5 === 0) usageWrite(); }, 60000);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && usageDirty) usageWrite();
+  if (document.hidden && HELPER && started) fetch('/api/hide', { method: 'POST' }).catch(() => {});   // can't be seen (covered): the helper hides the window, so songs keep starting
   if (!started) return;
   const ps = [0, 1].map(i => { try { const q = pl[i]; return [q.getPlayerState(), Math.round(q.getCurrentTime()), q._vol, q.isMuted() ? 'muted' : 'on'].join(' '); } catch { return '?'; } });
   rlog(document.hidden ? 'window minimized' : 'window back', { playing, busy, speaking, song: current && current.key, active: ai, players: ps, next: preload && (preload.key + (preload.primed ? ' ready' : ' preparing')), audio: actx && actx.state, tone: !!keepTone });
