@@ -34,7 +34,7 @@ const MAX_DISCOVERED = 220;
 
 // ---------- state ----------
 let lib = { user: [], cache: {}, removed: [], settings: {}, trim: {}, disc: {} };
-let S = { talk: 'normal', rate: 88, voice: '', sleep: 0, vol: 80, trim: 5, news: 'on', fade: 2, justMusic: false };
+let S = { talk: 'normal', rate: 88, voice: '', sleep: 0, vol: 80, trim: 5, news: 'on', fade: 3, justMusic: false };
 let songs = [];
 let current = null, history = [], played = [], upNext = [], planned = null, preload = null;
 let batch = null, startAnnounce = null, lastRunSong = null; // genre run state
@@ -54,6 +54,7 @@ function normalizeLib() {
   if (lib.cacheV !== 2) { lib.cache = {}; lib.cacheV = 2; } // earlier versions cached some wrong videos; search again with the stricter matching
   lib.used = lib.used || {}; lib.b = lib.b || 0; lib.trim = lib.trim || {}; lib.disc = lib.disc || {}; lib.cache = lib.cache || {}; lib.user = lib.user || []; lib.removed = lib.removed || []; lib.lists = lib.lists || [];
   S = Object.assign(S, lib.settings || {});
+  if (!S.fade3) { if (S.fade === 2 || S.fade === undefined) S.fade = 3; else if (S.fade === 4) S.fade = 5; S.fade3 = 1; }   // fades of 3 s (long: 5 s), once
   if (!S.rate2) { if (!S.rate || S.rate === 100) S.rate = 88; S.rate2 = 1; }   // the owner's chosen talking speed, once
   if (!S.roles2) { const v = S.voice, l = S.lunaVoice; S.voice = l || ''; S.lunaVoice = v === '__online' ? '' : (v || ''); S.roles2 = 1; }   // Luna became the host: the two chosen voices change places once
   }
@@ -303,6 +304,7 @@ const spoken = x => (R.sayAs || []).reduce((t, [re, to]) => t.replace(re, to), S
 // the radio will say soon is asked for ahead: a whole break about a minute and a half before the song ends, the next
 // lines of a break or the bulletin as soon as it starts. While the voices are not ready (the first start downloads
 // them once) and on the website, the browser's own voices speak.
+let kLast = false;   // the voice is on the last piece of its block
 let voiceState = '', voiceLoadToast = false, desktopApp = false;
 const voicesPending = () => desktopApp && voiceState !== 'ready' && voiceState !== 'error';   // the app's voices are still loading
 async function waitVoices(ms) {   // a few seconds normally; minutes only if the voices have to be downloaded first
@@ -349,7 +351,9 @@ function sayKokoro(text, who) {   // true when it was said (or stopped), false w
       const blob = await (next || get(pieces[k])); next = k + 1 < pieces.length ? get(pieces[k + 1]) : null;
       if (id !== runId) { speaking = false; return res(true); }
       if (!blob) { speaking = false; rlog('voice not made, browser voice instead'); return res(k === 0 ? false : true); }
+      kLast = k === pieces.length - 1;
       await playPiece(blob, pieces[k], id);
+      kLast = false;
       if (id !== runId) { speaking = false; return res(true); }
     }
     speaking = false; res(true);
@@ -536,7 +540,7 @@ function armStartWatch() {
   startWatch = setTimeout(check, 4000);
 }
 // The handover: the new song starts on the idle player, the old one fades out over Smooth transitions (off, 2 s, 4 s).
-const fadeMs = () => (S.fade === 0 ? 0 : (S.fade || 2)) * 1000;
+const fadeMs = () => (S.fade === 0 ? 0 : (S.fade || 3)) * 1000;
 async function startSong(s, startVol, fadeInMs = 0, outMs = fadeMs()) {
   const run = runId;
   await waitYT();
@@ -638,6 +642,7 @@ function rlog(msg, data) {
     if (HELPER) fetch('/api/log', { method: 'POST', body: msg + (data ? ' ' + JSON.stringify(data) : '') }).catch(() => {});
   } catch {}
 }
+window.__nativeLog = m => rlog(m);   // the Windows app (desktop/main.js) writes its hide / back steps here
 // code: the YouTube error. 100 = removed, 101/150 = the owner does not allow embedding. Those versions are
 // dropped from the saved list for good, so the same broken upload is never tried again.
 function tryNextCand(code) {
@@ -1653,7 +1658,7 @@ async function advance(opts = {}) {
   if (!talk) {
     // no commentary this time: crossfade straight into the next song
     $('kind').textContent = 'tuning'; caption(R.host, ''); $('vinyl').classList.remove('talk');
-    const okQ = await startSong(next, S.vol, opts.quick ? 1200 : 3500, opts.fadeOldMs || fadeMs());
+    const okQ = await startSong(next, S.vol, opts.quick ? 1200 : fadeMs() || 1, opts.fadeOldMs || fadeMs());
     if (id !== runId) return;
     if (!okQ) { busy = false; return advance({ noCount: true }); }
     busy = false; return;
@@ -1688,13 +1693,17 @@ async function advance(opts = {}) {
   nextPending = false;
   $('vinyl').classList.add('talk');
   $('capKind').textContent = R.host;
+  // the song rises to full volume during the host's last 3 seconds (when the voice's length is known), else right after
+  let rose = false;
+  const rise = () => { if (rose || id !== runId) return; rose = true; bedOff(2.5); fadeP(P(), S.vol, 3000); };
+  const nearEnd = setInterval(() => { const a = curAudio; if (kLast && a && a.duration && a.duration - a.currentTime <= 3) rise(); }, 150);
   if (!jmBday) await say(next === introFor0 && introT ? introT : introFor(next, prev), 'h');
+  clearInterval(nearEnd);
   $('vinyl').classList.remove('talk');
   if (id !== runId) return;
-  bedOff(2.5);
   caption(R.host, '');
   busy = false;
-  await fadeP(P(), S.vol, 3000);
+  if (!rose) { bedOff(2.5); await fadeP(P(), S.vol, 3000); }
 }
 
 // ---------- the fun bulletin: twice a day (around 14:00 and 20:00), in English, about 2 minutes ----------

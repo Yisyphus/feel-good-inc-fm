@@ -266,6 +266,15 @@ For an old PC and slow Wi-Fi, on the website and the desktop app:
   The window is never slowed down or treated as hidden when minimized or covered (`backgroundThrottling: false` and
   Chromium switches), so songs start and voices go on. Links open in the normal browser; Google sign-in opens in a
   small window of its own. Closing the window closes the helper.
+- **Minimize = hide** (16 November 2026, the fix proven on Pale Blue Dot): YouTube won't START a new song while
+  Windows counts the window as unseen (minimized, sent to the tray by RBTray, or fully covered); it waits at
+  "buffering". Not slowing the page down doesn't help. So `desktop/main.js` never lets it be unseen: on minimize, after
+  half a second hidden (tray), or when the page reports `document.hidden` (covered), the window is shown again without
+  focus, at 1% opacity, click-through and always on top. When it comes to the front again (taskbar button, Alt+Tab, tray
+  icon; only after it has left the front once), it is back to normal. The taskbar button stays. Every step is in the
+  Report ("window hidden (…)", "window back from hiding").
+- **Fades:** 3 s by default (Settings: off, 3 s, 5 s): the old song fades out and the new one fades in. After a break,
+  the song plays softly under the intro and rises to full volume during the host's last 3 seconds.
 - **Voices in the helper:** `POST /api/say {text, who, speed, pre}` returns a WAV (Kokoro, `node_modules/kokoro-js`,
   q8 model on the CPU); `/api/ping` reports `voice: {state, progress, rtf}` (`rtf`: seconds of work per second of
   speech on this PC). The page records speech ahead so a slow PC never makes Luna wait: the next break and its song
