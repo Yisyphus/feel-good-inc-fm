@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a1550"/><stop offset="1" stop-color="#0d0b14"/></linearGradient>
+<linearGradient id="pc" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff3ea5"/><stop offset="1" stop-color="#7b5cff"/></linearGradient>
+<linearGradient id="sun" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe600"/><stop offset="1" stop-color="#ff3ea5"/></linearGradient>
+<filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<rect width="256" height="256" rx="56" fill="#0d0b14"/>
+<path d="M58 150 V122 A70 70 0 0 1 198 122 V150" fill="none" stroke="url(#pc)" stroke-width="14" stroke-linecap="round" filter="url(#glow)"/>
+<rect x="40" y="138" width="40" height="66" rx="16" fill="#ff3ea5"/><rect x="176" y="138" width="40" height="66" rx="16" fill="#7b5cff"/>
+<text x="128" y="190" text-anchor="middle" font-family="Arial Black,Arial" font-weight="900" font-size="44" fill="#ffe600" filter="url(#glow)">FM</text>
+<g fill="#00e5ff"><rect x="100" y="104" width="8" height="22" rx="4"/><rect x="114" y="94" width="8" height="32" rx="4"/><rect x="128" y="84" width="8" height="42" rx="4"/><rect x="142" y="98" width="8" height="28" rx="4"/></g>
+</svg>
