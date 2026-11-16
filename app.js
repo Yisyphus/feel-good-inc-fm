@@ -461,6 +461,7 @@ window.onYouTubeIframeAPIReady = () => {
     pl[i] = new YT.Player('yt' + i, { height: '200', width: '200', playerVars: { controls: 0, disablekb: 1, playsinline: 1, rel: 0, iv_load_policy: 3, origin: location.origin }, events: {
       onReady: () => { setVol(pl[i], 0); if (++ready === 2) ytReady = true; },
       onStateChange: e => {
+        if (adHook && adHook.idx === i) { adHook.state(e.data); return; }   // a commercial is playing on it
         if (i !== ai) {   // the idle player: the next song was started silently to prime it; stop it at its very start
           if (preload && preload.idx === i && !preload.primed) setVol(pl[i], 0);   // never heard while it is being prepared
           if (preload && preload.idx === i && !preload.primed && e.data === YT.PlayerState.PLAYING) { try { pl[i].pauseVideo(); pl[i].seekTo(0, true); } catch {} preload.primed = true; rlog('next song ready', { song: preload.key }); }
@@ -480,6 +481,7 @@ window.onYouTubeIframeAPIReady = () => {
         else if (e.data === YT.PlayerState.ENDED) { if (started && !busy && !repeatSong()) advance(); }
       },
       onError: e => {
+        if (adHook && adHook.idx === i) { adHook.error(e && e.data); return; }
         if (i === ai) { const c = current && current.cands && current.cands[candIdx]; rlog('player error ' + (e && e.data), { song: current && current.key, id: c && c.id }); tryNextCand(e && e.data); }
         else preload = null;
       },
@@ -871,6 +873,7 @@ let preBreak = null;
 function planBreak() {
   if (!kokoroReady() || !planned || !current || preBreak || busy || marathon || albumShow || S.justMusic || planned.focus || current.podcast) return;
   if (songsSinceBreak + 1 < breakEvery() || podcastDue || dedications.has(planned.key)) return;
+  if ((lib.adCount || 0) + 1 >= (R.adsEvery || 6)) return;   // the commercials come at that change
   if (lastRunSong && current.key === lastRunSong.key) return;
   preBreak = { next: planned, prev: current, segs: makeBreak(current, planned, false), intro: introFor(planned, current) };
   preSegs(preBreak.segs); kokoroPre(preBreak.intro, 'h');
@@ -1055,7 +1058,7 @@ function makeBreak(prev, next, first) {
   if (big === 'note') { const x = noteSeg(); if (x) out.push(x); }
   if (big === 'mission') out.push(missionSeg());
   // small extras: only on breaks with no big part, and never right after a podcast
-  if (!big && !runAnnounced && !afterPod && !startAnnounce && Math.random() < 0.6) {
+  if (!big && !adsDue && !runAnnounced && !afterPod && !startAnnounce && Math.random() < 0.6) {
     const r = Math.random();
     const x = r < 0.25 ? lines(station, [sub(fresh('ident', R.idents), next)])
       : r < 0.5 ? banterSeg()
@@ -1065,12 +1068,59 @@ function makeBreak(prev, next, first) {
     if (x) out.push(x);
   }
   // a Genre Mix is announced last, right before its first song; if a podcast comes first, it waits until after it
+  if (adsDue) { adsDue = false; lib.adCount = 0; saveLib(); out.push(...adBreakSegs()); }
   if (giftAnnounce) { out.push({ kind: 'Playlist', title: giftAnnounce, lines: [{ t: sub(fresh('giftlist', R.giftListLines || ['Here comes {name}.'])).replace(/\{name\}/g, giftAnnounce) }] }); giftAnnounce = ''; }
   if (startAnnounce && !podcastDue) { out.push({ kind: 'Genre Mix', title: startAnnounce, lines: [{ t: sub(fresh('runstart', R.runStarts), null, { label: startAnnounce }) }] }); startAnnounce = null; }
   return out.filter(Boolean);
 }
 
-let breakSkip = null;
+let breakSkip = null, adHook = null, adSkip = null, adsDue = false;
+// The commercials: a shuffled bag, so none comes back before all the others have played (kept across sessions).
+function nextAd() {
+  const all = (R.ads || []).filter(a => a && a.id); if (!all.length) return null;
+  lib.adBag = (lib.adBag || []).filter(id => all.some(a => a.id === id));
+  if (!lib.adBag.length) { lib.adBag = shuffle(all.map(a => a.id)); if (lib.adBag[0] === lib.adLast && lib.adBag.length > 1) lib.adBag.push(lib.adBag.shift()); }
+  const id = lib.adBag.shift(); lib.adLast = id; saveLib();
+  return all.find(a => a.id === id);
+}
+// One commercial on the idle player, at the music's volume. Next skips it. Not started in 12 s: another one is tried.
+function playAdVideo(v) {
+  return new Promise(res => {
+    const idx = 1 - ai, p = pl[idx]; let started = false, done = false, tick;
+    const finish = ok => { if (done) return; done = true; clearInterval(tick); adHook = null; adSkip = null; breakSkip = null; try { p.pauseVideo(); setVol(p, 0); } catch {} res(ok); };
+    adHook = { idx, state: s => { if (s === YT.PlayerState.PLAYING) { started = true; setLive(true); try { p.unMute(); } catch {} } else if (s === YT.PlayerState.ENDED) finish(true); }, error: () => finish(false) };
+    adSkip = () => finish(true); breakSkip = adSkip;
+    preload = null;
+    try { p.unMute(); } catch {}
+    setVol(p, Math.round(S.vol * 0.9)); p.loadVideoById(v.id);
+    let waited = 0, stall = 0, last = -1;
+    tick = setInterval(() => {
+      if (globalPaused) return;
+      if (!started) { if ((waited += 500) >= 12000) finish(false); return; }
+      let c = 0, d = 0; try { c = p.getCurrentTime() || 0; d = p.getDuration() || 0; } catch {}
+      if (c > last + 0.05) { last = c; stall = 0; } else if ((stall += 500) >= 45000) return finish(true);
+      if (c >= Math.min(d || v.seconds || 150, 150) - 0.2 && c > 1) finish(true);
+    }, 500);
+  });
+}
+async function runAd(id) {
+  bedOff(0.5);
+  for (let tries = 0; tries < 6 && id === runId; tries++) {
+    const ad = nextAd(); if (!ad) return;
+    $('kind').textContent = 'commercial'; $('capKind').textContent = 'Commercial'; $('capText').textContent = ad.title;
+    rlog('commercial', { id: ad.id, title: ad.title });
+    const ok = await playAdVideo(ad);
+    if (ok) return;
+  }
+}
+// intro, jingle, commercial, jingle, commercial, jingle, back to the music
+function adBreakSegs() {
+  const k = 'Commercial break', out = [lines(k, [sub(fresh('adin', R.breakIntros || ['Commercial break!']))])];
+  out.push({ kind: k, jingle: S.jingle || Jingles.defaultId, lines: [] });
+  for (let a = 0; a < (R.adsPerBreak || 2); a++) { out.push({ kind: k, ad: true, lines: [] }); out.push({ kind: k, jingle: S.jingle || Jingles.defaultId, lines: [] }); }
+  out.push(lines(k, [sub(fresh('adout', R.breakOutros || ['And we are back!']))]));
+  return out;
+}
 const getCtx = () => { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); return actx; };
 async function runJingle(id) {
   $('kind').textContent = 'jingle'; $('capText').textContent = '♪';
@@ -1104,6 +1154,7 @@ async function runSegments(segs, id) {
     $('kind').textContent = seg.kind.toLowerCase();
     $('capKind').textContent = seg.title ? `${seg.kind} · ${seg.title}` : seg.kind;
     if (seg.jingle) { await runJingle(seg.jingle); continue; }
+    if (seg.ad) { await runAd(id); continue; }
     bedOn();
     const merged = mergeLines(seg.lines);
     for (const l of merged) {
@@ -1670,10 +1721,12 @@ async function advance(opts = {}) {
   if (prev && !afterPod) { if (opts.prev !== null) { history.push(prev); if (history.length > 60) history.shift(); } if (!played.includes(prev.key)) played.push(prev.key); }
   heartPrev = prev && !prev.podcast ? prev : null; current = null; updateHeart();   // while the host talks, the heart is for the song that just ended
   if (!opts.noCount && !afterPod && !next.focus) songsSinceBreak++;
+  if (!opts.noCount && !afterPod && !next.focus && !S.justMusic && !opts.first && (R.ads || []).length) { lib.adCount = (lib.adCount || 0) + 1; saveLib(); }
+  adsDue = !S.justMusic && !next.focus && !opts.first && !opts.replaySegs && !voicesPending() && (R.ads || []).length > 0 && (lib.adCount || 0) >= (R.adsEvery || 6);
   const endRunNow = !!(prev && lastRunSong && prev.key === lastRunSong.key);
   let jmBday = null;   // Just music on her birthday: Joe says a few words once, between two songs
   if (S.justMusic && !opts.first && !opts.silent && !next.focus && !opts.replaySegs && isBirthday() && lib.bdayJM !== today()) { lib.bdayJM = today(); saveLib(); jmBday = [lines('Happy birthday, Rim', [sub((R.birthday || {}).justMusic || 'Happy birthday, Rim!')])]; }
-  const talk = !voicesPending() && (!!jmBday || !!opts.replaySegs) || (!voicesPending() && !S.justMusic && !opts.silent && !next.focus && (opts.first || afterPod || endRunNow || songsSinceBreak >= breakEvery() || opts.forceTalk || dedications.has(next.key)));
+  const talk = !voicesPending() && (!!jmBday || !!opts.replaySegs) || (!voicesPending() && !S.justMusic && !opts.silent && !next.focus && (opts.first || afterPod || endRunNow || songsSinceBreak >= breakEvery() || opts.forceTalk || adsDue || dedications.has(next.key)));
   console.info('[radio] advance', { next: next.t, talk, count: songsSinceBreak, every: breakEvery() });
   if (talk) songsSinceBreak = 0;
   const old = P();
@@ -2051,6 +2104,7 @@ function next() {
   if (!started) return;
   if (newsOn) return endNews();   // Next during the bulletin: stop it and go back to what was playing
   if (globalPaused) resumeAll();
+  if (adSkip) { const b = adSkip; adSkip = null; b(); return; }
   if (breakSkip && !curBreak) { const b = breakSkip; breakSkip = null; b(); return; }
   try { // learn where a silent tail begins: if you skip near the end, trim there from now on
     if (current && !current.podcast && !current.focus && !current.album && playing && !busy) { const d = P().getDuration(), c = P().getCurrentTime(); if (d > 60 && d - c < 90 && d - c > 3) { lib.trim[current.key] = Math.max(0, c - 1); saveLib(); toast('Got it. I will end this song right here from now on.'); } }

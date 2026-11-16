@@ -303,3 +303,10 @@ For an old PC and slow Wi-Fi, on the website and the desktop app:
   Moon, A Night at the Opera, Salad Days, Off the Wall, Thriller, Discovery, Oracular Spectacular; explicit tracks left
   out), 78 podcast episodes, 15 concerts, 5 Homework stations (89 tracks) and 6 ambient sounds. Albums that lost more
   than 30% of their tracks to explicit lyrics were left out: Currents, Nevermind, Toxicity, OK Computer, The Queen Is Dead.
+
+## Commercials (16 November 2026)
+- The owner's fixed list of vintage Moroccan TV ads lives in `content_ads.js` (`R.ads`, exact YouTube ids; edit only on the
+  owner's request). After every 6 songs, played or skipped (`R.adsEvery`, counted in `lib.adCount`), the break carries
+  a commercial break: Luna's intro (`R.breakIntros`), jingle, commercial, jingle, commercial, jingle, a line back to the music
+  (`R.breakOutros`). The two are drawn from a shuffled bag, so none repeats before all have played.
+- Never in Just music or Homework mode, never during Non-stop or an album. Next skips the commercial on air.
