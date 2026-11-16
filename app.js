@@ -245,7 +245,7 @@ function loadVoices() {
   const fill = (id, autoLabel, key, online) => { const el = $(id); if (!el) return; el.innerHTML = ''; const add = (val, label) => { const o = document.createElement('option'); o.value = val; o.textContent = label; el.appendChild(o); };
     add('', autoLabel); if (online) add(ONLINE, 'Online voice (if the others sound wrong)'); en.forEach(v => add(v.name, nice(v))); el.value = S[key] && (S[key] === ONLINE || en.some(v => v.name === S[key])) ? S[key] : ''; };
   fill('voiceSel', 'Automatic (Ava Multilingual, natural)', 'voice', true);
-  fill('lunaSel', 'Automatic (Brian Multilingual, natural)', 'lunaVoice');
+  fill('lunaSel', 'Automatic (Andrew Multilingual, natural)', 'lunaVoice');
   fill('bulletinSel', "Automatic (Joe's voice)", 'bulletinVoice');
   const note = $('voiceNote');
   if (note && !kokoroReady()) note.textContent = voices.some(v => isEn(v) && /natural/i.test(v.name)) ? '' : 'Tip: open the radio in Microsoft Edge for free natural voices (Andrew, Ava, Emma…). Without them an online voice is used.';
@@ -261,7 +261,7 @@ function hostVoice() {
 // Other voices, by the code a script line carries: s = Joe (the co-host), n = the bulletin. Each takes the first installed
 // natural voice from its list that is not the host's.
 const VOICE_PREFS = {
-  s: [/brian multilingual.*natural/i, /brian.*natural/i, /andrew.*natural/i, /guy.*natural/i, /christopher.*natural/i, /eric.*natural/i, /david|mark|george|guy|male/i],   // Joe: Pale Blue Dot's Astro voice
+  s: [/andrew multilingual.*natural/i, /andrew.*natural/i, /brian multilingual.*natural/i, /brian.*natural/i, /guy.*natural/i, /christopher.*natural/i, /eric.*natural/i, /david|mark|george|guy|male/i],   // Joe: Andrew Multilingual (the owner's pick), then Andrew, Brian
   n: [/ryan.*natural/i, /sonia.*natural/i, /libby.*natural/i, /steffan.*natural/i, /jenny.*natural/i, /natural/i],
 };
 function voiceFor(code) {

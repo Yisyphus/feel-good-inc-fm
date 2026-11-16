@@ -209,7 +209,7 @@ For an old PC and slow Wi-Fi, on the website and the desktop app:
 - **Edge's natural voices, in the app and on the website** (16 November 2026: back from Kokoro, which paused between
   phrases and sounded flat on the owner's PC; Edge's voices are made by Microsoft online, so an old PC does no voice
   work). The same voices as Pale Blue Dot: **Luna = Ava Multilingual** (the owner's pick, 16 November 2026; then Ava, Aria, Emma or Jenny),
-  **Joe = Brian Multilingual** (Pale Blue Dot's Astro; then Andrew, Guy), the bulletin in Joe's voice unless another is
+  **Joe = Andrew Multilingual** (the owner's pick, 16 November 2026; then Andrew, Brian Multilingual, Guy), the bulletin in Joe's voice unless another is
   chosen. Talking speed 100 (normal) by default. Changeable in Settings. Pronunciation fixes in `R.sayAs`. Other browsers: their own voices, an online one
   as the last resort.
 
