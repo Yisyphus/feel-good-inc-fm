@@ -2642,6 +2642,7 @@ function startTour(force) {
   });
 }
 $('btnTour').onclick = () => { unlockAudio(); openSheet(null); startTour(true); };
+$('btnTourNext').onclick = () => { try { localStorage.removeItem('fgi-tour'); } catch {} rlog('tour set for the next opening'); toast('Done: the tour plays once, the next time the radio opens.'); };
 
 // ---------- her birthday: a banner all day ----------
 function paintBirthday() {
