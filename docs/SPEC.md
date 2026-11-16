@@ -133,8 +133,9 @@ work / 5 min break, with a soft chime). Her own stations can be added as before.
   `tools/aqua-art.py`, no logos) with bubbles, tropical fish, a glossy globe, a dolphin, glass stars and a
   shiny CD (the green heart was taken out), behind glossy glass panels and bubble buttons (`body.dream` in index.html). No blur, no animation; the
   picture is only fetched in Homework mode. It goes back to the neon skin when Homework mode ends.
-- **Aquacore station** (Homework): dreamy underwater music, 14 long tracks with exact videos (Aquatic Ambience, Dire,
-  Dire Docks, Endless Ocean, Ecco the Dolphin, Frutiger Aero mixes…).
+- **Aquacore station** (Homework): mostly calm Frutiger Aero mixes (12, the owner's favourite kind), plus Endless Ocean,
+  Aquatic Ambience, Dire, Dire Docks and Ecco the Dolphin's ambience: 17 long tracks with exact videos. No Wii music, no
+  Beach Bowl Galaxy, Lake Hylia or Animal Crossing (the owner's picks, 16 November 2026).
 
 ## 10. Just music
 
