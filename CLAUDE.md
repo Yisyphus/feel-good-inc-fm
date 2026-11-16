@@ -14,6 +14,9 @@ Rim's radio, built from Pale Blue Dot Radio.
 
 ## Rules that matter
 - Never mention an uncle or the giver; nothing existential; clean versions only; advice offered, never ordered.
+  One exception, the owner's choice (16 November 2026): the playlists "Uncle's Favorites" and "Father's Favorites"
+  (`R.giftLists` in content.js) may be named, and Luna says a short line when one starts (`R.giftListLines`). The owner
+  sends their songs here; add them as 'Artist|Title|YouTube id'.
 - Library and playlist edits from different devices are **merged**, never replaced (`mergeLib`).
 - Everything Luna and Joe say lives in the `content*.js` files, not in `app.js`.
 - Run `python3 tools/publish.py` before every commit.

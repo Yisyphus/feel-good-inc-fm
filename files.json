@@ -1,25 +1,25 @@
 {
  "files": {
-  "app.js": "363befa45b529773",
+  "app.js": "9887d0c0f891c8a2",
   "aqua.webp": "4310b43a42030e04",
   "bg.webp": "2c55ada11354d1bc",
   "check.html": "45ae02f4328db3c4",
   "cloud.js": "fee9c7cfc27da2b8",
-  "content.js": "835d854016776b9f",
+  "content.js": "b04fc362dd21ab44",
   "content_albums.js": "bb8676c5bffd9164",
-  "content_catalog.js": "902e9d5f9af541b2",
+  "content_catalog.js": "2b15b6e6d98bbb7c",
   "content_homework.js": "c46f88e7dec00b88",
-  "content_ids.js": "b3b181605dca4681",
+  "content_ids.js": "454175700905d4f1",
   "content_pods.js": "a448d7a560b36854",
   "content_shows.js": "b41b48f04ee4ae17",
   "content_talk.js": "554d0f1d858f8e7f",
   "content_trivia.js": "0c99eded051486d8",
   "firebase-config.js": "2f564483690cf7d0",
   "icon.png": "414972388b2218eb",
-  "index.html": "49f16336fb5a3b13",
+  "index.html": "52db0adf9602973c",
   "jingles.js": "7f59ee5d7730845e",
   "stickers.js": "2e454ec8e83c28a4"
  },
- "server": "3f374ca7a9da55b4",
- "version": "2026-11-16T12:14:40Z"
+ "server": "0a59975482d4d681",
+ "version": "2026-11-16T16:13:38Z"
 }

@@ -37,7 +37,7 @@ let lib = { user: [], cache: {}, removed: [], settings: {}, trim: {}, disc: {} }
 let S = { talk: 'normal', rate: 100, voice: '', sleep: 0, vol: 80, trim: 5, news: 'on', fade: 3, justMusic: false };
 let songs = [];
 let current = null, history = [], played = [], upNext = [], planned = null, preload = null;
-let batch = null, startAnnounce = null, lastRunSong = null; // genre run state
+let batch = null, startAnnounce = null, lastRunSong = null, giftAnnounce = ''; // genre run state
 let nextPending = false, nextOverride = null; // a suggested song can take the place of the one chosen to play next
 let pl = [null, null], ai = 0, ytReady = false, playing = false, started = false, busy = false;
 let runId = 0, speaking = false, airMs = 0, songsSinceBreak = 0;
@@ -171,8 +171,9 @@ function buildSongs() {
   const seed = R.songs.map(s => ({ ...s, key: key(s) }));
   const cat = (R.catalog || []).map(s => ({ ...s, key: key(s) }));
   const user = lib.user.filter(s => !s.discovered).map(s => ({ ...s, key: s.key || key(s) }));
+  const gift = giftSongs();
   const seen = new Set(); songs = [];
-  [...seed, ...cat, ...user].forEach(s => { if (seen.has(s.key) || lib.removed.includes(s.key)) return; seen.add(s.key); songs.push(s); });
+  [...seed, ...cat, ...gift, ...user].forEach(s => { if (seen.has(s.key) || lib.removed.includes(s.key)) return; seen.add(s.key); songs.push(s); });
   songs.forEach(s => {
     if (lib.cache[s.key]) s.cands = lib.cache[s.key];
     else if (R.catalogIds && R.catalogIds[s.key]) { const v = R.catalogIds[s.key]; s.cands = [{ id: v.id, title: v.title, channel: v.channel, seconds: v.seconds || 0 }, ...(v.more || [])]; }   // checked in advance: no search needed, with backups
@@ -182,6 +183,12 @@ function buildSongs() {
 }
 const needsLabels = s => !s.genre;
 // a saved list's songs, in its order, leaving out the ones you removed since
+// The family playlists (content.js R.giftLists): songs as 'Artist|Title|YouTube id', read-only, shown once they have songs
+function giftSongs() {
+  return (R.giftLists || []).flatMap(L => (L.songs || []).map(line => { const [a, t, id] = String(line).split('|'); const s = { a, t, tags: [], genre: '', mood: 'happy', energy: 3, gift: true }; s.key = key(s); if (id) s.cands = [{ id: id.trim(), title: t, channel: a, seconds: 0 }]; return s; }));
+}
+const giftLists = () => (R.giftLists || []).map(L => ({ key: L.key, name: L.name, color: L.color, sticker: L.sticker, preset: true, keys: (L.songs || []).map(line => { const [a, t] = String(line).split('|'); return key({ a, t }); }) })).filter(L => L.keys.length);
+const allLists = () => [...(lib.lists || []), ...giftLists()];   // newest last: the family lists show first in Playlists
 const listSongs = L => { const m = new Map(songs.map(s => [s.key, s])); return (L.keys || []).map(k => m.get(k)).filter(Boolean); };
 const genreOptions = first => `<option value="">${first}</option>` + Object.entries(R.genreMap || {}).sort((x, y) => x[1].name.localeCompare(y[1].name)).map(([id, g]) => `<option value="${id}">${g.name}</option>`).join('');
 // gives a genre to the songs that have none yet (songs you already labelled keep theirs)
@@ -557,6 +564,7 @@ async function startSong(s, startVol, fadeInMs = 0, outMs = fadeMs()) {
   const resumed = !!(preload && preload.key === s.key && preload.idx === n && preload.primed);
   if (preload && preload.key === s.key && preload.idx === n) { try { np.seekTo(0, true); } catch {} np.playVideo(); } else np.loadVideoById(c[0].id);   // a primed song only resumes, which works even when minimized
   preload = null;
+  s._playedId = c[0].id;
   rlog('start', { song: s.key, id: c[0].id, primed: resumed, minimized: document.hidden });
   const stopOld = () => { try { if (pl[ai] !== old) old.pauseVideo(); } catch {} };
   if (old._fading && old._fadeTo === 0) { const w = setInterval(() => { if (!old._fading) { clearInterval(w); stopOld(); } }, 250); }   // already fading under the host
@@ -1057,6 +1065,7 @@ function makeBreak(prev, next, first) {
     if (x) out.push(x);
   }
   // a Genre Mix is announced last, right before its first song; if a podcast comes first, it waits until after it
+  if (giftAnnounce) { out.push({ kind: 'Playlist', title: giftAnnounce, lines: [{ t: sub(fresh('giftlist', R.giftListLines || ['Here comes {name}.'])).replace(/\{name\}/g, giftAnnounce) }] }); giftAnnounce = ''; }
   if (startAnnounce && !podcastDue) { out.push({ kind: 'Genre Mix', title: startAnnounce, lines: [{ t: sub(fresh('runstart', R.runStarts), null, { label: startAnnounce }) }] }); startAnnounce = null; }
   return out.filter(Boolean);
 }
@@ -1552,7 +1561,7 @@ function marathonPool(src) {
   src.forEach(id => {
     if (id === 'lib') put(songs);
     else if (id === 'fav') put((lib.fav || []).map(favToSong).filter(s => !lib.removed.includes(s.key)));
-    else if (id.startsWith('list:')) { const L = (lib.lists || []).find(x => 'list:' + x.key === id); if (L) put(listSongs(L)); }
+    else if (id.startsWith('list:')) { const L = allLists().find(x => 'list:' + x.key === id); if (L) put(listSongs(L)); }
     else if (id.startsWith('run:')) { const r = (R.runs || []).find(x => 'run:' + x.id === id); if (r) put(songs.filter(x => r.genres.includes(x.genre))); }
   });
   return [...m.values()];
@@ -1659,7 +1668,7 @@ async function advance(opts = {}) {
   let next = opts.song || takePlanned();
   if (!next) { busy = false; return; }
   if (prev && !afterPod) { if (opts.prev !== null) { history.push(prev); if (history.length > 60) history.shift(); } if (!played.includes(prev.key)) played.push(prev.key); }
-  current = null; updateHeart();   // the heart is only active while a song is playing
+  heartPrev = prev && !prev.podcast ? prev : null; current = null; updateHeart();   // while the host talks, the heart is for the song that just ended
   if (!opts.noCount && !afterPod && !next.focus) songsSinceBreak++;
   const endRunNow = !!(prev && lastRunSong && prev.key === lastRunSong.key);
   let jmBday = null;   // Just music on her birthday: Joe says a few words once, between two songs
@@ -1963,11 +1972,11 @@ function startRun(id, opts = {}) {
     if (!favList.length) return toast('No liked songs yet. Press the ♥ on a song you love.');
     pack = { id: 'fav', label: 'your Liked Songs', short: 'Liked Songs', genres: [], langs: [], songs: [], tags: [], genre: '' };
   }
-  const L = id.startsWith('list:') && (lib.lists || []).find(x => 'list:' + x.key === id);
+  const L = id.startsWith('list:') && allLists().find(x => 'list:' + x.key === id);
   if (L) {   // one of your saved lists: all of it, shuffled
     favList = listSongs(L);
     if (!favList.length) return toast('That playlist is empty.');
-    pack = { id, label: 'your playlist, ' + L.name, short: L.name, genres: [], langs: [], songs: [], tags: [], genre: '' };
+    pack = { id, label: 'your playlist, ' + L.name, short: L.name, genres: [], langs: [], songs: [], tags: [], genre: '', gift: L.preset ? L.name : '' };
   }
   if (!pack) return;
   const size = Math.random() < 0.15 ? 40 : 20 + Math.floor(Math.random() * 11);
@@ -1979,7 +1988,7 @@ function startRun(id, opts = {}) {
   batch = { id, label: pack.label, short: pack.short, left: favList ? list.length : Math.min(size, list.length), list, order: !!opts.order };
   planned = null; preload = null; startAnnounce = pack.label; songsSinceBreak = 99; lastRunSong = null;
   toast(favList ? `${pack.short}: ${batch.left} songs${opts.order ? '' : ', shuffled'}. Starting now.` : `Genre Mix: ${pack.short}, about ${batch.left} songs. It starts after this song.`);
-  if (favList && started && !newsOn) { songsSinceBreak = 0; startAnnounce = null; stopSpeech(); advance({ quick: true, silent: true, noCount: true }); }
+  if (favList && started && !newsOn) { songsSinceBreak = 0; startAnnounce = null; giftAnnounce = pack.gift || ''; stopSpeech(); advance(giftAnnounce && !S.justMusic ? { forceTalk: true, noCount: true } : { quick: true, silent: true, noCount: true }); }
   updateRunUI();
 }
 function stopRun() { batch = null; startAnnounce = null; planned = null; preload = null; toast('Back to the radio mix.'); updateRunUI(); }
@@ -2276,6 +2285,23 @@ $('listRetry').onclick = async () => {
   $('listStatus').textContent = miss ? `${miss} still missing. Check the spelling, or try again later.` : 'All found.';
   listBusy = false; $('listGo').textContent = 'Read the list'; updateListAdd();
 };
+// A Spotify playlist or album link: its public embed page lists the songs (title, artists, explicit). Explicit songs are
+// left out (clean versions only); the rest are searched on YouTube like songs typed one per line.
+const spotifyId = raw => { const m = String(raw).match(/open\.spotify\.com\/(?:intl-\w+\/)?(playlist|album)\/([A-Za-z0-9]{10,})/); return m ? { kind: m[1], id: m[2] } : null; };
+async function readSpotify(sp) {
+  const u = 'https://open.spotify.com/embed/' + sp.kind + '/' + sp.id;
+  let html = '';
+  for (const r of RELAYS) {
+    const url = r(u); if (!url) continue;
+    try { const res = await withTimeout(fetch(url), 15000); if (res.ok) { html = await res.text(); if (/__NEXT_DATA__/.test(html)) break; } } catch {}
+  }
+  const m = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
+  if (!m) throw new Error('Spotify did not answer (is the playlist public?)');
+  const find = o => { if (!o || typeof o !== 'object') return null; if (Array.isArray(o.trackList)) return o; for (const k in o) { const r = find(o[k]); if (r) return r; } return null; };
+  const ent = find(JSON.parse(m[1])); if (!ent) throw new Error('no songs found in that link');
+  const items = ent.trackList.map(x => ({ t: String(x.title || '').trim(), a: String(x.subtitle || '').split(/,\s*/)[0].replace(/ /g, ' ').trim(), explicit: !!x.isExplicit })).filter(x => x.t && x.a);
+  return { title: ent.name || ent.title || 'From Spotify', items };
+}
 $('listGo').onclick = async () => {
   if (listBusy) { listBusy = false; return; }   // the button reads "Stop" while searching
   const raw = $('listIn').value.trim(); if (!raw) return;
@@ -2284,7 +2310,17 @@ $('listGo').onclick = async () => {
   $('listGenre').innerHTML = genreOptions('let the radio decide');
   try {
     const pl = raw.match(/[?&]list=([\w-]+)/) || (/^(PL|OL|UU|FL|RD)[\w-]{10,}$/.test(raw) ? [raw, raw] : null);
-    if (pl) {
+    const sp = !pl && spotifyId(raw);
+    if (sp) {
+      $('listStatus').textContent = 'Reading the Spotify ' + sp.kind + '…';
+      const j = await readSpotify(sp), clean = j.items.filter(x => !x.explicit), cut = j.items.length - clean.length;
+      if (!$('listName').value.trim()) $('listName').value = j.title;
+      const slots = [];
+      await searchLines(clean.map(x => x.a + ' - ' + x.t), (i, it) => { slots[i] = it; listItems = slots.filter(Boolean); }, 'Finding them on YouTube:');
+      const found = listItems.filter(x => !x.missing).length;
+      $('listStatus').textContent = `"${j.title}": ${found} of ${clean.length} found${cut ? `, ${cut} explicit song${cut === 1 ? '' : 's'} left out (clean versions only)` : ''}. Untick any you don't want, then save it as a playlist.`;
+      rlog('spotify read', { songs: j.items.length, explicit: cut, found });
+    } else if (pl) {
       $('listStatus').textContent = 'Reading the playlist…';
       const r = await fetch('/api/playlist?list=' + encodeURIComponent(pl[1])); const j = await r.json();
       if (!r.ok) throw new Error(j.error || 'the playlist could not be read');
@@ -2343,21 +2379,24 @@ const libMatch = (...fields) => { const ws = fold($('libQ').value).split(' ').fi
 const noMatch = () => `<p style="color:var(--mute);font-size:13px">Nothing here matches "${$('libQ').value.replace(/[<&"]/g, '')}".</p>`;
 const favIdx = k => (lib.fav || []).findIndex(f => f.key === k);
 
+let heartPrev = null;   // the song that just ended, while the host talks before the next one
+const heartSong = () => current || (busy ? heartPrev : null);
 function updateHeart() {
   const r = $('btnRemoveSong'); if (r) { r.style.display = current && !current.podcast && !current.sounds && !current.album ? '' : 'none'; r.classList.remove('sure'); r.innerHTML = '&#10005; never play this again'; }
   const b = $('btnHeart'); if (!b) return;
-  const on = !!current && favIdx(current.key) >= 0;
-  b.classList.toggle('on', on); b.disabled = !current || !!current.podcast || !!current.focus || !!current.album;
+  const hs = heartSong(), on = !!hs && favIdx(hs.key) >= 0;
+  b.classList.toggle('on', on); b.disabled = !hs || !!hs.podcast || !!hs.focus || !!hs.album;
   b.title = on ? 'Remove from Liked Songs' : 'Add to Liked Songs'; b.setAttribute('aria-pressed', on ? 'true' : 'false');
 }
 function toggleFav() {
-  if (!current || current.podcast) return;
-  lib.fav = lib.fav || []; const i = favIdx(current.key);
-  if (i >= 0) { lib.fav.splice(i, 1); markDeleted('fav', current.key); toast('Removed from Liked Songs.'); }
+  const s = heartSong();
+  if (!s || s.podcast) return;
+  lib.fav = lib.fav || []; const i = favIdx(s.key);
+  if (i >= 0) { lib.fav.splice(i, 1); markDeleted('fav', s.key); toast('Removed from Liked Songs.'); }
   else {
-    const c = current.cands && (current.cands[candIdx] || current.cands[0]);   // remember the exact version that is playing
-    lib.fav.push({ key: current.key, a: current.a, t: current.t, id: c ? c.id : null, tags: (current.tags || []).slice(), genre: current.genre || '', ts: Date.now() });
-    toast(`"${current.t}" is in your Liked Songs.`);
+    const c = s.cands && (s === current ? (s.cands[candIdx] || s.cands[0]) : (s._playedId ? s.cands.find(x => x.id === s._playedId) || s.cands[0] : s.cands[0]));   // the exact version that played
+    lib.fav.push({ key: s.key, a: s.a, t: s.t, id: c ? c.id : null, tags: (s.tags || []).slice(), genre: s.genre || '', ts: Date.now() });
+    toast(`"${s.t}" is in your Liked Songs.`);
   }
   saveLib(); updateHeart(); if ($('shLib').classList.contains('open')) renderLib();
 }
@@ -2437,7 +2476,7 @@ function openAddTo() {
   openSheet('shAddTo');
 }
 function renderLists() {
-  const l = $('libList'); l.innerHTML = ''; const ls = lib.lists || [];
+  const l = $('libList'); l.innerHTML = ''; const ls = allLists();
   $('libCount').textContent = `· ${ls.length} playlist${ls.length === 1 ? '' : 's'}`;
   const make = document.createElement('div'); make.className = 'field';
   make.innerHTML = '<input id="mkPlName" type="text" maxlength="60" placeholder="Name a new playlist"><button class="btn">+ New playlist</button>';
@@ -2463,6 +2502,7 @@ function renderPlaylist(L) {
     <div class="pl-actions"><button class="btn">&#9654; Play</button><button class="btn ghost">&#8644; Shuffle</button><button class="btn ghost">+ Add songs</button><button class="btn ghost">&#9998; Edit</button><button class="btn ghost">&#10005; Delete</button></div>`;
   h.querySelector('.pl-title b').textContent = L.name; h.querySelector('.pl-sub').textContent = `${list.length} songs · ${howLong(list)}`;
   const [back, play, shuf, add, edit, del] = h.querySelectorAll('button');
+  if (L.preset) [add, edit, del].forEach(b => { b.style.display = 'none'; });   // a family playlist: play and shuffle only
   back.onclick = () => { plAdding = false; libTab = 'lists'; renderLib(); };
   play.onclick = () => { if (!list.length) return toast('Add some songs first.'); openSheet(null); startRun('list:' + L.key, { order: true }); };
   shuf.onclick = () => { if (!list.length) return toast('Add some songs first.'); openSheet(null); startRun('list:' + L.key); };
@@ -2470,7 +2510,7 @@ function renderPlaylist(L) {
   edit.onclick = () => openPlEdit(L);
   twoTap(del, 'tap again to delete', () => { lib.lists = lib.lists.filter(x => x !== L); markDeleted('lists', L.key); saveLib(); libTab = 'lists'; renderLib(); toast(`"${L.name}" was deleted. Its songs stay in Your Library.`); });
   l.appendChild(h);
-  if (plAdding) {   // + Add songs: every song of the library, the search box narrows it
+  if (plAdding && !L.preset) {   // + Add songs: every song of the library, the search box narrows it
     const p = document.createElement('p'); p.className = 'empty'; p.textContent = 'Tap + to add a song. Use the search box above to find one.'; l.appendChild(p);
     songs.filter(s => !L.keys.includes(s.key) && libMatch(s.a, s.t)).slice(0, 80).forEach(s => {
       const d = row(s.t, s.a, [['+', 'Add to this playlist']], null);
@@ -2513,7 +2553,7 @@ function renderLib() {
   if (libTab === 'fav') return renderFav();
   if (libTab === 'lists') return renderLists();
   if (libTab === 'albums') return renderAlbums();
-  const L = libTab.startsWith('list:') && (lib.lists || []).find(x => 'list:' + x.key === libTab);
+  const L = libTab.startsWith('list:') && allLists().find(x => 'list:' + x.key === libTab);
   if (libTab.startsWith('list:')) return L ? renderPlaylist(L) : (libTab = 'lists', renderLists());   // deleted on another device
   const all = songs, shown = all.filter(s => libMatch(s.a, s.t));
   $('libCount').textContent = `· ${songs.length} songs` + (shown.length < all.length ? `, ${shown.length} shown` : '');
@@ -2794,7 +2834,7 @@ $('btnMarathon').onclick = () => {
   const sel = S.marathon || { kinds: ['songs'], src: ['lib'], pods: Object.keys(R.podShows || {}) };
   const src = $('marSrc'); src.innerHTML = '';
   src.appendChild(chip('lib', `Your Library · ${songs.length}`)); src.appendChild(chip('fav', `Liked Songs · ${(lib.fav || []).length}`));
-  (lib.lists || []).forEach(L => src.appendChild(chip('list:' + L.key, `${L.name} · ${listSongs(L).length}`)));
+  allLists().forEach(L => src.appendChild(chip('list:' + L.key, `${L.name} · ${listSongs(L).length}`)));
   const gen = $('marGenres'); gen.innerHTML = '';
   (R.runs || []).forEach(r => gen.appendChild(chip('run:' + r.id, `${r.short} · ${songs.filter(x => r.genres.includes(x.genre)).length}`)));
   const on = sel.src || [];

@@ -21,7 +21,7 @@ Where the two disagree, **this file wins**.
 
 - **Name:** Feel Good Inc. FM. **Host:** Luna. **Co-host:** Joe. (Swapped on 2026-11-13 at the owner's request: Luna was the co-host before.)
 - **Language:** English only (host, co-host, bulletin, interface). **Moroccan songs are the owner's picks only**
-  (16 November 2026: Hoba Hoba Spirit, Betweenatna, Darga, Mazagan, Heat Spirit). No old Moroccan music, no tarab, no
+  (16 November 2026: Hoba Hoba Spirit, Betweenatna, Darga, Mazagan, Heat Spirit, Madd, Stormy, Mirv48, Draganov). No old Moroccan music, no tarab, no
   chaabi.
 - **Tone:** full of energy, positive, motivating, funny, as if Luna is talking to her. **Not existential.** Not bossy:
   advice is offered ("if you feel like it…"), never ordered.
@@ -136,6 +136,14 @@ work / 5 min break, with a soft chime). Her own stations can be added as before.
 - **Aquacore station** (Homework): mostly calm Frutiger Aero mixes (12, the owner's favourite kind), plus Endless Ocean,
   Aquatic Ambience, Dire, Dire Docks and Ecco the Dolphin's ambience: 17 long tracks with exact videos. No Wii music, no
   Beach Bowl Galaxy, Lake Hylia or Animal Crossing (the owner's picks, 16 November 2026).
+
+- **Family playlists** (16 November 2026): "Uncle's Favorites" and "Father's Favorites" (`R.giftLists`, content.js),
+  filled by the owner later, read-only for Rim (play and shuffle), shown in Playlists once they have songs. Luna names
+  them and says a short line when one starts (`R.giftListLines`): the owner's exception to "never mention the uncle".
+- **Import from Spotify**: Add a song > the playlist box accepts a Spotify playlist or album link. The radio reads its
+  public embed page (up to 50 songs per page; the playlist must be public), leaves out the songs Spotify marks
+  explicit (clean versions only), finds the rest on YouTube, and saves them as a playlist after she unticks any.
+- **The heart while the host talks**: after a song ends, the heart is for that song until the next one starts.
 
 ## 10. Just music
 
@@ -290,7 +298,7 @@ For an old PC and slow Wi-Fi, on the website and the desktop app:
 - **Build** (`tools/release/build.ps1`, on Windows): Node.js renamed FeelGoodHelper.exe, the helper, the page, the
   launcher and the icon. The installer is about 30 MB.
 - **Releases** run only by hand (Actions > Release > Run workflow), after writing the version in `tools/release/VERSION`.
-- **What is in it (13 November 2026):** 773 clean songs (Moroccan: the owner's picks, 10 entries including Betweenatna live at Bab'Live) (790 checked + clean radio edits of "Feel Good Inc." and
+- **What is in it (13 November 2026):** 782 clean songs (Moroccan: the owner's picks, 14 entries including Betweenatna live at Bab'Live; PinkPantheress added 16 November) (790 checked + clean radio edits of "Feel Good Inc." and
   "Clint Eastwood", fan uploads labelled clean), 9 Album Party albums (Demon Days, Plastic Beach, The Dark Side of the
   Moon, A Night at the Opera, Salad Days, Off the Wall, Thriller, Discovery, Oracular Spectacular; explicit tracks left
   out), 78 podcast episodes, 15 concerts, 5 Homework stations (89 tracks) and 6 ambient sounds. Albums that lost more

@@ -186,7 +186,7 @@ async function longVideos(q) {
     .filter(v => v.id && v.seconds >= 1800 && !/live|#shorts/i.test(v.title)).slice(0, 10);
 }
 // ---------- news: the radio page reads the news sites through here (only these sites), and picks the headlines itself ----------
-const NEWS_HOSTS = /(^|\.)(pitchfork\.com|nme\.com|consequence\.net|theguardian\.com|rollingstone\.com|dexerto\.com|ign\.com|feedburner\.com|gamespot\.com|eurogamer\.net|goodnewsnetwork\.org|upi\.com|open-meteo\.com|wikipedia\.org)$/i;
+const NEWS_HOSTS = /(^|\.)(open\.spotify\.com|pitchfork\.com|nme\.com|consequence\.net|theguardian\.com|rollingstone\.com|dexerto\.com|ign\.com|feedburner\.com|gamespot\.com|eurogamer\.net|goodnewsnetwork\.org|upi\.com|open-meteo\.com|wikipedia\.org)$/i;
 async function newsFetch(url) {
   const u = new URL(url);
   if (!/^https?:$/.test(u.protocol) || !NEWS_HOSTS.test(u.hostname)) throw new Error('not a news site');

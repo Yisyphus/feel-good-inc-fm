@@ -143,6 +143,17 @@ window.RADIO = window.RADIO || {};
     [/\bFM\b/g, 'F M'], [/\bR&B\b/g, 'R and B'], [/\b&\b/g, 'and'], [/ - /g, ', '], [/\s—\s/g, ', '], [/…/g, '...'],
   ];
   // The desktop app's own voices (Kokoro) read some words differently from Edge's: these come first, then R.sayAs.
+  // Two playlists the family fills for Rim (the owner adds the songs here, as 'Artist|Title|YouTube id'). A list shows in
+  // Playlists once it has songs. Luna may name them and say a word about them (the owner's choice, 16 November 2026).
+  R.giftLists = [
+    { key: 'gift-uncle', name: "Uncle's Favorites", color: '#00e5ff', sticker: 'cassette', songs: [] },
+    { key: 'gift-father', name: "Father's Favorites", color: '#ffe600', sticker: 'vinyl', songs: [] },
+  ];
+  R.giftListLines = [
+    'Here comes {name}: a playlist picked just for you, Rim. Enjoy every song.',
+    'Time for {name}. Every song in here was chosen with you in mind.',
+    'Now playing {name}. Good taste runs in the family.',
+  ];
   R.kokoroSay = [
     [/\bRim\b/g, 'Ream'], [/\bGorillaz\b/g, 'Gorillas'], [/\bInc\.\s*(?=FM\b|F M\b)/g, 'Ink '], [/\bInc\./g, 'Ink.'], [/\bInc\b/g, 'Ink'],
     [/\bAC\/DC\b/g, 'AC DC'], [/\bAlvvays\b/g, 'Always'], [/\bCuco\b/g, 'Kooko'], [/\bLaufey\b/g, 'Lay-vay'],
