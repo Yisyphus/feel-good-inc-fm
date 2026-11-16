@@ -146,7 +146,17 @@ window.RADIO = window.RADIO || {};
   // Two playlists the family fills for Rim (the owner adds the songs here, as 'Artist|Title|YouTube id'). A list shows in
   // Playlists once it has songs. Luna may name them and say a word about them (the owner's choice, 16 November 2026).
   R.giftLists = [
-    { key: 'gift-uncle', name: "Uncle's Favorites", color: '#00e5ff', sticker: 'cassette', songs: [] },
+    { key: 'gift-uncle', name: "Uncle's Favorites", color: '#00e5ff', sticker: 'cassette', songs: [
+      'Radiohead|Subterranean Homesick Alien|d1tQFX_9ct0',
+      'King Crimson|I Talk to the Wind|UlKrH07au6E',
+      'El Waili ft. Yucifer|Al Abd wal Waili|2M7ciSXwjEI',
+      'M83|Wait|lAwYodrBr2Q',
+      'Pink Floyd|Fearless|IkgaMFjo_lI',
+      'Frank Sinatra|My Way|RMnNpEWUGAs',
+      'MIKA|Relax, Take It Easy|RVmG_d3HKBA',
+      'The Police|Message in a Bottle|MbXWrmQW-OE',
+      'Hello Psychaleppo|Tarab Dub|RwgCSUQWbzg',
+    ] },
     { key: 'gift-father', name: "Father's Favorites", color: '#ffe600', sticker: 'vinyl', songs: [] },
   ];
   R.giftListLines = [
