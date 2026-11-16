@@ -34,7 +34,7 @@ const MAX_DISCOVERED = 220;
 
 // ---------- state ----------
 let lib = { user: [], cache: {}, removed: [], settings: {}, trim: {}, disc: {} };
-let S = { talk: 'normal', rate: 88, voice: '', sleep: 0, vol: 80, trim: 5, news: 'on', fade: 3, justMusic: false };
+let S = { talk: 'normal', rate: 100, voice: '', sleep: 0, vol: 80, trim: 5, news: 'on', fade: 3, justMusic: false };
 let songs = [];
 let current = null, history = [], played = [], upNext = [], planned = null, preload = null;
 let batch = null, startAnnounce = null, lastRunSong = null; // genre run state
@@ -55,6 +55,7 @@ function normalizeLib() {
   lib.used = lib.used || {}; lib.b = lib.b || 0; lib.trim = lib.trim || {}; lib.disc = lib.disc || {}; lib.cache = lib.cache || {}; lib.user = lib.user || []; lib.removed = lib.removed || []; lib.lists = lib.lists || [];
   S = Object.assign(S, lib.settings || {});
   if (!S.voices3) { S.voice = ''; S.lunaVoice = ''; S.bulletinVoice = ''; S.voices3 = 1; }   // the new automatic voices (Emily, Brian), once
+  if (!S.rate3) { if (!S.rate || S.rate === 88) S.rate = 100; S.rate3 = 1; }   // normal talking speed, the owner's pick, once
   if (!S.fade3) { if (S.fade === 2 || S.fade === undefined) S.fade = 3; else if (S.fade === 4) S.fade = 5; S.fade3 = 1; }   // fades of 3 s (long: 5 s), once
   if (!S.rate2) { if (!S.rate || S.rate === 100) S.rate = 88; S.rate2 = 1; }   // the owner's chosen talking speed, once
   if (!S.roles2) { const v = S.voice, l = S.lunaVoice; S.voice = l || ''; S.lunaVoice = v === '__online' ? '' : (v || ''); S.roles2 = 1; }   // Luna became the host: the two chosen voices change places once
@@ -243,7 +244,7 @@ function loadVoices() {
   const en = [...voices].filter(isEn).sort((a, b) => /natural/i.test(b.name) - /natural/i.test(a.name) || a.name.localeCompare(b.name));
   const fill = (id, autoLabel, key, online) => { const el = $(id); if (!el) return; el.innerHTML = ''; const add = (val, label) => { const o = document.createElement('option'); o.value = val; o.textContent = label; el.appendChild(o); };
     add('', autoLabel); if (online) add(ONLINE, 'Online voice (if the others sound wrong)'); en.forEach(v => add(v.name, nice(v))); el.value = S[key] && (S[key] === ONLINE || en.some(v => v.name === S[key])) ? S[key] : ''; };
-  fill('voiceSel', 'Automatic (Emily, natural)', 'voice', true);
+  fill('voiceSel', 'Automatic (Aria, natural)', 'voice', true);
   fill('lunaSel', 'Automatic (Brian Multilingual, natural)', 'lunaVoice');
   fill('bulletinSel', "Automatic (Joe's voice)", 'bulletinVoice');
   const note = $('voiceNote');
@@ -253,7 +254,7 @@ function hostVoice() {
   if (S.voice === ONLINE) return null;
   if (S.voice) { const v = voices.find(v => v.name === S.voice); if (v) return v; }
   const en = voices.filter(isEn);
-  const pref = [/emily.*natural/i, /sonia.*natural/i, /libby.*natural/i, /(emma|ava).*natural/i, /(jenny|aria).*natural/i, /natural/i, /zira|hazel|susan|aria|jenny|samantha|female/i];   // Luna: Pale Blue Dot's Luna voice
+  const pref = [/aria.*natural/i, /emily.*natural/i, /(jenny|emma|ava).*natural/i, /(sonia|libby).*natural/i, /natural/i, /zira|hazel|susan|aria|jenny|samantha|female/i];   // Luna: Aria (the owner's pick), then Emily
   for (const p of pref) { const v = en.find(v => p.test(v.name)); if (v) return v; }
   return en[0] || null;
 }
