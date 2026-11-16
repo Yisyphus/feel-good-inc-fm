@@ -829,6 +829,7 @@ async function resolveFocus(s) {
   } catch { return []; }
 }
 function paintFocus() {
+  document.body.classList.toggle('dream', !!focusMode);   // the dream skin while Homework mode is on
   const b = $('btnFocus'); if (b) { b.classList.toggle('on', !!focusMode); b.title = focusMode ? 'Homework mode is on (' + (focusMode === 'sounds' ? 'ambient sounds' : (focusStation(focusMode) || { label: 'chill beats' }).label) + ')' : 'Homework mode'; }
   const box = $('focusStations'); box.innerHTML = '';
   allStations().forEach(st => {

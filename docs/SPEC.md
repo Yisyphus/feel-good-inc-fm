@@ -128,6 +128,11 @@ tracks, `aka`, lengths, five checks), plus the clean rule above. Luna's notes: f
 Lofi, chill beats, game-like ambience, instrumental stations; no talk, no shows. A **study timer** (e.g. 25 min
 work / 5 min break, with a soft chime). Her own stations can be added as before.
 
+- **The dream skin** (16 November 2026): while Homework mode is on, the radio wears a dreamcore aqua skin, like Windows
+  XP's crystal look (a bright sky over still water, glossy glass panels and bubble buttons, `body.dream` in
+  index.html). Gradients only: no picture to download, no blur, no animation. It goes back to the neon skin when
+  Homework mode ends.
+
 ## 10. Just music
 
 - A **big switch on the main screen**: Luna and Joe silent, no jingles, no ambient pad, no missions, side quests,

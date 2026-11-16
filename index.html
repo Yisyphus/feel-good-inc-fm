@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="pbd-version" content="2026-11-16T11:20:31Z">
+<meta name="pbd-version" content="2026-11-16T11:25:36Z">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Feel Good Inc. FM</title>
 <link rel="icon" type="image/png" href="icon.png">
@@ -215,6 +215,66 @@ select{background:var(--panel);border:2px solid var(--line);border-radius:10px;c
 .tune .big svg{width:34px;height:34px;fill:currentColor}
 .tune small{font-size:12px;font-weight:700;letter-spacing:.12em;color:var(--cyan);text-transform:uppercase}
 #yt{position:fixed;left:-9999px;top:0;width:200px;height:400px}
+/* Dream skin: Homework mode only. Dreamcore aqua, like Windows XP's crystal look: a bright sky over still water,
+   glossy glass panels and bubble buttons. Gradients only (no picture to download, no blur, no animation). */
+body.dream{
+  --bg:#e8f8ff; --panel:rgba(255,255,255,.72); --panel2:#d2f0ff; --line:#8fd0ec;
+  --pink:#079fd6; --cyan:#0a8fc4; --green:#6fc23a; --yellow:#ffffff;
+  --cream:#0b3550; --mute:#3d6b88; --ink:#ffffff;
+  --display:'Trebuchet MS','Segoe UI',Tahoma,sans-serif; --body:'Segoe UI',Tahoma,'Trebuchet MS',sans-serif;
+  color-scheme:light;
+  background:
+    radial-gradient(ellipse 38% 9% at 22% 16%,rgba(255,255,255,.95),rgba(255,255,255,0) 70%),
+    radial-gradient(ellipse 30% 7% at 70% 10%,rgba(255,255,255,.9),rgba(255,255,255,0) 70%),
+    radial-gradient(ellipse 45% 10% at 82% 30%,rgba(255,255,255,.75),rgba(255,255,255,0) 70%),
+    radial-gradient(circle at 12% 74%,rgba(255,255,255,.55) 0 14px,rgba(255,255,255,0) 15px),
+    radial-gradient(circle at 86% 66%,rgba(255,255,255,.5) 0 22px,rgba(255,255,255,0) 23px),
+    radial-gradient(circle at 78% 86%,rgba(255,255,255,.45) 0 9px,rgba(255,255,255,0) 10px),
+    radial-gradient(circle at 26% 90%,rgba(255,255,255,.4) 0 6px,rgba(255,255,255,0) 7px),
+    linear-gradient(180deg,#7fd3ff 0%,#bdeaff 38%,#e9fbff 56%,#9fe3f2 57%,#46b9d8 78%,#1d8fb8 100%) fixed;
+}
+body.dream .card{background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(225,246,255,.78) 48%,rgba(205,239,255,.8) 52%,rgba(232,249,255,.85));border:1.5px solid rgba(255,255,255,.95);box-shadow:0 0 0 1px #7cc6e6,0 6px 18px rgba(16,110,160,.25),inset 0 1px 0 #fff}
+body.dream .brand b span{color:#079fd6}
+body.dream .vinyl{background:radial-gradient(circle at 34% 28%,#ffffff 0 9%,rgba(255,255,255,0) 26%),radial-gradient(circle at 50% 60%,#7fdcff,#139fd8 62%,#0a6c9e);box-shadow:0 0 0 3px #fff,0 0 0 5px #7cc6e6,0 8px 22px rgba(10,110,160,.35)}
+body.dream .vinyl:before{background:radial-gradient(ellipse 60% 30% at 50% 18%,rgba(255,255,255,.75),rgba(255,255,255,0) 70%)}
+body.dream .vinyl.talk{box-shadow:0 0 0 3px #fff,0 0 0 5px #6fc23a,0 8px 22px rgba(10,110,160,.35)}
+body.dream .label{box-shadow:0 0 0 3px #fff}
+body.dream .label:after{background:#0b3550}
+body.dream .cap{background:linear-gradient(180deg,rgba(255,255,255,.95),rgba(232,248,255,.85));border:1.5px solid #9fd8f0;box-shadow:inset 0 1px 0 #fff}
+body.dream .cap small{color:#079fd6}
+body.dream .ctrl button{color:#0b5a82}
+body.dream .ctrl .play{background:radial-gradient(circle at 50% 22%,#e9fbff 0 18%,rgba(255,255,255,0) 46%),linear-gradient(180deg,#5fd0ff,#0d8fd0 55%,#0a74b0);color:#fff;box-shadow:0 0 0 3px #fff,0 0 0 4px #5fb7dc,0 6px 14px rgba(10,110,160,.4)}
+body.dream .ctrl .play:hover{color:#fff}
+body.dream .bar{background:#bfe6f5}
+body.dream .bar i{background:linear-gradient(180deg,#9fe8ff,#0d9ad6)}
+body.dream input[type=range]{background:#bfe6f5}
+body.dream input[type=range]::-webkit-slider-thumb{background:linear-gradient(180deg,#e9fbff,#2aa8e0);border:2px solid #fff;box-shadow:0 0 0 1px #5fb7dc}
+body.dream .just{background:linear-gradient(180deg,#fff,#dff4ff);border-color:#9fd8f0}
+body.dream .just .knob{background:#9fc9dc}
+body.dream .just.on .knob:after{background:#fff}
+body.dream .dock .tool:hover{background:rgba(255,255,255,.7);color:#0b3550}
+body.dream .dock .tool.on{color:#fff;background:linear-gradient(180deg,#8fe0ff,#119ad8 55%,#0b7fbc);box-shadow:inset 0 1px 0 rgba(255,255,255,.8)}
+body.dream .dock .tool.big svg{stroke:#079fd6}
+body.dream .btn{background:linear-gradient(180deg,#9fe6ff,#1aa3dd 52%,#0d86c4);color:#fff;border:1px solid #0b78b0;box-shadow:inset 0 1px 0 rgba(255,255,255,.85)}
+body.dream .btn.ghost{background:linear-gradient(180deg,#fff,#e3f6ff);color:#0b3550;border:1.5px solid #9fd8f0;box-shadow:none}
+body.dream .seg button.on{background:linear-gradient(180deg,#9fe6ff,#1aa3dd);color:#fff}
+body.dream .grp{color:#0a8fc4}
+body.dream .sheet{background:linear-gradient(180deg,#f2fcff,#dff4ff)}
+body.dream .item{background:rgba(255,255,255,.8)}
+body.dream .focus-menu{background:linear-gradient(180deg,#f6fdff,#e0f5ff);border-color:#9fd8f0;box-shadow:0 8px 24px rgba(16,110,160,.25)}
+body.dream .focus-menu button:hover,body.dream .focus-menu button.on{background:#d2f0ff;color:#0b5a82}
+body.dream #btnStudy{background:#fff}
+body.dream #btnStudy.on{background:linear-gradient(180deg,#c8f59c,#6fc23a);color:#0b3550}
+body.dream .study-tag{background:linear-gradient(180deg,#c8f59c,#6fc23a);color:#0b3550}
+body.dream .onair.live{color:#079fd6;border-color:#079fd6}
+body.dream .onair.live i{background:#079fd6}
+body.dream .run-info{color:#fff}
+body.dream .toast{background:#fff;color:#0b3550;border:1.5px solid #9fd8f0;box-shadow:0 6px 18px rgba(16,110,160,.25)}
+body.dream .tour{background:#fff;color:#0b3550;border-color:#5fb7dc}
+body.dream .tour .btn{background:linear-gradient(180deg,#9fe6ff,#1aa3dd);color:#fff}
+body.dream .tune{background:rgba(190,236,255,.88)}
+body.dream .chip{border-color:#9fd8f0}
+body.dream .cover,body.dream .swatch{box-shadow:0 0 0 2px #fff}
 /* mini player */
 body.mini .stage .vinyl,body.mini .cap,body.mini .times,body.mini .bar,body.mini .dock,body.mini .volrow,body.mini .just,body.mini .lyrics{display:none}
 body.mini .np{min-height:0}
@@ -471,6 +531,6 @@ body.mini .app{gap:6px}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js?v=2f564483690cf7d0"></script>
 <script src="cloud.js?v=fee9c7cfc27da2b8"></script>
-<script src="app.js?v=ff88710b26ac3a51"></script>
+<script src="app.js?v=9e57bbc7eb644310"></script>
 </body>
 </html>

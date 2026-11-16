@@ -1,6 +1,6 @@
 {
  "files": {
-  "app.js": "ff88710b26ac3a51",
+  "app.js": "9e57bbc7eb644310",
   "bg.webp": "2c55ada11354d1bc",
   "check.html": "45ae02f4328db3c4",
   "cloud.js": "fee9c7cfc27da2b8",
@@ -15,10 +15,10 @@
   "content_trivia.js": "0c99eded051486d8",
   "firebase-config.js": "2f564483690cf7d0",
   "icon.png": "414972388b2218eb",
-  "index.html": "68daa81be1839bbc",
+  "index.html": "a1c7437376f59eaa",
   "jingles.js": "7f59ee5d7730845e",
   "stickers.js": "2e454ec8e83c28a4"
  },
  "server": "3f374ca7a9da55b4",
- "version": "2026-11-16T11:20:31Z"
+ "version": "2026-11-16T11:25:36Z"
 }
