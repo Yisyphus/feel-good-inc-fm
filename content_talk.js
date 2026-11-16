@@ -34,6 +34,12 @@
     'Fresh from the {station} record crate: {a}, {t}.', 'Rim, this one is for you. Well, they all are. {t}.',
     'Next up is {a}. Joe says this one is his favourite. He says that about every song.', 'Here we go: {t}.',
   ];
+  // a live performance (a catalog entry whose title starts with "Live"): announced as one
+  R.liveIntros = [
+    'Something special now: a live performance. Here is {a}, {t}. Imagine the crowd, and enjoy the show.',
+    'Time for a live one! {a} on stage: {t}. Turn it up, this is the next best thing to being there.',
+    'Live music time. {a}, {t}. Close your eyes and you are in the front row.',
+  ];
   R.newSongTemplates = [
     'This one is a song you added yourself: {t}, by {a}. Excellent taste, by the way.',
     'From your own picks: {a}, with {t}.', 'A Rim pick! {t}, by {a}. The radio approves.',

@@ -918,6 +918,7 @@ function genreNote(s, prev) {
 // Shout-outs from Add a song: kept only here, in memory, until Joe has said them; never saved, synced or logged.
 const dedications = new Map();
 function introFor(s, prev) {
+  if (s.live && R.liveIntros && R.liveIntros.length && !dedications.has(s.key)) return sub(fresh('live', R.liveIntros), s);
   if (dedications.has(s.key)) {   // a few words from Joe, your words exactly, then the song
     const d = dedications.get(s.key).replace(/[.!?،]+$/, ''); dedications.delete(s.key);
     return sub(fresh('dedication', R.dedicationLines || ['A dedication now. {d}. Here is {a}, {t}.']), s).replace('{d}', () => d);

@@ -197,6 +197,7 @@
     "Hoba Hoba Spirit|Black Moussiba|moroccan|fun,rebel|hype|4",
     "Hoba Hoba Spirit|Fhamator|moroccan|fun|hype|4",
     "Hoba Hoba Spirit|Caïd Motorhead|moroccan|rebel,fun|hype|5",
+    "Betweenatna|Live at Bab'Live|moroccan|fun,dance,self|hype|4",
     "Betweenatna|Mi Lalla|moroccan|love,growing-up|warm|3",
     "Radiohead|Karma Police|art-rock|weird,self|moody|3",
     "Radiohead|Street Spirit (Fade Out)|art-rock|dreams|moody|2",
@@ -773,6 +774,6 @@
     "Massive Attack|Teardrop|alt-pop|love,dreams|dreamy|2",
   ].map(line => {
     const [a, t, g, th, m, e] = line.split('|');
-    return { a, t, genre: g, tags: (th || '').split(',').filter(Boolean), mood: m || 'happy', energy: +e || 3, lang: g === 'moroccan' ? 'ar' : 'en', cat: true };
+    return { a, t, genre: g, tags: (th || '').split(',').filter(Boolean), mood: m || 'happy', energy: +e || 3, lang: g === 'moroccan' ? 'ar' : 'en', cat: true, live: /^live\b|\(live\b/i.test(t) };
   });
 })();
