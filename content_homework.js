@@ -7,6 +7,10 @@
     { id: 'lofigirl', label: 'Lofi Girl: study mixes', note: 'long mixes, one to ten hours', tracks: [
       'Lofi Girl|lofi hip hop mix, beats to relax and study to (Part 1)', 'Lofi Girl|lofi hip hop mix, beats to relax and study to (Part 2)', 'Lofi Girl|Best of lofi hip hop 2021', 'Lofi Girl|Best of lofi hip hop 2022', 'Lofi Girl|Best of lofi 2018', 'Lofi Girl|A Book, a Blanket, and the Autumn Breeze', 'Lofi Girl|Morning Coffee', 'Lofi Girl|Lazy Sunday', 'Lofi Girl|chill music for work', 'Lofi Girl|winter lofi mix', 'Lofi Girl|jazz lofi mix', 'Lofi Girl|Soothing Breeze',
     ] },
+    // Aquacore: dreamy, watery music (underwater game music, Frutiger Aero mixes), the sound of the dream skin
+    { id: 'aqua', label: 'Aquacore', note: 'dreamy underwater music, bubbles and blue', tracks: [
+      'David Wise|Aquatic Ambience (Donkey Kong Country, extended)', 'Koji Kondo|Dire, Dire Docks (Super Mario 64, extended)', 'Wii Sports Resort|Main Theme (extended)', 'Ayako Saso|Endless Ocean (soundtrack)', 'Ayako Saso|Endless Ocean: Blue World (soundtrack)', 'Ecco the Dolphin|Ambient music', 'Kirby 64|Aqua Star (extended)', 'Animal Crossing|Museum fish exhibit, with rain', 'Frutiger Aero|Relaxing Frutiger Aero mix', 'Frutiger Aero|Calming Frutiger Aero, 1 hour', 'Frutiger Aero|A calm Frutiger Aero playlist: aquatic ambience', 'Zelda: Twilight Princess|Lake Hylia', 'Super Mario Galaxy|Beach Bowl Galaxy', 'Wii|Mii Channel music (10 minutes)',
+    ] },
     { id: 'lofi', label: 'Lofi & Chill Beats', note: 'soft beats for homework', tracks: [
       'Nujabes|Aruarian Dance', 'Nujabes|Reflection Eternal', 'Nujabes|Spiral', 'Nujabes|Kumomi', 'Nujabes|The Final View', 'Nujabes|Horizon',
       'Jinsang|Affection', 'Jinsang|Solitude',

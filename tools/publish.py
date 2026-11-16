@@ -10,7 +10,7 @@ ix = re.sub(r'(src|href)="([\w.-]+\.(?:js|css|png|webp))\?v=[a-f0-9]+"', lambda 
 ix = re.sub(r'<meta name="pbd-version" content="[^"]*">', f'<meta name="pbd-version" content="{ver}">', ix)
 open('index.html', 'w').write(ix)
 used = re.findall(r'(?:src|href)="([\w.-]+\.(?:js|css|png|webp))(?:\?v=[a-f0-9]+)?"', ix)
-files = sorted(set(used + ['index.html', 'icon.png', 'bg.webp', 'check.html']))
+files = sorted(set(used + ['index.html', 'icon.png', 'bg.webp', 'aqua.webp', 'check.html']))
 missing = [f for f in files if not os.path.exists(f)]
 if missing: raise SystemExit('missing files: ' + ', '.join(missing))
 j = {'files': {f: h(f) for f in files}, 'server': h('server.js'), 'version': ver}

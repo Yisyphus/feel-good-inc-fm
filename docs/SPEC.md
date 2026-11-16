@@ -128,10 +128,13 @@ tracks, `aka`, lengths, five checks), plus the clean rule above. Luna's notes: f
 Lofi, chill beats, game-like ambience, instrumental stations; no talk, no shows. A **study timer** (e.g. 25 min
 work / 5 min break, with a soft chime). Her own stations can be added as before.
 
-- **The dream skin** (16 November 2026): while Homework mode is on, the radio wears a dreamcore aqua skin, like Windows
-  XP's crystal look (a bright sky over still water, glossy glass panels and bubble buttons, `body.dream` in
-  index.html). Gradients only: no picture to download, no blur, no animation. It goes back to the neon skin when
-  Homework mode ends.
+- **The dream skin** (16 November 2026): while Homework mode is on, the radio wears a dreamcore aqua / Frutiger Aero skin,
+  like Windows XP's crystal look: an underwater scene (`aqua.webp`, about 60 KB, an original drawing made by
+  `tools/aqua-art.py`, no logos) with bubbles, tropical fish, a glossy globe, a dolphin, glass stars, a lime heart and a
+  shiny CD, behind glossy glass panels and bubble buttons (`body.dream` in index.html). No blur, no animation; the
+  picture is only fetched in Homework mode. It goes back to the neon skin when Homework mode ends.
+- **Aquacore station** (Homework): dreamy underwater music, 14 long tracks with exact videos (Aquatic Ambience, Dire,
+  Dire Docks, Endless Ocean, Ecco the Dolphin, Frutiger Aero mixes…).
 
 ## 10. Just music
 
@@ -205,7 +208,7 @@ For an old PC and slow Wi-Fi, on the website and the desktop app:
 ## 13. Voices (English)
 - **Edge's natural voices, in the app and on the website** (16 November 2026: back from Kokoro, which paused between
   phrases and sounded flat on the owner's PC; Edge's voices are made by Microsoft online, so an old PC does no voice
-  work). The same voices as Pale Blue Dot: **Luna = Aria** (the owner's pick, 16 November 2026; then Emily, Jenny, Emma or Ava),
+  work). The same voices as Pale Blue Dot: **Luna = Ava Multilingual** (the owner's pick, 16 November 2026; then Ava, Aria, Emma or Jenny),
   **Joe = Brian Multilingual** (Pale Blue Dot's Astro; then Andrew, Guy), the bulletin in Joe's voice unless another is
   chosen. Talking speed 100 (normal) by default. Changeable in Settings. Pronunciation fixes in `R.sayAs`. Other browsers: their own voices, an online one
   as the last resort.

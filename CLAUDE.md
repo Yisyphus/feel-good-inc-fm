@@ -7,7 +7,7 @@ Rim's radio, built from Pale Blue Dot Radio.
 - This repo, `Yisyphus/feel-good-inc-fm`, is the only source of truth. Work on `main`.
 - The website is Firebase Hosting, `https://rim-fm.web.app/` (Firebase project `rim-fm`), deployed from `main`.
 - The Windows app is Microsoft Edge in app mode (launcher `tools/release/Feel Good Inc FM.vbs`) plus the helper
-  (`server.js`, Node renamed FeelGoodHelper.exe), like Pale Blue Dot. Voices are Edge's natural ones (Luna = Aria,
+  (`server.js`, Node renamed FeelGoodHelper.exe), like Pale Blue Dot. Voices are Edge's natural ones (Luna = Ava Multilingual,
   Joe = Brian Multilingual). The helper's watcher keeps it playing when minimized (minimize = hide). It updates itself
   from that address (`cloud.json` `appUrl`); a new launcher or installer needs a new release (`tools/release/VERSION`,
   then run the `Release` workflow). The installer checks the PC first (`tools/release/check-pc.ps1`).

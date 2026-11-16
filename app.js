@@ -244,7 +244,7 @@ function loadVoices() {
   const en = [...voices].filter(isEn).sort((a, b) => /natural/i.test(b.name) - /natural/i.test(a.name) || a.name.localeCompare(b.name));
   const fill = (id, autoLabel, key, online) => { const el = $(id); if (!el) return; el.innerHTML = ''; const add = (val, label) => { const o = document.createElement('option'); o.value = val; o.textContent = label; el.appendChild(o); };
     add('', autoLabel); if (online) add(ONLINE, 'Online voice (if the others sound wrong)'); en.forEach(v => add(v.name, nice(v))); el.value = S[key] && (S[key] === ONLINE || en.some(v => v.name === S[key])) ? S[key] : ''; };
-  fill('voiceSel', 'Automatic (Aria, natural)', 'voice', true);
+  fill('voiceSel', 'Automatic (Ava Multilingual, natural)', 'voice', true);
   fill('lunaSel', 'Automatic (Brian Multilingual, natural)', 'lunaVoice');
   fill('bulletinSel', "Automatic (Joe's voice)", 'bulletinVoice');
   const note = $('voiceNote');
@@ -254,7 +254,7 @@ function hostVoice() {
   if (S.voice === ONLINE) return null;
   if (S.voice) { const v = voices.find(v => v.name === S.voice); if (v) return v; }
   const en = voices.filter(isEn);
-  const pref = [/aria.*natural/i, /emily.*natural/i, /(jenny|emma|ava).*natural/i, /(sonia|libby).*natural/i, /natural/i, /zira|hazel|susan|aria|jenny|samantha|female/i];   // Luna: Aria (the owner's pick), then Emily
+  const pref = [/ava multilingual.*natural/i, /ava.*natural/i, /aria.*natural/i, /(emma|jenny|emily).*natural/i, /natural/i, /zira|hazel|susan|aria|jenny|samantha|female/i];   // Luna: Ava Multilingual (the owner's pick), then Ava, Aria
   for (const p of pref) { const v = en.find(v => p.test(v.name)); if (v) return v; }
   return en[0] || null;
 }
