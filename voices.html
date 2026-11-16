@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voice tester · Feel Good Inc. FM</title>
+<link rel="icon" type="image/png" href="icon.png">
+<style>
+/* Try every voice this browser has (open it in Microsoft Edge for the natural ones). Not part of the radio. */
+:root{--bg:#0d0b14;--panel:#17132a;--panel2:#211b3a;--line:#342c5c;--pink:#ff3ea5;--cyan:#00e5ff;--green:#7cff3a;--yellow:#ffe600;--cream:#fff;--mute:#bcb4dc;--ink:#0d0b14;color-scheme:dark}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--cream);font-family:system-ui,'Segoe UI',sans-serif;font-size:15px;line-height:1.45;padding:20px 16px}
+main{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+h1{font-size:22px}
+h1 span{color:var(--pink)}
+.lead{color:var(--mute)}
+.box{background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
+textarea{width:100%;min-height:70px;background:var(--bg);border:2px solid var(--line);border-radius:10px;color:var(--cream);font:inherit;padding:8px 10px;resize:vertical}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.row label{display:flex;gap:6px;align-items:center;color:var(--mute);font-size:14px}
+input[type=range]{width:140px}
+input[type=search]{flex:1;min-width:160px;background:var(--bg);border:2px solid var(--line);border-radius:10px;color:var(--cream);font:inherit;padding:7px 10px}
+button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:7px 12px;font-weight:700}
+.btn{background:var(--pink);color:var(--ink)}
+.ghost{background:none;border:2px solid var(--line);color:var(--cream)}
+.count{color:var(--mute);font-size:13px}
+ul{list-style:none;padding:0;display:flex;flex-direction:column;gap:6px}
+li{display:flex;align-items:center;gap:10px;background:var(--panel);border:2px solid transparent;border-radius:12px;padding:8px 10px}
+li.now{border-color:var(--pink)}
+li .name{flex:1;min-width:0}
+li .name b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+li .name small{color:var(--mute);font-size:12.5px}
+.tag{font-size:11px;font-weight:700;border-radius:99px;padding:1px 7px;margin-left:4px;vertical-align:1px}
+.tag.nat{background:var(--green);color:var(--ink)}
+.tag.on{background:var(--panel2);color:var(--cyan)}
+li button{background:var(--cyan);color:var(--ink);padding:6px 12px}
+.copy{background:none;border:2px solid var(--line);color:var(--mute);padding:4px 8px;font-size:12px}
+.warn{background:var(--yellow);color:var(--ink);border-radius:12px;padding:10px 12px;font-weight:600}
+</style>
+</head>
+<body>
+<main>
+  <h1>Voice tester <span>·</span> Feel Good Inc. FM</h1>
+  <p class="lead">Every voice this browser can speak with. Type a sentence, then press play on any voice. In Microsoft Edge you get the natural ones (Ava, Andrew, Brian, Emma, Aria…). The radio's own voices are chosen in its Settings.</p>
+  <p class="warn" id="notEdge" hidden>This is not Microsoft Edge, so the natural voices are missing. Open this page in Edge to hear them.</p>
+  <div class="box">
+    <textarea id="text">Hey Rim! Luna here, on Feel Good Inc. FM. It is a beautiful day, and here comes Gorillaz, with Feel Good Inc.</textarea>
+    <div class="row">
+      <label>Speed <input type="range" id="rate" min="0.6" max="1.5" step="0.05" value="1"> <span id="rateV">1.00</span></label>
+      <label>Pitch <input type="range" id="pitch" min="0.6" max="1.5" step="0.05" value="1"> <span id="pitchV">1.00</span></label>
+      <button class="ghost" id="stop">Stop</button>
+    </div>
+  </div>
+  <div class="row">
+    <input type="search" id="q" placeholder="Search a name or language (e.g. Ava, British, ar-MA)">
+    <label><input type="checkbox" id="nat" checked> natural only</label>
+    <label><input type="checkbox" id="en" checked> English only</label>
+    <button class="btn" id="all">Play them all</button>
+  </div>
+  <p class="count" id="count">Loading the voices…</p>
+  <ul id="list"></ul>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const ss = window.speechSynthesis;
+  let voices = [], shown = [], chain = 0;
+  $('notEdge').hidden = /Edg\//.test(navigator.userAgent);
+  const nice = v => v.name.replace(/^Microsoft /, '').replace(/ Online \(Natural\)/, ' (Natural)');
+  const lang = v => { try { const [l, r] = v.lang.split('-'); const dn = new Intl.DisplayNames(['en'], { type: 'language' }), dr = new Intl.DisplayNames(['en'], { type: 'region' }); return dn.of(l) + (r ? ' (' + dr.of(r) + ')' : ''); } catch { return v.lang; } };
+  function speak(v, text, li) {
+    return new Promise(res => {
+      ss.cancel();
+      document.querySelectorAll('li.now').forEach(x => x.classList.remove('now'));
+      if (li) { li.classList.add('now'); li.scrollIntoView({ block: 'nearest' }); }
+      const u = new SpeechSynthesisUtterance(text);
+      u.voice = v; u.lang = v.lang; u.rate = +$('rate').value; u.pitch = +$('pitch').value;
+      u.onend = u.onerror = () => { if (li) li.classList.remove('now'); res(); };
+      ss.speak(u);
+    });
+  }
+  function paint() {
+    const q = $('q').value.trim().toLowerCase(), nat = $('nat').checked, en = $('en').checked;
+    shown = voices.filter(v => (!nat || /natural/i.test(v.name)) && (!en || /^en/i.test(v.lang)) && (!q || (v.name + ' ' + v.lang + ' ' + lang(v)).toLowerCase().includes(q)));
+    $('count').textContent = shown.length + ' of ' + voices.length + ' voices';
+    const ul = $('list'); ul.innerHTML = '';
+    shown.forEach(v => {
+      const li = document.createElement('li');
+      li.innerHTML = '<div class="name"><b></b><small></small></div><button class="copy" title="Copy the name">copy name</button><button>▶ Play</button>';
+      li.querySelector('b').textContent = nice(v);
+      li.querySelector('b').insertAdjacentHTML('beforeend', (/natural/i.test(v.name) ? '<span class="tag nat">natural</span>' : '') + (v.localService ? '' : '<span class="tag on">online</span>'));
+      li.querySelector('small').textContent = lang(v) + ' · ' + v.lang;
+      li.querySelector('button:last-child').onclick = () => { chain++; speak(v, $('text').value, li); };
+      li.querySelector('.copy').onclick = e => { navigator.clipboard && navigator.clipboard.writeText(nice(v)); e.target.textContent = 'copied'; setTimeout(() => { e.target.textContent = 'copy name'; }, 1200); };
+      ul.appendChild(li);
+    });
+  }
+  function load() {
+    voices = ss.getVoices().slice().sort((a, b) => (/natural/i.test(b.name) - /natural/i.test(a.name)) || a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name));
+    if (voices.length) paint();
+  }
+  ss.onvoiceschanged = load; load();
+  setTimeout(() => { if (!voices.length) $('count').textContent = 'No voices found in this browser.'; }, 3000);
+  ['q', 'nat', 'en'].forEach(id => $(id).addEventListener('input', paint));
+  $('rate').oninput = () => { $('rateV').textContent = (+$('rate').value).toFixed(2); };
+  $('pitch').oninput = () => { $('pitchV').textContent = (+$('pitch').value).toFixed(2); };
+  $('stop').onclick = () => { chain++; ss.cancel(); document.querySelectorAll('li.now').forEach(x => x.classList.remove('now')); };
+  $('all').onclick = async () => {   // each voice says its own name, then the sentence
+    const my = ++chain, items = [...document.querySelectorAll('#list li')];
+    for (let i = 0; i < shown.length && my === chain; i++) await speak(shown[i], nice(shown[i]).split(' - ')[0].replace(/\(Natural\)/, '').trim() + '. ' + $('text').value, items[i]);
+  };
+})();
+</script>
+</body>
+</html>
