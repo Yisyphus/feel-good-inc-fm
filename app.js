@@ -2550,7 +2550,7 @@ function openAddTo() {
   (lib.lists || []).slice().reverse().forEach(L => {
     const d = document.createElement('div'); d.className = 'item pl-row'; const has = L.keys.includes(s.key);
     d.innerHTML = coverHTML(L, 40) + '<div class="meta"><b></b><span></span></div>';
-    d.querySelector('b').textContent = L.name; d.querySelector('span').textContent = has ? 'already in it' : `${listSongs(L).length} songs`;
+    d.querySelector('.meta b').textContent = L.name; d.querySelector('.meta span').textContent = has ? 'already in it' : `${listSongs(L).length} songs`;
     d.onclick = () => { addToPlaylist(L, s); openSheet(null); };
     box.appendChild(d);
   });
@@ -2568,7 +2568,7 @@ function renderLists() {
   lm.slice().reverse().forEach(L => {
     const list = listSongs(L), d = document.createElement('div'); d.className = 'item pl-row' + (batch && batch.id === 'list:' + L.key ? ' now' : '');
     d.innerHTML = coverHTML(L) + '<div class="meta"><b></b><span></span></div><button class="mini-btn" title="Play" aria-label="Play">&#9654;</button>';
-    d.querySelector('b').textContent = L.name; d.querySelector('span').textContent = `${list.length} songs · ${howLong(list)}`;
+    d.querySelector('.meta b').textContent = L.name; d.querySelector('.meta span').textContent = `${list.length} songs · ${howLong(list)}`;
     d.querySelector('.meta').onclick = () => { libTab = 'list:' + L.key; renderLib(); };
     d.querySelector('.mini-btn').onclick = () => { if (!list.length) return toast('That playlist is empty. Add songs to it first.'); openSheet(null); startRun('list:' + L.key, { order: true }); };
     l.appendChild(d);
