@@ -22,7 +22,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $v = (Get-Content tools/release/VERSION -Raw).Trim()
-          $notes = "Feel Good Inc. FM $v for Windows 10 or 11. The installer checks the PC first (Edge, internet, disk) and installs Microsoft Edge if it is missing or broken. The radio opens in its own Edge window, with Edge's natural voices (Luna: Emily, Joe: Brian), and keeps playing when minimized.`n`n- **FeelGoodIncFM-Setup-*.exe**: install it (no administrator rights needed, except Windows' one question if Edge must be installed). Installing over an older version keeps the data.`n`nIt updates itself from https://rim-fm.web.app/ after that."
+          $notes = "Feel Good Inc. FM $v for Windows 10 or 11. The installer checks the PC first (Edge, internet, disk) and installs Microsoft Edge if it is missing or broken. The radio opens in its own Edge window, with Edge's natural voices (Luna: Ava, Joe: Andrew), and keeps playing when minimized.`n`n- **FeelGoodIncFM-Setup-*.exe**: install it (no administrator rights needed, except Windows' one question if Edge must be installed). Installing over an older version keeps the data.`n`nIt updates itself from https://rim-fm.web.app/ after that."
           gh release create $v (Get-ChildItem dist\*.exe).FullName --title "Feel Good Inc. FM $v" --notes $notes --target ${{ github.sha }}
       - name: Put the new downloads on the website
         shell: pwsh
