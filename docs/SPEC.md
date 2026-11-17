@@ -310,3 +310,9 @@ For an old PC and slow Wi-Fi, on the website and the desktop app:
   a commercial break: Luna's intro (`R.breakIntros`), jingle, commercial, jingle, commercial, jingle, a line back to the music
   (`R.breakOutros`). The two are drawn from a shuffled bag, so none repeats before all have played.
 - Never in Just music or Homework mode, never during Non-stop or an album. Next skips the commercial on air.
+
+## Family songs in the mix (17 November 2026)
+- Besides their own playlists, the songs of Uncle's Favorites and Father's Favorites come up in the normal mix, one every
+  8 to 10 songs (`R.giftEvery`), from a shuffled bag (`lib.giftBag`). Not in Just music, Homework, Non-stop or an album.
+- Right before one, Luna says which playlist it is from and that it is under Playlists (`R.giftHints`). A family-only song
+  is never picked by the normal mix any other way, so it is always announced.

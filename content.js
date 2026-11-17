@@ -165,6 +165,15 @@ window.RADIO = window.RADIO || {};
       'Nick Drake|River Man|idcaRTg4-fM',
       'King Gizzard & The Lizard Wizard|Am I in Heaven?|hneOa-A7ua0',
       'King Gizzard & The Lizard Wizard|Billabong Valley|WZ4DT0Nz684',
+      'Lee "Scratch" Perry|Chase the Devil|kCmu8BdfaTw',
+      'Everything But The Girl|Missing (Todd Terry Remix)|IXppuue8Gq0',
+      'Skrillex|Ease My Mind (feat. Niki and the Dove)|P0EzrAKRH-Q',
+      "deadmau5|Ghosts 'n' Stuff|oz7-7ouXUJU",
+      'Bell Biv DeVoe|Poison|l80yV7QwCWw',
+      'Cheb Rizgui|Ana Al Ghaltane|N6bI7_OIJqo',
+      'Gotye|State of the Art|xWIKQMBBTtk',
+      'Lindsey Buckingham|Go Insane|usz4eji8cDM',
+      'Depeche Mode|Enjoy the Silence|ojvldIzbaMo',
     ] },
     { key: 'gift-father', name: "Father's Favorites", color: '#ffe600', sticker: 'vinyl', songs: [
       'Dolly Parton|I Will Always Love You|lKsQR72HY0s',
@@ -184,6 +193,14 @@ window.RADIO = window.RADIO || {};
       'Rod Stewart|Sailing|FOt3oQ_k008',
       'Kenny Rogers|Lady|0T1J8JuTtR8',
     ] },
+  ];
+  // A family song in the normal mix (about one every 8 to 10 songs): Luna says where it comes from, right before it
+  R.giftEvery = [8, 10];
+  R.giftHints = [
+    'This next one comes from {name}. You can find the whole playlist under Playlists.',
+    'Here is a song from {name}. If you like it, there is a whole playlist of them under Playlists.',
+    'Coming up, a pick from {name}. The full list is waiting for you under Playlists.',
+    'This one is straight from {name}. Find the rest under Playlists, any time.',
   ];
   R.giftListLines = [
     'Here comes {name}: a playlist picked just for you, Rim. Enjoy every song.',

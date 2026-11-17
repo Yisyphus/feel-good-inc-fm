@@ -775,8 +775,8 @@ function recentSets() {
 function choose(cur, rs) {
   const target = energyTarget();
   const curT = cur && cur.t ? cur.t.toLowerCase() : null;   // also never the same title twice in a row (two Hallelujahs)
-  let pool = songs.filter(s => !rs.recentKeys.has(s.key) && !rs.recentArtists.has((s.a || '').toLowerCase()) && (!cur || s.key !== cur.key) && !restingBroken(s) && (s.t || '').toLowerCase() !== curT);
-  if (pool.length < 15) pool = songs.filter(s => !cur || s.key !== cur.key);
+  let pool = songs.filter(s => !s.gift && !rs.recentKeys.has(s.key) && !rs.recentArtists.has((s.a || '').toLowerCase()) && (!cur || s.key !== cur.key) && !restingBroken(s) && (s.t || '').toLowerCase() !== curT);
+  if (pool.length < 15) pool = songs.filter(s => !s.gift && (!cur || s.key !== cur.key));
   // never a 4th song of the same genre in a row (a strong match used to beat the penalty)
   if (rs.streakGenre) { const p2 = pool.filter(s => s.genre !== rs.streakGenre); if (p2.length >= 15) pool = p2; }
   if (cur && Math.random() < 0.18) {
@@ -791,11 +791,33 @@ function choose(cur, rs) {
   for (let i = 0; i < top.length; i++) { r -= w[i]; if (r <= 0) return { song: top[i].s, why: 'match' }; }
   return { song: top[0].s, why: 'match' };
 }
+// Every 8 to 10 songs of the normal mix (R.giftEvery), one song from a family playlist, from a shuffled bag so each
+// comes once before any repeats. giftHint remembers it, so the host says which playlist it is from right before it.
+let giftHint = null;
+function giftTurn() {
+  if (S.justMusic || marathon || albumShow) return null;
+  const lists = (R.giftLists || []).filter(L => (L.songs || []).length); if (!lists.length) return null;
+  const [lo, hi] = R.giftEvery || [8, 10];
+  if (!lib.giftAt) lib.giftAt = lo + Math.floor(Math.random() * (hi - lo + 1));
+  lib.giftGap = (lib.giftGap || 0) + 1;
+  if (lib.giftGap < lib.giftAt) { saveLib(); return null; }
+  const of = new Map(); lists.forEach(L => L.songs.forEach(line => { const [a, t] = String(line).split('|'); const k = key({ a, t }); if (!of.has(k)) of.set(k, L.name); }));
+  const ok = k => songs.some(s => s.key === k) && !lib.removed.includes(k) && (!current || current.key !== k);
+  lib.giftBag = (lib.giftBag || []).filter(k => of.has(k));
+  if (!lib.giftBag.length) lib.giftBag = shuffle([...of.keys()]);
+  const k = lib.giftBag.find(ok); if (!k) { saveLib(); return null; }
+  lib.giftBag = lib.giftBag.filter(x => x !== k); lib.giftGap = 0; lib.giftAt = 0; saveLib();
+  const s = songs.find(x => x.key === k);
+  giftHint = { key: k, name: of.get(k) };
+  rlog('family song in the mix', { song: k, list: giftHint.name });
+  return s;
+}
 function lastHeard() { const h = (lib.hist || []).slice(-1)[0]; return h ? songs.find(s => s.key === h.k) : null; }
 function pick() {
   if (upNext.length) return upNext.shift();
   if (focusMode && focusOk()) return focusPick();   // the phone and the web cannot search YouTube for them
   if (batch) { const s = nextFromRun(); if (s) return s; }
+  const g = giftTurn(); if (g) return g;
   const c = choose(current || lastHeard(), recentSets());
   lastPick = { key: c.song.key, why: c.why };
   return c.song;
@@ -875,6 +897,7 @@ function planPreload() {
 let preBreak = null;
 function planBreak() {
   if (!kokoroReady() || !planned || !current || preBreak || busy || marathon || albumShow || S.justMusic || planned.focus || current.podcast) return;
+  if (giftHint && giftHint.key === planned.key) return;
   if (songsSinceBreak + 1 < breakEvery() || podcastDue || dedications.has(planned.key)) return;
   if ((lib.adCount || 0) + 1 >= (R.adsEvery || 6)) return;   // the commercials come at that change
   if (lastRunSong && current.key === lastRunSong.key) return;
@@ -1072,6 +1095,7 @@ function makeBreak(prev, next, first) {
   }
   // a Genre Mix is announced last, right before its first song; if a podcast comes first, it waits until after it
   if (adsDue) { adsDue = false; lib.adCount = 0; saveLib(); out.push(...adBreakSegs()); }
+  if (next && giftHint && giftHint.key === next.key && !giftAnnounce) { const nm = giftHint.name; giftHint = null; out.push({ kind: 'Playlist', title: nm, lines: [{ t: sub(fresh('gifthint', R.giftHints || ['This one comes from {name}.'])).replace(/\{name\}/g, nm) }] }); }
   if (giftAnnounce) { out.push({ kind: 'Playlist', title: giftAnnounce, lines: [{ t: sub(fresh('giftlist', R.giftListLines || ['Here comes {name}.'])).replace(/\{name\}/g, giftAnnounce) }] }); giftAnnounce = ''; }
   if (startAnnounce && !podcastDue) { out.push({ kind: 'Genre Mix', title: startAnnounce, lines: [{ t: sub(fresh('runstart', R.runStarts), null, { label: startAnnounce }) }] }); startAnnounce = null; }
   return out.filter(Boolean);
@@ -1729,7 +1753,7 @@ async function advance(opts = {}) {
   const endRunNow = !!(prev && lastRunSong && prev.key === lastRunSong.key);
   let jmBday = null;   // Just music on her birthday: Joe says a few words once, between two songs
   if (S.justMusic && !opts.first && !opts.silent && !next.focus && !opts.replaySegs && isBirthday() && lib.bdayJM !== today()) { lib.bdayJM = today(); saveLib(); jmBday = [lines('Happy birthday, Rim', [sub((R.birthday || {}).justMusic || 'Happy birthday, Rim!')])]; }
-  const talk = !voicesPending() && (!!jmBday || !!opts.replaySegs) || (!voicesPending() && !S.justMusic && !opts.silent && !next.focus && (opts.first || afterPod || endRunNow || songsSinceBreak >= breakEvery() || opts.forceTalk || adsDue || dedications.has(next.key)));
+  const talk = !voicesPending() && (!!jmBday || !!opts.replaySegs) || (!voicesPending() && !S.justMusic && !opts.silent && !next.focus && (opts.first || afterPod || endRunNow || songsSinceBreak >= breakEvery() || opts.forceTalk || adsDue || (giftHint && giftHint.key === next.key) || dedications.has(next.key)));
   console.info('[radio] advance', { next: next.t, talk, count: songsSinceBreak, every: breakEvery() });
   if (talk) songsSinceBreak = 0;
   const old = P();
