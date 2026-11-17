@@ -6,11 +6,16 @@ service cloud.firestore {
     match /users/{uid}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
+    // a radio's shared space, named by its secret radio code (sunny-tiger-mango-ocean-123): any device that signed in
+    // (anonymously is enough) and knows the code can read and write it. Without the code it cannot be found.
+    match /radios/{code}/{document=**} {
+      allow read, write: if request.auth != null && code.matches('^[a-z]+-[a-z]+-[a-z]+-[a-z]+-[0-9]{3}$');
+    }
     // the usage log: any copy of the radio may write its own small session line (no sign-in needed), with only
     // these fields; only the radio's owner can read or delete it (report.html, the usage-report job)
     match /usage/{id} {
       allow create, update: if id.size() < 64
-        && request.resource.data.keys().hasOnly(['day', 'start', 'minutes', 'where', 'fresh', 'device', 'lastSeen'])
+        && request.resource.data.keys().hasOnly(['day', 'start', 'minutes', 'where', 'fresh', 'device', 'lastSeen', 'code'])
         && request.resource.data.minutes is int && request.resource.data.minutes >= 0 && request.resource.data.minutes <= 1440
         && request.resource.data.where in ['website', 'app']
         && request.resource.data.day is string && request.resource.data.day.size() == 10;

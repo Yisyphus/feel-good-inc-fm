@@ -22,6 +22,13 @@ Rim's radio, built from Pale Blue Dot Radio.
 - Run `python3 tools/publish.py` before every commit.
 - Never reuse the Pale Blue Dot Firebase project or its data.
 
+## Cloud saving without an account
+- Every device signs in to Firebase by itself, anonymously, and saves into `radios/<radio code>/radio/...` (cloud.js).
+  The code (four words and three digits) lives in the browser, in the helper's `data/radio-code.txt`, and on the
+  report page (one link per code: open it on a new device to bring that radio back). Settings > Saved in the cloud >
+  Radio code shows it and takes another one. A Google sign-in still uses `users/<uid>/radio/...`.
+- A fresh start (R.freshStart) also gives a new code. Anonymous sign-in is switched on by the deploy (deploy.yml).
+
 ## Usage report and fresh start
 - The radio logs one small line per listening session in Firestore `usage/` (day, start, minutes, website/app, device id):
   nothing about what was played. Only the owner's Google account can read it (`firestore.rules`).

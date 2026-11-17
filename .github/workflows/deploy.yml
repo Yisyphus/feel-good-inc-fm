@@ -32,6 +32,24 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_RIM_FM }}
           channelId: live
           projectId: rim-fm
+      - name: Turn on anonymous sign-in (cloud saving without an account), if the service account may
+        continue-on-error: true
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_RIM_FM }}
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          pip install -q google-auth requests
+          python3 - "$RUNNER_TEMP/sa.json" <<'PYEOF'
+          import sys, google.oauth2.service_account as sa, google.auth.transport.requests as tr, requests
+          c = sa.Credentials.from_service_account_file(sys.argv[1], scopes=['https://www.googleapis.com/auth/cloud-platform']); c.refresh(tr.Request())
+          h = {'Authorization': 'Bearer ' + c.token, 'Content-Type': 'application/json', 'X-Goog-User-Project': 'rim-fm'}
+          u = 'https://identitytoolkit.googleapis.com/admin/v2/projects/rim-fm/config'
+          g = requests.get(u, headers=h); print('read config:', g.status_code, g.text[:300] if g.status_code != 200 else '')
+          if g.status_code == 200 and g.json().get('signIn', {}).get('anonymous', {}).get('enabled'): print('anonymous sign-in: already on'); sys.exit(0)
+          r = requests.patch(u + '?updateMask=signIn.anonymous.enabled', headers=h, json={'signIn': {'anonymous': {'enabled': True}}})
+          print('turn on anonymous sign-in:', r.status_code, r.text[:400]); sys.exit(0 if r.ok else 1)
+          PYEOF
+          rm -f "$RUNNER_TEMP/sa.json"
       - name: Deploy the database rules (only if the service account may; otherwise paste firestore.rules in the console)
         continue-on-error: true
         env:

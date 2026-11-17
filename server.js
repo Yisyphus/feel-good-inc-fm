@@ -441,6 +441,13 @@ const server = http.createServer(async (req, res) => {
       });
       return;
     }
+    // the radio code (cloud saving without an account): kept here too, so a wiped browser finds its radio again
+    if (u.pathname === '/api/code') {
+      const f = path.join(DATA, 'radio-code.txt'), ok = c => /^[a-z]+-[a-z]+-[a-z]+-[a-z]+-[0-9]{3}( [a-z0-9-]{1,40})?$/.test(c);   // the code, then the fresh start it belongs to
+      if (req.method === 'GET') { let c = ''; try { c = fs.readFileSync(f, 'utf8').trim(); } catch {} return ok(c) ? send(res, 200, c, 'text/plain') : send(res, 404, ''); }
+      let b = ''; req.on('data', x => b += x); req.on('end', () => { b = b.trim(); if (!ok(b)) return send(res, 400, { error: 'not a code' }); try { fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(f, b); send(res, 200, { ok: true }); } catch (e) { send(res, 500, { error: String(e) }); } });
+      return;
+    }
     if (u.pathname === '/api/library' && req.method === 'GET') return send(res, 200, readLib());
     if (u.pathname === '/api/library' && req.method === 'POST') {
       let b = ''; req.on('data', c => b += c); req.on('end', () => { try { writeLib(JSON.parse(b)); send(res, 200, { ok: true }); } catch (e) { send(res, 400, { error: String(e) }); } });

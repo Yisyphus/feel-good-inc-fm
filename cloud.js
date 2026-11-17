@@ -1,6 +1,9 @@
 // Cloud sync with Firebase: your library, favorites, removed songs, chosen versions, the cycle position and the
 // commercials live in your own Firestore space (users/<your id>/radio/...), so every device sees the same radio.
-// Sign in once with Google; the security rules only let your own account read or write it.
+// No sign-in needed: each device signs in by itself, anonymously, and keeps everything in one shared space named by
+// a secret radio code (radios/<code>/radio/...). Every device with the same code shares and merges the same radio.
+// The code lives in this browser, in the helper's data folder on the PC (so a wiped browser finds it again), and on
+// the owner's report page. Signing in with Google instead uses that account's own space (users/<uid>/radio/...).
 // If firebase-config.js is empty, or the internet is down, the radio simply works without the cloud.
 (function () {
   const C = window.Cloud = { enabled: false, user: null, status: 'off', onRemote: null, onStatus: null, onSignedIn: null, merge: null, ready: false };
@@ -20,12 +23,37 @@
     C.enabled = true;
   } catch (e) { console.warn('[cloud] init failed', e); authResolve(null); return; }
 
-  const ref = name => db.collection('users').doc(C.user.uid).collection('radio').doc(name);
+  // ---- the radio code: from a link (?code=...), this browser, or the helper; a new one if there is none ----
+  const WORDS = 'apple bamboo banana basil beach berry bird blue breeze bubble button cactus candy canyon cherry citrus cloud clover coast cocoa comet coral cosmic cotton crystal daisy desert dolphin dragon dream dune echo ember falcon fern fig firefly flame flute forest fox galaxy garden gecko ginger glow grape harbor hazel honey island ivy jade jasmine jelly jungle kiwi koala lagoon lantern lemon lily lime lotus lunar mango maple marble meadow melon meteor mint mocha moon mosaic nectar neon nova oasis ocean olive orbit orchid otter owl palm panda papaya peach pearl pebble pepper petal pine pixel planet plum pony poppy prism pumpkin puzzle quartz rabbit radio rain raven reef river robin rocket rose ruby saffron sail sapphire shell silver sky snow sparrow spice star storm sugar summer sun sunset swan tango thunder tiger topaz tulip tundra turtle valley velvet violet wave willow wind winter zebra'.split(' ');
+  const CODE_RE = /^[a-z]+-[a-z]+-[a-z]+-[a-z]+-[0-9]{3}$/;
+  C.newCode = () => { const r = new Uint32Array(5); crypto.getRandomValues(r); return [0, 1, 2, 3].map(i => WORDS[r[i] % WORDS.length]).join('-') + '-' + String(r[4] % 1000).padStart(3, '0'); };
+  const norm = c => String(c || '').trim().toLowerCase().replace(/[\s_]+/g, '-');
+  // the helper's copy carries the fresh start it belongs to: after a fresh start (R.freshStart) the radio gets a new code
+  const FRESH = String((window.RADIO || {}).freshStart || '');
+  const keepCode = c => { try { localStorage.setItem('fgi-code', c); } catch {} fetch('/api/code', { method: 'POST', body: c + (FRESH ? ' ' + FRESH : '') }).catch(() => {}); };
+  C.codeReady = (async () => {
+    let c = '';
+    try { const q = new URLSearchParams(location.search).get('code'); if (q && CODE_RE.test(norm(q))) { c = norm(q); history.replaceState(null, '', location.pathname); } } catch {}
+    let mine = ''; try { mine = localStorage.getItem('fgi-code') || ''; } catch {}
+    let helper = ''; try { const r = await fetch('/api/code', { cache: 'no-store' }); if (r.ok) { const [hc, hf] = String(await r.text()).trim().split(' '); if ((hf || '') === FRESH) helper = norm(hc); } } catch {}
+    if (!CODE_RE.test(helper)) helper = '';
+    c = c || helper || (CODE_RE.test(mine) ? mine : '') || C.newCode();   // on the PC, the helper's copy wins: it outlives the browser
+    if (c !== mine || c !== helper) keepCode(c);
+    return (C.code = c);
+  })();
+  C.setCode = async c => { c = norm(c); if (!CODE_RE.test(c)) throw new Error('That is not a radio code (it looks like sunny-tiger-mango-ocean-123).'); await C.flush(); keepCode(c); C.code = c; setTimeout(() => location.reload(), 300); };
+  C.isAnon = () => !!(C.user && C.user.isAnonymous);
+  const ref = name => (C.isAnon() ? db.collection('radios').doc(C.code) : db.collection('users').doc(C.user.uid)).collection('radio').doc(name);
   // Usage log (no sign-in needed): one small line per listening session, readable only by the radio's owner.
   // It holds the day, the start time, the minutes played, and website or app. Nothing about what was played.
   C.logUsage = (id, data) => db.collection('usage').doc(id).set(data, { merge: true }).catch(e => console.warn('[usage]', e.code || e));
   let unsub = [];
-  firebase.auth().onAuthStateChanged(u => {
+  firebase.auth().onAuthStateChanged(async u => {
+    if (!u) {   // nobody signed in: sign in by itself, anonymously (no account, nothing to type)
+      try { await firebase.auth().signInAnonymously(); return; }   // onAuthStateChanged comes again with the new user
+      catch (e) { console.warn('[cloud] anonymous sign-in failed', e.code || e); C.anonError = e.code || String(e); }
+    }
+    if (u && u.isAnonymous) await C.codeReady;
     C.user = u || null; C.ready = false;
     unsub.forEach(f => f()); unsub = [];
     setStatus(u ? 'signed in' : 'signed out');

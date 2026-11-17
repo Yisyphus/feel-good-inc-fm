@@ -2785,7 +2785,7 @@ $('btnCheckPc').onclick = () => window.open('check.html', '_blank', 'noopener');
 // One line per listening session in the rim-fm database (Cloud.logUsage), readable only by the radio's owner
 // (report.html, or the private usage-report job). No sign-in needed, and nothing about what was played or searched.
 let usage = null, usageDirty = false;
-function usageWrite() { if (!usage || !window.Cloud || !Cloud.logUsage) return; usageDirty = false; Cloud.logUsage(usage.id, { day: usage.day, start: usage.start, minutes: usage.minutes, where: usage.where, fresh: usage.fresh, device: usage.device, lastSeen: new Date().toISOString() }); }
+function usageWrite() { if (!usage || !window.Cloud || !Cloud.logUsage) return; usageDirty = false; Cloud.logUsage(usage.id, { day: usage.day, start: usage.start, minutes: usage.minutes, where: usage.where, fresh: usage.fresh, device: usage.device, code: (window.Cloud && Cloud.code) || '', lastSeen: new Date().toISOString() }); }
 function usageStart() {
   if (usage || !window.Cloud || !Cloud.logUsage || !Cloud.enabled) return;
   const now = new Date();
@@ -3035,6 +3035,9 @@ function updateCloudUI() {
   const b = $('btnCloud'), n = $('cloudNote'); if (!b || !n) return;
   if (!window.Cloud || !Cloud.enabled) { b.disabled = true; b.textContent = 'Sign in with Google'; n.textContent = window.FIREBASE_CONFIG ? 'unavailable (offline?)' : 'not set up yet'; return; }
   b.disabled = false;
+  const st = Cloud.status === 'saving' ? ' · saving…' : /^error/.test(Cloud.status) ? ' · ' + Cloud.status : '';
+  if (Cloud.isAnon && Cloud.isAnon()) { b.textContent = 'Radio code'; n.textContent = 'on, by itself (no account needed)' + st; if ($('codeText')) $('codeText').textContent = Cloud.code || ''; return; }
+  if (!Cloud.user && Cloud.anonError) { b.textContent = 'Sign in with Google'; n.textContent = 'only on this device for now (cloud saving is not switched on yet)'; return; }
   if (Cloud.user) { b.textContent = 'Sign out'; n.textContent = `synced as ${Cloud.user.email}` + (Cloud.status === 'saving' ? ' · saving…' : /^error/.test(Cloud.status) ? ' · ' + Cloud.status : ''); }
   else { b.textContent = 'Sign in with Google'; n.textContent = 'off: sign in to keep your playlists and liked songs on every device'; }
 }
@@ -3083,8 +3086,16 @@ $('libFile').onchange = async e => {
   toast(`Restored: ${d('fav')} liked songs, ${d('lists')} playlists and ${d('user')} songs added back.`);
   rlog('library restored', { files: n, favorites: (lib.fav || []).length, lists: (lib.lists || []).length, yourSongs: (lib.user || []).length });
 };
+const codeLink = () => location.origin + location.pathname.replace(/[^/]*$/, '') + '?code=' + encodeURIComponent(Cloud.code || '');
+$('btnCodeCopy').onclick = async () => { try { await navigator.clipboard.writeText(codeLink()); toast('Link copied. Open it on your other device.'); } catch { toast(codeLink()); } };
+$('btnCodeUse').onclick = async () => {
+  const c = $('codeIn').value; if (!c.trim()) return;
+  try { await Cloud.setCode(c); toast('Got it. Connecting to that radio…'); } catch (e) { toast(e.message || String(e)); }
+};
+$('btnGoogle').onclick = async e => { e.preventDefault(); try { await Cloud.flush(); await Cloud.signIn(); if (Cloud.user && !Cloud.isAnon()) { await syncWithCloud(); normalizeLib(); buildSongs(); updateHeart(); paintJust(); toast('Signed in with Google.'); } } catch (err) { toast('Sign-in did not work: ' + (err.message || err)); } updateCloudUI(); };
 $('btnCloud').onclick = async () => {
   if (!window.Cloud || !Cloud.enabled) return;
+  if (Cloud.isAnon && Cloud.isAnon()) { const box = $('codeBox'); $('codeText').textContent = Cloud.code || ''; box.style.display = box.style.display === 'none' ? 'block' : 'none'; return; }
   try {
     if (Cloud.user) { await Cloud.flush(); await Cloud.signOut(); toast('Signed out. This device keeps a copy of your stuff.'); }
     else {
