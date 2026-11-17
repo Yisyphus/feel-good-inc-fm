@@ -126,7 +126,7 @@ async function syncWithCloudNow() {
     setTimeout(() => Cloud.backupDaily(lib), 30000);   // today's backup, if no device has made it yet
     if (changedThere) { lib.savedAt = Date.now(); Cloud.push(lib, true); }
     rlog('cloud sync', { favorites: (lib.fav || []).length, yourSongs: (lib.user || []).length, removed: (lib.removed || []).length, sentUp: changedThere });
-  } catch (e) { console.warn('[cloud]', e); toast('Cloud: ' + (e.code === 'permission-denied' ? 'this Google account is not allowed.' : 'could not sync right now.')); }
+  } catch (e) { console.warn('[cloud]', e); rlog('cloud sync refused', { code: e.code || String(e) }); if (Cloud.isAnon && Cloud.isAnon()) { Cloud.status = 'error: ' + (e.code || 'offline'); updateCloudUI(); return; } toast('Cloud: ' + (e.code === 'permission-denied' ? 'this Google account is not allowed.' : 'could not sync right now.')); }
 }
 // Recording what you deliberately take away, so merging does not bring it back.
 function markDeleted(kind, key) { lib.del = lib.del || {}; lib.del[kind] = lib.del[kind] || {}; lib.del[kind][key] = Date.now(); }
@@ -3036,7 +3036,7 @@ function updateCloudUI() {
   if (!window.Cloud || !Cloud.enabled) { b.disabled = true; b.textContent = 'Sign in with Google'; n.textContent = window.FIREBASE_CONFIG ? 'unavailable (offline?)' : 'not set up yet'; return; }
   b.disabled = false;
   const st = Cloud.status === 'saving' ? ' · saving…' : /^error/.test(Cloud.status) ? ' · ' + Cloud.status : '';
-  if (Cloud.isAnon && Cloud.isAnon()) { b.textContent = 'Radio code'; n.textContent = 'on, by itself (no account needed)' + st; if ($('codeText')) $('codeText').textContent = Cloud.code || ''; return; }
+  if (Cloud.isAnon && Cloud.isAnon()) { b.textContent = 'Radio code'; n.textContent = (/^error/.test(Cloud.status) ? 'kept on this device for now; it goes up to the cloud as soon as it can' : 'on, by itself (no account needed)' + st); if ($('codeText')) $('codeText').textContent = Cloud.code || ''; return; }
   if (!Cloud.user && Cloud.anonError) { b.textContent = 'Sign in with Google'; n.textContent = 'only on this device for now (cloud saving is not switched on yet)'; return; }
   if (Cloud.user) { b.textContent = 'Sign out'; n.textContent = `synced as ${Cloud.user.email}` + (Cloud.status === 'saving' ? ' · saving…' : /^error/.test(Cloud.status) ? ' · ' + Cloud.status : ''); }
   else { b.textContent = 'Sign in with Google'; n.textContent = 'off: sign in to keep your playlists and liked songs on every device'; }
