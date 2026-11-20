@@ -50,7 +50,7 @@
     'That was {t}. Joe is still dancing. I can hear him.', '{a}, with {t}. Iconic behaviour.',
   ];
   R.moodBy = {
-    happy: ['This one is pure sunshine.', 'Good mood guaranteed, or your money back. It is free, so, you know.'],
+    happy: ['This one is pure sunshine.', 'Good mood incoming. Possibly the best one yet.'],
     dreamy: ['This one is a little dreamy. Float a bit.', 'A dreamy one. Perfect for staring at the ceiling.'],
     chill: ['A chill one. Breathe out.', 'Slowing it down for a minute.'],
     hype: ['Okay, energy time.', 'This one is loud. As it should be.', 'Warning: may cause head-banging.'],
@@ -76,11 +76,11 @@
   };
   R.idents = [
     'You are listening to {station}. Your radio. Literally, it is yours.',
-    'This is {station}, with Luna and Joe. Good songs, good vibes, zero ads.',
+    'This is {station}, with Luna and Joe. Good songs, good vibes, and only retro commercials.',
     '{station}. Made for Rim, approved by Rim. Hopefully.',
     'It is {time} on {station}. Still the best station in the building.',
     'Feel Good Inc. F M: where every song is a good song, and every day can be a good day.',
-    'You are tuned to {station}. No ads, no nonsense. Well, a little nonsense. From me.',
+    'You are tuned to {station}. No nonsense. Well, a little nonsense. From me.',
   ];
   R.checkins = [
     'Quick check-in: have you had some water today? The radio cares about your hydration.',
